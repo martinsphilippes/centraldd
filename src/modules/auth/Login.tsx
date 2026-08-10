@@ -4,6 +4,7 @@ import { configPendente } from '../../core/firebase-config'
 import { cadastrarPreCadastro } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
+import { InstalarBanner } from '../../components/InstalarApp'
 
 const MENSAGENS: Record<string, string> = {
   'auth/invalid-credential': 'E-mail ou senha incorretos.',
@@ -81,6 +82,9 @@ export function Login() {
           </span>
           <h1 className="mt-3 text-2xl font-bold text-white">MLDisponibilidade</h1>
           <p className="text-sm font-medium text-ml-amarelo">Mercado Livre 📦 • Gestão de motoristas</p>
+        </div>
+        <div className="mb-3">
+          <InstalarBanner />
         </div>
         <Card className="p-6">
           {configPendente ? (

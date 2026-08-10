@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useSessao } from '../context/SessaoContext'
 import { useDB } from '../core/db'
 import { Avatar } from '../components/ui'
+import { InstalarBanner } from '../components/InstalarApp'
 
 const NAV_COORDENADOR = [
   { para: '/', rotulo: 'Dashboard', icone: '📊' },
@@ -96,7 +97,12 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-8">{children}</main>
+      <main className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-8">
+        <div className="mb-4 empty:mb-0 lg:hidden">
+          <InstalarBanner />
+        </div>
+        {children}
+      </main>
 
       {/* Menu inferior mobile */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white lg:hidden">
