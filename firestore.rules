@@ -79,6 +79,12 @@ service cloud.firestore {
         (logado() && resource.data.motoristaId == request.auth.uid);
     }
 
+    // Limite de disponíveis por data, definido pelo coordenador.
+    match /limites/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
+    }
+
     match /notificacoes/{id} {
       allow read: if logado();
       allow create: if ehCoordenador();

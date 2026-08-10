@@ -15,7 +15,15 @@ import {
 import { firestore } from './firebase'
 import type { DB, Chamada, DiaAgenda, Escala, Motorista, Notificacao, Resposta } from './types'
 
-const VAZIO: DB = { motoristas: [], chamadas: [], respostas: [], escalas: [], agenda: [], notificacoes: [] }
+const VAZIO: DB = {
+  motoristas: [],
+  chamadas: [],
+  respostas: [],
+  escalas: [],
+  agenda: [],
+  limites: [],
+  notificacoes: [],
+}
 
 let state: DB = VAZIO
 let carregado = false
@@ -47,7 +55,7 @@ export function useDBCarregado(): boolean {
 /** Liga os listeners de tempo real (chamado após o login). */
 export function iniciarSincronizacao() {
   if (unsubs.length > 0) return
-  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'agenda', 'notificacoes']
+  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'agenda', 'limites', 'notificacoes']
   const chegaram = new Set<string>()
   for (const nome of colecoes) {
     unsubs.push(
@@ -126,6 +134,20 @@ export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
 
 export function removerDiaAgenda(id: string) {
   void deleteDoc(doc(firestore, 'agenda', id))
+}
+
+/** Define o limite de disponíveis de uma data (id do doc = a própria data). */
+export function salvarLimiteDia(data: string, maxDisponiveis: number) {
+  void setDoc(doc(firestore, 'limites', data), {
+    id: data,
+    data,
+    maxDisponiveis,
+    atualizadoEm: new Date().toISOString(),
+  })
+}
+
+export function removerLimiteDia(data: string) {
+  void deleteDoc(doc(firestore, 'limites', data))
 }
 
 export function salvarEscala(e: Escala) {

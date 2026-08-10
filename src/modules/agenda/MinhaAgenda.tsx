@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { removerDiaAgenda, salvarDiaAgenda, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { hojeISO, formatarDataLonga, rotuloDia } from '../../core/dates'
-import { ORDEM_STATUS, STATUS_RESPOSTA } from '../../core/constants'
+import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Periodo, StatusResposta } from '../../core/types'
 import { Button, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
@@ -17,6 +17,7 @@ export function MinhaAgenda() {
   const [horario, setHorario] = useState('12:00')
   const [periodo, setPeriodo] = useState<Periodo>('manha')
   const [observacao, setObservacao] = useState('')
+  const [erroVaga, setErroVaga] = useState('')
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
@@ -24,8 +25,25 @@ export function MinhaAgenda() {
   const minha = (data: string) => db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
   const precisaComplemento = (s: StatusResposta) => s === 'apos_horario' || s === 'meio_periodo' || s === 'outro'
 
+  const limiteDe = (data: string) => db.limites.find((l) => l.data === data)
+  const disponiveisEm = (data: string) =>
+    db.agenda.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
+
+  /** true se as vagas de disponibilidade da data acabaram (e eu ainda não ocupo uma). */
+  const vagasEsgotadas = (data: string) => {
+    const limite = limiteDe(data)
+    if (!limite) return false
+    const minhaMarcacao = minha(data)
+    const jaOcupoVaga = !!minhaMarcacao && STATUS_DISPONIVEIS.includes(minhaMarcacao.status)
+    return !jaOcupoVaga && disponiveisEm(data) >= limite.maxDisponiveis
+  }
+
   const escolher = (s: StatusResposta) => {
     if (!dataSelecionada) return
+    if (STATUS_DISPONIVEIS.includes(s) && vagasEsgotadas(dataSelecionada)) {
+      setErroVaga('😕 As vagas de disponibilidade deste dia já foram preenchidas. Você ainda pode marcar indisponibilidade, folga, atestado ou férias.')
+      return
+    }
     if (precisaComplemento(s)) {
       setStatusEscolhido(s)
       setHorario('12:00')
@@ -53,6 +71,7 @@ export function MinhaAgenda() {
   const fechar = () => {
     setDataSelecionada(null)
     setStatusEscolhido(null)
+    setErroVaga('')
   }
 
   return (
@@ -68,6 +87,8 @@ export function MinhaAgenda() {
         {dias.map((data) => {
           const marcado = minha(data)
           const info = marcado ? STATUS_RESPOSTA[marcado.status] : null
+          const limite = limiteDe(data)
+          const ocupadas = limite ? Math.min(disponiveisEm(data), limite.maxDisponiveis) : 0
           let detalhe = ''
           if (marcado?.status === 'apos_horario' && marcado.horario) detalhe = ` após ${marcado.horario}`
           if (marcado?.status === 'meio_periodo' && marcado.periodo)
@@ -82,8 +103,18 @@ export function MinhaAgenda() {
             >
               <span>
                 <span className="block text-sm font-bold text-slate-800">{rotuloDia(data)}</span>
+                {limite && (
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      vagasEsgotadas(data) ? 'text-red-600' : 'text-slate-500'
+                    }`}
+                  >
+                    🎯 {ocupadas}/{limite.maxDisponiveis} vagas
+                    {vagasEsgotadas(data) ? ' — esgotadas' : ''}
+                  </span>
+                )}
                 {marcado?.observacao && (
-                  <span className="text-[11px] italic text-slate-500">“{marcado.observacao}”</span>
+                  <span className="block text-[11px] italic text-slate-500">“{marcado.observacao}”</span>
                 )}
               </span>
               {info ? (
@@ -105,10 +136,17 @@ export function MinhaAgenda() {
         titulo={dataSelecionada ? `📅 ${formatarDataLonga(dataSelecionada)}` : ''}
         onFechar={fechar}
       >
+        {erroVaga && (
+          <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {erroVaga}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {ORDEM_STATUS.map((s) => {
             const info = STATUS_RESPOSTA[s]
             const atual = dataSelecionada ? minha(dataSelecionada)?.status === s : false
+            const bloqueado =
+              !!dataSelecionada && STATUS_DISPONIVEIS.includes(s) && vagasEsgotadas(dataSelecionada)
             return (
               <button
                 key={s}
@@ -117,7 +155,7 @@ export function MinhaAgenda() {
                   atual
                     ? 'border-ml-azul bg-blue-50 text-ml-azul'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                }`}
+                } ${bloqueado ? 'opacity-40' : ''}`}
               >
                 <span className="text-2xl">{info.emoji}</span>
                 {info.label}

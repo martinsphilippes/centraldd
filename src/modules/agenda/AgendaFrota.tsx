@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useDB } from '../../core/db'
+import { removerLimiteDia, salvarLimiteDia, useDB } from '../../core/db'
 import { hojeISO, formatarData, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaAgenda, Motorista } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
-import { Avatar, Badge, Button, Card, EmptyState, Select, StatCard } from '../../components/ui'
+import { Avatar, Badge, Button, Card, EmptyState, ProgressBar, Select, StatCard } from '../../components/ui'
 
 const DIAS_VISIVEIS = 14
 
@@ -23,6 +23,14 @@ export function AgendaFrota() {
   const [diaSelecionado, setDiaSelecionado] = useState(dias[0])
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
+  const [editandoLimite, setEditandoLimite] = useState(false)
+  const [novoLimite, setNovoLimite] = useState(40)
+
+  const limiteDoDia = db.limites.find((l) => l.data === diaSelecionado)
+  // Total de disponíveis do dia SEM filtros (é o número que consome as vagas).
+  const disponiveisTotais = db.agenda.filter(
+    (a) => a.data === diaSelecionado && STATUS_DISPONIVEIS.includes(a.status),
+  ).length
 
   const frota = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
@@ -170,9 +178,85 @@ export function AgendaFrota() {
         })}
       </div>
 
+      {/* Limite de vagas do dia */}
+      <Card className={`p-4 ${limiteDoDia ? 'border-ml-amarelo bg-yellow-50' : ''}`}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-2xl">🎯</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900">Limite de disponíveis — {rotuloDia(diaSelecionado)}</p>
+            {limiteDoDia ? (
+              <>
+                <p className="text-xs text-slate-600">
+                  {Math.min(disponiveisTotais, limiteDoDia.maxDisponiveis)}/{limiteDoDia.maxDisponiveis} vagas preenchidas
+                  {disponiveisTotais >= limiteDoDia.maxDisponiveis && ' — esgotadas, novos motoristas não conseguem mais se marcar disponíveis'}
+                </p>
+                <div className="mt-1.5 max-w-64">
+                  <ProgressBar
+                    valor={disponiveisTotais}
+                    total={limiteDoDia.maxDisponiveis}
+                    cor={disponiveisTotais >= limiteDoDia.maxDisponiveis ? 'bg-red-500' : 'bg-ml-azul'}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Sem limite — qualquer quantidade de motoristas pode se marcar disponível neste dia.
+              </p>
+            )}
+          </div>
+          {editandoLimite ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={novoLimite}
+                onChange={(e) => setNovoLimite(Number(e.target.value))}
+                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm outline-none focus:border-ml-azul"
+              />
+              <Button
+                variante="ml"
+                onClick={() => {
+                  if (novoLimite >= 1) {
+                    salvarLimiteDia(diaSelecionado, novoLimite)
+                    setEditandoLimite(false)
+                  }
+                }}
+              >
+                💾 Salvar
+              </Button>
+              <Button variante="fantasma" onClick={() => setEditandoLimite(false)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variante="secundario"
+                onClick={() => {
+                  setNovoLimite(limiteDoDia?.maxDisponiveis ?? 40)
+                  setEditandoLimite(true)
+                }}
+              >
+                {limiteDoDia ? '✏️ Alterar limite' : '🎯 Definir limite'}
+              </Button>
+              {limiteDoDia && (
+                <Button variante="perigo" onClick={() => removerLimiteDia(diaSelecionado)}>
+                  ✕ Remover
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* Indicadores do dia */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard icone="✅" valor={trabalham.length} rotulo="Vão trabalhar" destaque />
+        <StatCard
+          icone="✅"
+          valor={limiteDoDia ? `${trabalham.length}/${limiteDoDia.maxDisponiveis}` : trabalham.length}
+          rotulo="Vão trabalhar"
+          destaque
+        />
         <StatCard icone="❌" valor={naoTrabalham.length} rotulo="Não vão trabalhar" />
         <StatCard icone="❔" valor={semMarcacao.length} rotulo="Não informaram" />
       </div>

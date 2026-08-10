@@ -80,6 +80,14 @@ export interface DiaAgenda {
   atualizadaEm: string
 }
 
+/** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
+export interface LimiteDia {
+  id: string // = data (YYYY-MM-DD)
+  data: string
+  maxDisponiveis: number
+  atualizadoEm: string
+}
+
 export interface Notificacao {
   id: string
   motoristaId: string | null // null = todos
@@ -95,6 +103,7 @@ export interface DB {
   respostas: Resposta[]
   escalas: Escala[]
   agenda: DiaAgenda[]
+  limites: LimiteDia[]
   notificacoes: Notificacao[]
 }
 
