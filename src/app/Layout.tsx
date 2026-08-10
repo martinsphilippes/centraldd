@@ -8,6 +8,7 @@ import { InstalarBanner } from '../components/InstalarApp'
 const NAV_COORDENADOR = [
   { para: '/', rotulo: 'Dashboard', icone: '📊' },
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰' },
+  { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅' },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚' },
   { para: '/escalas', rotulo: 'Escalas', icone: '📋' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈' },
