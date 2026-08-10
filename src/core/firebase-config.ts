@@ -3,12 +3,12 @@
 // a segurança real fica nas regras do Firestore (arquivo firestore.rules).
 
 export const firebaseConfig = {
-  apiKey: 'COLE_AQUI',
-  authDomain: 'COLE_AQUI.firebaseapp.com',
-  projectId: 'COLE_AQUI',
-  storageBucket: 'COLE_AQUI.appspot.com',
-  messagingSenderId: 'COLE_AQUI',
-  appId: 'COLE_AQUI',
+  apiKey: 'AIzaSyDdvtQq72uYh4zzjFMg5PxXj9QPH78flks',
+  authDomain: 'mldisponibilidade.firebaseapp.com',
+  projectId: 'mldisponibilidade',
+  storageBucket: 'mldisponibilidade.firebasestorage.app',
+  messagingSenderId: '433672910251',
+  appId: '1:433672910251:web:a43fa36f7f07a8c42f4eee',
 }
 
 /** true enquanto a configuração ainda não foi preenchida. */
