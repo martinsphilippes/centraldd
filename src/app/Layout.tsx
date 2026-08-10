@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useSessao } from '../context/SessaoContext'
 import { useDB } from '../core/db'
@@ -19,19 +19,15 @@ const NAV_MOTORISTA = [
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { papel, motoristaId, setPapel, setMotoristaId } = useSessao()
+  const { papel, motoristaId, usuarioEmail, sair } = useSessao()
   const db = useDB()
-  const navigate = useNavigate()
   const nav = papel === 'coordenador' ? NAV_COORDENADOR : NAV_MOTORISTA
   const motorista = db.motoristas.find((m) => m.id === motoristaId)
-  const naoLidas = motorista
-    ? db.notificacoes.filter((n) => !n.lida && (n.motoristaId === null || n.motoristaId === motorista.id)).length
-    : 0
-
-  const trocarPapel = (novo: 'coordenador' | 'motorista') => {
-    setPapel(novo)
-    navigate(novo === 'coordenador' ? '/' : '/responder')
-  }
+  const nomeExibicao = papel === 'coordenador' ? 'Coordenação' : (motorista?.nome ?? usuarioEmail ?? '')
+  const naoLidas =
+    papel === 'motorista' && motoristaId
+      ? db.notificacoes.filter((n) => !n.lida && (n.motoristaId === null || n.motoristaId === motoristaId)).length
+      : 0
 
   return (
     <div className="min-h-screen lg:pl-60">
@@ -67,7 +63,7 @@ export function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-white/10 p-3 text-[10px] text-slate-400">
-          Operação logística • v1.0
+          Operação logística • v2.0
         </div>
       </aside>
 
@@ -79,37 +75,22 @@ export function Layout({ children }: { children: ReactNode }) {
             <span className="text-sm font-bold">MLDisponibilidade</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-0.5 text-xs font-medium">
-              <button
-                onClick={() => trocarPapel('coordenador')}
-                className={`rounded-md px-2.5 py-1.5 transition-colors ${papel === 'coordenador' ? 'bg-ml-navy text-white shadow-sm' : 'text-slate-600'}`}
-              >
-                🧑‍💼 Coordenador
-              </button>
-              <button
-                onClick={() => trocarPapel('motorista')}
-                className={`rounded-md px-2.5 py-1.5 transition-colors ${papel === 'motorista' ? 'bg-ml-navy text-white shadow-sm' : 'text-slate-600'}`}
-              >
-                🚚 Motorista
-              </button>
-            </div>
-            {papel === 'motorista' && motorista && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={motorista.id}
-                  onChange={(e) => setMotoristaId(e.target.value)}
-                  className="max-w-36 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
-                  title="Motorista da demonstração"
-                >
-                  {db.motoristas.filter((m) => m.ativo).map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nome}
-                    </option>
-                  ))}
-                </select>
-                <Avatar nome={motorista.nome} tamanho="sm" />
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+              <Avatar nome={nomeExibicao || '?'} tamanho="sm" />
+              <div className="hidden text-left sm:block">
+                <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
+                <div className="text-[10px] leading-tight text-slate-500">
+                  {papel === 'coordenador' ? '🧑‍💼 Coordenador' : '🚚 Motorista'}
+                </div>
               </div>
-            )}
+            </div>
+            <button
+              onClick={() => void sair()}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              title="Sair da conta"
+            >
+              Sair ↪
+            </button>
           </div>
         </div>
       </header>

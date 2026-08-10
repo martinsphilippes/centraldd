@@ -1,8 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getDB, salvarMotorista, uid } from '../../core/db'
+import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
+
+const ERROS_CONTA: Record<string, string> = {
+  'auth/email-already-in-use': 'Este e-mail já possui uma conta. Use outro e-mail.',
+  'auth/invalid-email': 'E-mail inválido.',
+  'auth/weak-password': 'Senha muito fraca — use pelo menos 6 caracteres.',
+  'auth/network-request-failed': 'Sem conexão. Verifique sua internet.',
+}
 
 export function MotoristaForm() {
   const { id } = useParams()
@@ -16,22 +24,46 @@ export function MotoristaForm() {
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
   const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
 
-  const enviar = (e: FormEvent) => {
+  const criarAcesso = !existente && email.trim() !== ''
+
+  const enviar = async (e: FormEvent) => {
     e.preventDefault()
-    const novoId = existente?.id ?? uid()
-    salvarMotorista({
-      id: novoId,
-      nome: nome.trim(),
-      telefone: telefone.replace(/\D/g, ''),
-      cidade: cidade.trim(),
-      equipe: equipe.trim(),
-      operacao,
-      veiculo,
-      ativo,
-      criadoEm: existente?.criadoEm ?? new Date().toISOString(),
-    })
-    navigate(`/motoristas/${novoId}`)
+    setErro('')
+    if (criarAcesso && senha.length < 6) {
+      setErro('A senha precisa ter pelo menos 6 caracteres.')
+      return
+    }
+    setSalvando(true)
+    try {
+      let novoId = existente?.id ?? uid()
+      if (criarAcesso) {
+        // O id do motorista passa a ser o uid da conta — vínculo direto login ↔ cadastro.
+        novoId = await criarContaMotorista(email.trim(), senha)
+        await salvarPerfilMotorista(novoId, email.trim())
+      }
+      salvarMotorista({
+        id: novoId,
+        nome: nome.trim(),
+        telefone: telefone.replace(/\D/g, ''),
+        cidade: cidade.trim(),
+        equipe: equipe.trim(),
+        operacao,
+        veiculo,
+        ativo,
+        criadoEm: existente?.criadoEm ?? new Date().toISOString(),
+      })
+      navigate(`/motoristas/${novoId}`)
+    } catch (err) {
+      const codigo = (err as { code?: string }).code ?? ''
+      setErro(ERROS_CONTA[codigo] ?? 'Não foi possível salvar. Tente novamente.')
+    } finally {
+      setSalvando(false)
+    }
   }
 
   return (
@@ -81,12 +113,48 @@ export function MotoristaForm() {
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="h-4 w-4" />
             Motorista ativo na frota
           </label>
+
+          {!existente && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="mb-2 text-sm font-bold text-slate-800">🔑 Acesso ao aplicativo</p>
+              <p className="mb-3 text-xs text-slate-600">
+                Defina e-mail e senha para o motorista entrar no app e responder as chamadas.
+                Envie os dados a ele pelo WhatsApp. (Deixe em branco para cadastrar sem acesso por enquanto.)
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="📧 E-mail de acesso">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="motorista@email.com"
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="🔒 Senha (mín. 6 caracteres)">
+                  <Input
+                    type="text"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="Ex.: rota2026"
+                    autoComplete="off"
+                    required={criarAcesso}
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {erro && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button type="button" variante="secundario" onClick={() => navigate(-1)}>
               Cancelar
             </Button>
-            <Button type="submit" variante="ml">
-              💾 Salvar
+            <Button type="submit" variante="ml" disabled={salvando}>
+              {salvando ? 'Salvando…' : '💾 Salvar'}
             </Button>
           </div>
         </form>

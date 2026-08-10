@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Regras de segurança do MLDisponibilidade.
+// Cole este conteúdo em: Console do Firebase → Firestore Database → Regras → Publicar.
+//
+// Modelo de acesso:
+//  - Coordenador: lê e escreve tudo (chamadas, motoristas, escalas, notificações).
+//  - Motorista: lê os dados da operação e só escreve a PRÓPRIA resposta.
+//  - Contas criadas no Console sem perfil viram coordenador no 1º login.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function ehCoordenador() {
+      return logado() &&
+        get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel == 'coordenador';
+    }
+
+    match /perfis/{uid} {
+      allow read: if logado();
+      // Coordenador cria perfis de motoristas; apenas o e-mail do administrador
+      // pode criar o próprio perfil de coordenador no primeiro login.
+      allow create: if ehCoordenador() ||
+        (logado() && request.auth.uid == uid &&
+         request.auth.token.email == 'martinsphilippes@gmail.com');
+      allow update, delete: if ehCoordenador();
+    }
+
+    match /motoristas/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
+    }
+
+    match /chamadas/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
+    }
+
+    match /escalas/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
+    }
+
+    match /respostas/{id} {
+      allow read: if logado();
+      // Motorista grava apenas a própria resposta; coordenador pode tudo.
+      allow write: if ehCoordenador() ||
+        (logado() && request.resource.data.motoristaId == request.auth.uid);
+    }
+
+    match /notificacoes/{id} {
+      allow read: if logado();
+      allow create: if ehCoordenador();
+      allow update: if logado(); // marcar como lida
+      allow delete: if ehCoordenador();
+    }
+  }
+}

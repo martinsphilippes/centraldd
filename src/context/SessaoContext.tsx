@@ -1,50 +1,77 @@
-// Sessão de demonstração: alterna entre o perfil coordenador e a visão
-// de um motorista específico. Em produção, vira autenticação real —
-// as telas já são separadas por papel.
+// Sessão real com Firebase Auth (e-mail/senha).
+// O papel do usuário vem da coleção `perfis` do Firestore:
+//   - contas criadas no Console sem perfil → viram coordenador no 1º login;
+//   - contas de motorista são criadas pelo coordenador no app, já com perfil.
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { auth, firestore } from '../core/firebase'
+import { EMAILS_COORDENADOR } from '../core/firebase-config'
+import { iniciarSincronizacao, pararSincronizacao } from '../core/db'
 import type { Papel } from '../core/types'
-import { useDB } from '../core/db'
+
+export type StatusAuth = 'carregando' | 'deslogado' | 'logado'
 
 interface Sessao {
+  statusAuth: StatusAuth
   papel: Papel
   motoristaId: string | null
-  setPapel: (p: Papel) => void
-  setMotoristaId: (id: string) => void
+  usuarioEmail: string | null
+  entrar: (email: string, senha: string) => Promise<void>
+  sair: () => Promise<void>
 }
 
 const Ctx = createContext<Sessao | null>(null)
 
-const KEY = 'mldisponibilidade:sessao'
-
 export function SessaoProvider({ children }: { children: ReactNode }) {
-  const db = useDB()
-  const [papel, setPapel] = useState<Papel>(() => {
-    try {
-      return (JSON.parse(localStorage.getItem(KEY) ?? '{}').papel as Papel) ?? 'coordenador'
-    } catch {
-      return 'coordenador'
-    }
-  })
-  const [motoristaId, setMotoristaId] = useState<string | null>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(KEY) ?? '{}').motoristaId ?? null
-    } catch {
-      return null
-    }
-  })
-
-  // Garante um motorista selecionado para a visão do motorista.
-  const idValido = motoristaId && db.motoristas.some((m) => m.id === motoristaId)
-    ? motoristaId
-    : db.motoristas.find((m) => m.ativo)?.id ?? null
+  const [statusAuth, setStatusAuth] = useState<StatusAuth>('carregando')
+  const [papel, setPapel] = useState<Papel>('coordenador')
+  const [motoristaId, setMotoristaId] = useState<string | null>(null)
+  const [usuarioEmail, setUsuarioEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify({ papel, motoristaId: idValido }))
-  }, [papel, idValido])
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        pararSincronizacao()
+        setUsuarioEmail(null)
+        setMotoristaId(null)
+        setStatusAuth('deslogado')
+        return
+      }
+      // Carrega (ou cria) o perfil do usuário.
+      const ref = doc(firestore, 'perfis', user.uid)
+      const snap = await getDoc(ref)
+      if (snap.exists()) {
+        const p = snap.data() as { papel: Papel; motoristaId?: string | null }
+        setPapel(p.papel)
+        setMotoristaId(p.motoristaId ?? null)
+      } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
+        // E-mail autorizado sem perfil → coordenador no primeiro login.
+        await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
+        setPapel('coordenador')
+        setMotoristaId(null)
+      } else {
+        // Conta sem perfil e sem autorização: bloqueia o acesso.
+        await signOut(auth)
+        return
+      }
+      setUsuarioEmail(user.email)
+      iniciarSincronizacao()
+      setStatusAuth('logado')
+    })
+  }, [])
+
+  const entrar = async (email: string, senha: string) => {
+    await signInWithEmailAndPassword(auth, email.trim(), senha)
+  }
+
+  const sair = async () => {
+    await signOut(auth)
+  }
 
   return (
-    <Ctx.Provider value={{ papel, motoristaId: idValido, setPapel, setMotoristaId }}>
+    <Ctx.Provider value={{ statusAuth, papel, motoristaId, usuarioEmail, entrar, sair }}>
       {children}
     </Ctx.Provider>
   )

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './Layout'
 import { useSessao } from '../context/SessaoContext'
+import { Login } from '../modules/auth/Login'
 import { Dashboard } from '../modules/dashboard/Dashboard'
 import { ChamadasList } from '../modules/chamadas/ChamadasList'
 import { ChamadaForm } from '../modules/chamadas/ChamadaForm'
@@ -16,7 +17,25 @@ import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
 
 export default function App() {
-  const { papel } = useSessao()
+  const { statusAuth, papel } = useSessao()
+
+  if (statusAuth === 'carregando') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ml-navy">
+        <div className="text-center">
+          <span className="inline-flex h-16 w-16 animate-pulse items-center justify-center rounded-2xl bg-ml-amarelo text-3xl">
+            🚚
+          </span>
+          <p className="mt-3 text-sm font-medium text-slate-300">Carregando…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (statusAuth === 'deslogado') {
+    return <Login />
+  }
+
   return (
     <Layout>
       <Routes>

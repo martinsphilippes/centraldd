@@ -1,154 +1,135 @@
-// Store reativo com persistência em localStorage.
-// A UI consome via useDB()/useStore; trocar a persistência por uma API
-// exige alterar apenas load()/persist() deste arquivo.
+// Camada de dados sobre o Firestore (tempo real).
+// A UI continua usando useDB()/getDB() e as operações de domínio abaixo —
+// os listeners onSnapshot mantêm o estado local sincronizado com o banco
+// central, então qualquer alteração aparece em todos os aparelhos na hora.
 
 import { useSyncExternalStore } from 'react'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  setDoc,
+  type Unsubscribe,
+} from 'firebase/firestore'
+import { firestore } from './firebase'
 import type { DB, Chamada, Escala, Motorista, Notificacao, Resposta } from './types'
-import { criarSeed } from './seed'
 
-const STORAGE_KEY = 'mldisponibilidade:db:v1'
+const VAZIO: DB = { motoristas: [], chamadas: [], respostas: [], escalas: [], notificacoes: [] }
 
-type Listener = () => void
-
-function load(): DB {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as DB
-  } catch {
-    // dados corrompidos → recomeça do seed
-  }
-  const seed = criarSeed()
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(seed))
-  return seed
-}
-
-let state: DB = load()
-const listeners = new Set<Listener>()
-
-function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-}
+let state: DB = VAZIO
+let carregado = false
+const listeners = new Set<() => void>()
+const unsubs: Unsubscribe[] = []
 
 function emit() {
   for (const l of listeners) l()
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
 }
 
 export function getDB(): DB {
   return state
 }
 
-export function setDB(updater: (db: DB) => DB) {
-  state = updater(state)
-  persist()
-  emit()
-}
-
-function subscribe(listener: Listener): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-// Sincroniza alterações feitas em outras abas (tempo real entre janelas).
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY && e.newValue) {
-      state = JSON.parse(e.newValue) as DB
-      emit()
-    }
-  })
-}
-
-/** Hook reativo: re-renderiza quando qualquer coleção muda. */
 export function useDB(): DB {
   return useSyncExternalStore(subscribe, getDB)
+}
+
+/** true depois que todas as coleções chegaram do servidor pela primeira vez. */
+export function useDBCarregado(): boolean {
+  return useSyncExternalStore(subscribe, () => carregado)
+}
+
+/** Liga os listeners de tempo real (chamado após o login). */
+export function iniciarSincronizacao() {
+  if (unsubs.length > 0) return
+  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'notificacoes']
+  const chegaram = new Set<string>()
+  for (const nome of colecoes) {
+    unsubs.push(
+      onSnapshot(collection(firestore, nome), (snap) => {
+        state = {
+          ...state,
+          [nome]: snap.docs.map((d) => ({ ...d.data(), id: d.id })),
+        }
+        chegaram.add(nome)
+        if (chegaram.size === colecoes.length) carregado = true
+        emit()
+      }),
+    )
+  }
+}
+
+/** Desliga os listeners e limpa o estado (chamado no logout). */
+export function pararSincronizacao() {
+  for (const u of unsubs) u()
+  unsubs.length = 0
+  state = VAZIO
+  carregado = false
+  emit()
 }
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
 
-// ---- Operações de domínio ----
+// ---- Operações de domínio (gravam no Firestore; o snapshot atualiza a UI) ----
 
 export function salvarMotorista(m: Motorista) {
-  setDB((db) => {
-    const existe = db.motoristas.some((x) => x.id === m.id)
-    return {
-      ...db,
-      motoristas: existe ? db.motoristas.map((x) => (x.id === m.id ? m : x)) : [...db.motoristas, m],
-    }
-  })
+  void setDoc(doc(firestore, 'motoristas', m.id), m)
 }
 
 export function removerMotorista(id: string) {
-  setDB((db) => ({ ...db, motoristas: db.motoristas.filter((m) => m.id !== id) }))
+  void deleteDoc(doc(firestore, 'motoristas', id))
 }
 
 export function salvarChamada(c: Chamada) {
-  setDB((db) => {
-    const existe = db.chamadas.some((x) => x.id === c.id)
-    return {
-      ...db,
-      chamadas: existe ? db.chamadas.map((x) => (x.id === c.id ? c : x)) : [...db.chamadas, c],
-    }
-  })
+  void setDoc(doc(firestore, 'chamadas', c.id), c)
 }
 
-/** Registra ou atualiza a resposta do motorista a uma chamada (1 por motorista/chamada). */
+/** Registra ou atualiza a resposta (id determinístico garante 1 por motorista/chamada). */
 export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
-  setDB((db) => {
-    const anterior = db.respostas.find(
-      (x) => x.chamadaId === r.chamadaId && x.motoristaId === r.motoristaId,
-    )
-    const nova: Resposta = {
-      ...r,
-      id: anterior?.id ?? uid(),
-      respondidaEm: new Date().toISOString(),
-    }
-    return {
-      ...db,
-      respostas: anterior
-        ? db.respostas.map((x) => (x.id === anterior.id ? nova : x))
-        : [...db.respostas, nova],
-    }
-  })
+  const id = `${r.chamadaId}_${r.motoristaId}`
+  const dados: Record<string, unknown> = {
+    id,
+    chamadaId: r.chamadaId,
+    motoristaId: r.motoristaId,
+    status: r.status,
+    respondidaEm: new Date().toISOString(),
+  }
+  // Firestore não aceita undefined — só inclui os complementos preenchidos.
+  if (r.horario !== undefined) dados.horario = r.horario
+  if (r.periodo !== undefined) dados.periodo = r.periodo
+  if (r.observacao !== undefined) dados.observacao = r.observacao
+  void setDoc(doc(firestore, 'respostas', id), dados)
 }
 
 export function salvarEscala(e: Escala) {
-  setDB((db) => {
-    const existe = db.escalas.some((x) => x.id === e.id)
-    return {
-      ...db,
-      escalas: existe ? db.escalas.map((x) => (x.id === e.id ? e : x)) : [...db.escalas, e],
-    }
-  })
+  void setDoc(doc(firestore, 'escalas', e.id), e)
 }
 
 export function removerEscala(id: string) {
-  setDB((db) => ({ ...db, escalas: db.escalas.filter((e) => e.id !== id) }))
+  void deleteDoc(doc(firestore, 'escalas', id))
 }
 
 export function enviarNotificacao(n: Omit<Notificacao, 'id' | 'lida' | 'criadaEm'>) {
-  setDB((db) => ({
-    ...db,
-    notificacoes: [
-      { ...n, id: uid(), lida: false, criadaEm: new Date().toISOString() },
-      ...db.notificacoes,
-    ],
-  }))
+  const id = uid()
+  void setDoc(doc(firestore, 'notificacoes', id), {
+    ...n,
+    id,
+    lida: false,
+    criadaEm: new Date().toISOString(),
+  })
 }
 
 export function marcarNotificacoesLidas(motoristaId: string) {
-  setDB((db) => ({
-    ...db,
-    notificacoes: db.notificacoes.map((n) =>
-      n.motoristaId === motoristaId || n.motoristaId === null ? { ...n, lida: true } : n,
-    ),
-  }))
-}
-
-export function resetarDemo() {
-  const seed = criarSeed()
-  state = seed
-  persist()
-  emit()
+  for (const n of state.notificacoes) {
+    if (!n.lida && (n.motoristaId === motoristaId || n.motoristaId === null)) {
+      void setDoc(doc(firestore, 'notificacoes', n.id), { ...n, lida: true })
+    }
+  }
 }
