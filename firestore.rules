@@ -79,17 +79,20 @@ service cloud.firestore {
         (logado() && resource.data.motoristaId == request.auth.uid);
     }
 
-    // Limite de disponíveis por data, definido pelo coordenador.
-    match /limites/{id} {
-      allow read: if logado();
-      allow write: if ehCoordenador();
-    }
-
     match /notificacoes/{id} {
       allow read: if logado();
       allow create: if ehCoordenador();
       allow update: if logado(); // marcar como lida
       allow delete: if ehCoordenador();
+    }
+
+    // Regra geral (vale para limites e para QUALQUER coleção nova do sistema):
+    // todo usuário logado lê; apenas o coordenador escreve.
+    // Coleções com escrita do motorista (respostas, agenda, pré-cadastro)
+    // têm as permissões extras específicas definidas acima.
+    match /{colecao}/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
     }
   }
 }
