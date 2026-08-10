@@ -4,9 +4,11 @@ rules_version = '2';
 // Cole este conteúdo em: Console do Firebase → Firestore Database → Regras → Publicar.
 //
 // Modelo de acesso:
-//  - Coordenador: lê e escreve tudo (chamadas, motoristas, escalas, notificações).
-//  - Motorista: lê os dados da operação e só escreve a PRÓPRIA resposta.
-//  - Contas criadas no Console sem perfil viram coordenador no 1º login.
+//  - Coordenador: lê e escreve tudo (chamadas, motoristas, escalas, agenda, notificações).
+//  - Motorista APROVADO: lê os dados da operação e só escreve a PRÓPRIA resposta/agenda.
+//  - Pré-cadastro: qualquer conta pode criar o próprio cadastro (aprovado=false) e
+//    o próprio perfil de motorista; só ganha acesso após aprovação do coordenador.
+//  - Contas criadas no Console sem perfil viram coordenador no 1º login (e-mail autorizado).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -20,19 +22,35 @@ service cloud.firestore {
         get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel == 'coordenador';
     }
 
+    // Motorista aprovado = tem cadastro próprio sem a marca aprovado=false.
+    function motoristaAprovado() {
+      let m = get(/databases/$(database)/documents/motoristas/$(request.auth.uid)).data;
+      return !('aprovado' in m) || m.aprovado == true;
+    }
+
     match /perfis/{uid} {
       allow read: if logado();
-      // Coordenador cria perfis de motoristas; apenas o e-mail do administrador
-      // pode criar o próprio perfil de coordenador no primeiro login.
+      // Coordenador cria perfis; o e-mail do administrador cria o próprio perfil de
+      // coordenador; e qualquer conta pode criar o PRÓPRIO perfil de motorista
+      // (pré-cadastro — o acesso real só vem com a aprovação do cadastro).
       allow create: if ehCoordenador() ||
         (logado() && request.auth.uid == uid &&
-         request.auth.token.email == 'martinsphilippes@gmail.com');
+         request.auth.token.email == 'martinsphilippes@gmail.com') ||
+        (logado() && request.auth.uid == uid &&
+         request.resource.data.papel == 'motorista' &&
+         request.resource.data.motoristaId == uid);
       allow update, delete: if ehCoordenador();
     }
 
     match /motoristas/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador();
+      // Pré-cadastro: a conta cria o próprio registro, obrigatoriamente com
+      // aprovado=false e ativo=false — quem libera é o coordenador.
+      allow create: if ehCoordenador() ||
+        (logado() && request.auth.uid == id &&
+         request.resource.data.aprovado == false &&
+         request.resource.data.ativo == false);
+      allow update, delete: if ehCoordenador();
     }
 
     match /chamadas/{id} {
@@ -47,9 +65,18 @@ service cloud.firestore {
 
     match /respostas/{id} {
       allow read: if logado();
-      // Motorista grava apenas a própria resposta; coordenador pode tudo.
+      // Motorista aprovado grava apenas a própria resposta; coordenador pode tudo.
       allow write: if ehCoordenador() ||
-        (logado() && request.resource.data.motoristaId == request.auth.uid);
+        (logado() && request.resource.data.motoristaId == request.auth.uid && motoristaAprovado());
+    }
+
+    // Disponibilidade por data marcada pelo próprio motorista (agenda).
+    match /agenda/{id} {
+      allow read: if logado();
+      allow create, update: if ehCoordenador() ||
+        (logado() && request.resource.data.motoristaId == request.auth.uid && motoristaAprovado());
+      allow delete: if ehCoordenador() ||
+        (logado() && resource.data.motoristaId == request.auth.uid);
     }
 
     match /notificacoes/{id} {

@@ -55,6 +55,8 @@ export function MotoristaForm() {
         operacao,
         veiculo,
         ativo,
+        // Cadastro feito pelo coordenador já nasce aprovado; edição preserva o estado.
+        aprovado: existente ? (existente.aprovado ?? true) : true,
         criadoEm: existente?.criadoEm ?? new Date().toISOString(),
       })
       navigate(`/motoristas/${novoId}`)

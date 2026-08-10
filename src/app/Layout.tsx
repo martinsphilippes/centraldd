@@ -14,8 +14,9 @@ const NAV_COORDENADOR = [
 
 const NAV_MOTORISTA = [
   { para: '/responder', rotulo: 'Responder', icone: '✋' },
-  { para: '/minhas-escalas', rotulo: 'Minhas escalas', icone: '📋' },
-  { para: '/notificacoes', rotulo: 'Notificações', icone: '🔔' },
+  { para: '/agenda', rotulo: 'Agenda', icone: '📅' },
+  { para: '/minhas-escalas', rotulo: 'Escalas', icone: '📋' },
+  { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔' },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {

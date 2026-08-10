@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerMotorista, useDB } from '../../core/db'
-import { formatarDataHora, formatarDataLonga } from '../../core/dates'
+import { formatarDataHora, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
+import { STATUS_RESPOSTA } from '../../core/constants'
 import { estatisticasMotoristas } from '../../core/stats'
 import { formatarTelefone } from '../../core/comunicacao'
 import { Avatar, Badge, Button, Card, EmptyState, StatCard } from '../../components/ui'
@@ -23,6 +24,9 @@ export function MotoristaDetail() {
     .filter((r) => r.motoristaId === motorista.id)
     .sort((a, b) => b.respondidaEm.localeCompare(a.respondidaEm))
   const escalas = db.escalas.filter((e) => e.motoristaIds.includes(motorista.id))
+  const agendaFutura = db.agenda
+    .filter((a) => a.motoristaId === motorista.id && a.data >= hojeISO())
+    .sort((a, b) => a.data.localeCompare(b.data))
 
   const excluir = () => {
     if (confirm(`Remover ${motorista.nome} da frota? O histórico de respostas será mantido.`)) {
@@ -68,6 +72,29 @@ export function MotoristaDetail() {
         <StatCard icone="🗓️" valor={estat?.respondidas ?? 0} rotulo="Chamadas respondidas" />
         <StatCard icone="📋" valor={escalas.length} rotulo="Escalas participadas" />
       </div>
+
+      {agendaFutura.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-1 font-bold text-slate-900">📅 Agenda marcada pelo motorista</h2>
+          <p className="mb-3 text-xs text-slate-500">Disponibilidade que ele mesmo marcou para os próximos dias.</p>
+          <ul className="flex flex-wrap gap-2">
+            {agendaFutura.map((a) => {
+              const info = STATUS_RESPOSTA[a.status]
+              let detalhe = ''
+              if (a.status === 'apos_horario' && a.horario) detalhe = ` após ${a.horario}`
+              if (a.status === 'meio_periodo' && a.periodo) detalhe = ` (${a.periodo === 'manha' ? 'manhã' : 'tarde'})`
+              return (
+                <li key={a.id} className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${info.cor}`}>
+                  <span className="mr-1 font-bold">{rotuloDia(a.data)}:</span>
+                  {info.emoji} {info.label}
+                  {detalhe}
+                  {a.observacao && <span className="italic"> — “{a.observacao}”</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-4">

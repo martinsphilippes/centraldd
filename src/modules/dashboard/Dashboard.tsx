@@ -20,9 +20,21 @@ export function Dashboard() {
   const entregasHoje = chamadasHoje.reduce((s, c) => s + c.qtdNecessaria, 0)
 
   const serie = serieDisponibilidade(db, hojeISO(-6), hojeISO(1))
+  const preCadastros = db.motoristas.filter((m) => m.aprovado === false).length
 
   return (
     <div className="space-y-5">
+      {preCadastros > 0 && (
+        <Link
+          to="/motoristas"
+          className="flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 transition-colors hover:bg-amber-100"
+        >
+          <span className="text-sm font-semibold text-slate-800">
+            ⏳ {preCadastros} pré-cadastro{preCadastros > 1 ? 's' : ''} de motorista aguardando sua aprovação
+          </span>
+          <span className="text-sm font-bold text-ml-azul">Revisar →</span>
+        </Link>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">📊 Painel da operação</h1>

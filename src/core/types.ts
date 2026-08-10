@@ -22,6 +22,8 @@ export interface Motorista {
   operacao: string
   veiculo: string
   ativo: boolean
+  /** false = pré-cadastro aguardando aprovação do coordenador (ausente = aprovado). */
+  aprovado?: boolean
   criadoEm: string
   transportadoraId?: string
   cdId?: string
@@ -66,6 +68,18 @@ export interface Escala {
   criadaEm: string
 }
 
+/** Disponibilidade marcada pelo próprio motorista para uma data específica. */
+export interface DiaAgenda {
+  id: string // `${motoristaId}_${data}`
+  motoristaId: string
+  data: string // YYYY-MM-DD
+  status: StatusResposta
+  horario?: string
+  periodo?: Periodo
+  observacao?: string
+  atualizadaEm: string
+}
+
 export interface Notificacao {
   id: string
   motoristaId: string | null // null = todos
@@ -80,6 +94,7 @@ export interface DB {
   chamadas: Chamada[]
   respostas: Resposta[]
   escalas: Escala[]
+  agenda: DiaAgenda[]
   notificacoes: Notificacao[]
 }
 

@@ -13,9 +13,9 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { firestore } from './firebase'
-import type { DB, Chamada, Escala, Motorista, Notificacao, Resposta } from './types'
+import type { DB, Chamada, DiaAgenda, Escala, Motorista, Notificacao, Resposta } from './types'
 
-const VAZIO: DB = { motoristas: [], chamadas: [], respostas: [], escalas: [], notificacoes: [] }
+const VAZIO: DB = { motoristas: [], chamadas: [], respostas: [], escalas: [], agenda: [], notificacoes: [] }
 
 let state: DB = VAZIO
 let carregado = false
@@ -47,7 +47,7 @@ export function useDBCarregado(): boolean {
 /** Liga os listeners de tempo real (chamado após o login). */
 export function iniciarSincronizacao() {
   if (unsubs.length > 0) return
-  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'notificacoes']
+  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'agenda', 'notificacoes']
   const chegaram = new Set<string>()
   for (const nome of colecoes) {
     unsubs.push(
@@ -106,6 +106,26 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   if (r.periodo !== undefined) dados.periodo = r.periodo
   if (r.observacao !== undefined) dados.observacao = r.observacao
   void setDoc(doc(firestore, 'respostas', id), dados)
+}
+
+/** Marca a disponibilidade de uma data na agenda (1 registro por motorista/data). */
+export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
+  const id = `${d.motoristaId}_${d.data}`
+  const dados: Record<string, unknown> = {
+    id,
+    motoristaId: d.motoristaId,
+    data: d.data,
+    status: d.status,
+    atualizadaEm: new Date().toISOString(),
+  }
+  if (d.horario !== undefined) dados.horario = d.horario
+  if (d.periodo !== undefined) dados.periodo = d.periodo
+  if (d.observacao !== undefined) dados.observacao = d.observacao
+  void setDoc(doc(firestore, 'agenda', id), dados)
+}
+
+export function removerDiaAgenda(id: string) {
+  void deleteDoc(doc(firestore, 'agenda', id))
 }
 
 export function salvarEscala(e: Escala) {

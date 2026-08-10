@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './Layout'
 import { useSessao } from '../context/SessaoContext'
+import { useDB, useDBCarregado } from '../core/db'
 import { Login } from '../modules/auth/Login'
+import { AguardandoAprovacao } from '../modules/auth/AguardandoAprovacao'
 import { Dashboard } from '../modules/dashboard/Dashboard'
 import { ChamadasList } from '../modules/chamadas/ChamadasList'
 import { ChamadaForm } from '../modules/chamadas/ChamadaForm'
@@ -13,27 +15,38 @@ import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
 import { EscalasList } from '../modules/escalas/EscalasList'
 import { EscalaDetail } from '../modules/escalas/EscalaDetail'
 import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
+import { MinhaAgenda } from '../modules/agenda/MinhaAgenda'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
 
-export default function App() {
-  const { statusAuth, papel } = useSessao()
-
-  if (statusAuth === 'carregando') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-ml-navy">
-        <div className="text-center">
-          <span className="inline-flex h-16 w-16 animate-pulse items-center justify-center rounded-2xl bg-ml-amarelo text-3xl">
-            🚚
-          </span>
-          <p className="mt-3 text-sm font-medium text-slate-300">Carregando…</p>
-        </div>
+function TelaCarregando() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-ml-navy">
+      <div className="text-center">
+        <span className="inline-flex h-16 w-16 animate-pulse items-center justify-center rounded-2xl bg-ml-amarelo text-3xl">
+          🚚
+        </span>
+        <p className="mt-3 text-sm font-medium text-slate-300">Carregando…</p>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
-  if (statusAuth === 'deslogado') {
-    return <Login />
+export default function App() {
+  const { statusAuth, papel, motoristaId } = useSessao()
+  const db = useDB()
+  const carregado = useDBCarregado()
+
+  if (statusAuth === 'carregando') return <TelaCarregando />
+  if (statusAuth === 'deslogado') return <Login />
+
+  // Motorista com pré-cadastro ainda não aprovado: segura o acesso.
+  if (papel === 'motorista') {
+    if (!carregado) return <TelaCarregando />
+    const meuCadastro = db.motoristas.find((m) => m.id === motoristaId)
+    if (meuCadastro && meuCadastro.aprovado === false) {
+      return <AguardandoAprovacao nome={meuCadastro.nome} />
+    }
   }
 
   return (
@@ -57,6 +70,7 @@ export default function App() {
         ) : (
           <>
             <Route path="/responder" element={<ResponderChamadas />} />
+            <Route path="/agenda" element={<MinhaAgenda />} />
             <Route path="/minhas-escalas" element={<MinhasEscalas />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
             <Route path="*" element={<Navigate to="/responder" replace />} />
