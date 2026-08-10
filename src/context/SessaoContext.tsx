@@ -18,6 +18,7 @@ interface Sessao {
   papel: Papel
   motoristaId: string | null
   usuarioEmail: string | null
+  erroSessao: string | null
   entrar: (email: string, senha: string) => Promise<void>
   sair: () => Promise<void>
 }
@@ -29,6 +30,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [papel, setPapel] = useState<Papel>('coordenador')
   const [motoristaId, setMotoristaId] = useState<string | null>(null)
   const [usuarioEmail, setUsuarioEmail] = useState<string | null>(null)
+  const [erroSessao, setErroSessao] = useState<string | null>(null)
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
@@ -39,26 +41,33 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         setStatusAuth('deslogado')
         return
       }
-      // Carrega (ou cria) o perfil do usuário.
-      const ref = doc(firestore, 'perfis', user.uid)
-      const snap = await getDoc(ref)
-      if (snap.exists()) {
-        const p = snap.data() as { papel: Papel; motoristaId?: string | null }
-        setPapel(p.papel)
-        setMotoristaId(p.motoristaId ?? null)
-      } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
-        // E-mail autorizado sem perfil → coordenador no primeiro login.
-        await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
-        setPapel('coordenador')
-        setMotoristaId(null)
-      } else {
-        // Conta sem perfil e sem autorização: bloqueia o acesso.
+      try {
+        // Carrega (ou cria) o perfil do usuário.
+        const ref = doc(firestore, 'perfis', user.uid)
+        const snap = await getDoc(ref)
+        if (snap.exists()) {
+          const p = snap.data() as { papel: Papel; motoristaId?: string | null }
+          setPapel(p.papel)
+          setMotoristaId(p.motoristaId ?? null)
+        } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
+          // E-mail autorizado sem perfil → coordenador no primeiro login.
+          await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
+          setPapel('coordenador')
+          setMotoristaId(null)
+        } else {
+          // Conta sem perfil e sem autorização: bloqueia o acesso.
+          setErroSessao('Sua conta ainda não foi liberada. Fale com a coordenação.')
+          await signOut(auth)
+          return
+        }
+        setErroSessao(null)
+        setUsuarioEmail(user.email)
+        iniciarSincronizacao()
+        setStatusAuth('logado')
+      } catch {
+        setErroSessao('Não foi possível carregar seus dados. Tente novamente em instantes.')
         await signOut(auth)
-        return
       }
-      setUsuarioEmail(user.email)
-      iniciarSincronizacao()
-      setStatusAuth('logado')
     })
   }, [])
 
@@ -71,7 +80,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ statusAuth, papel, motoristaId, usuarioEmail, entrar, sair }}>
+    <Ctx.Provider value={{ statusAuth, papel, motoristaId, usuarioEmail, erroSessao, entrar, sair }}>
       {children}
     </Ctx.Provider>
   )

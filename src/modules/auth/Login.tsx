@@ -13,11 +13,12 @@ const MENSAGENS: Record<string, string> = {
 }
 
 export function Login() {
-  const { entrar } = useSessao()
+  const { entrar, erroSessao } = useSessao()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const mensagemErro = erro || erroSessao
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault()
@@ -72,9 +73,9 @@ export function Login() {
                   placeholder="••••••••"
                 />
               </Field>
-              {erro && (
+              {mensagemErro && (
                 <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {erro}
+                  {mensagemErro}
                 </p>
               )}
               <Button type="submit" variante="ml" className="w-full" disabled={enviando}>
