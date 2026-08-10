@@ -19,6 +19,10 @@ profissional, rápido e intuitivo.
 - 📑 **Relatórios**: diário/semanal/mensal, taxa de resposta, rankings, histórico individual
 - ⬇️ **Exportação** CSV, Excel e PDF
 
+## Acesso
+
+Aplicativo em produção: **https://mldisponibilidade.vercel.app** (deploy automático a cada push neste repositório).
+
 ## Como rodar
 
 ```bash
