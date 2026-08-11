@@ -5,13 +5,26 @@ import {
   signInWithEmailAndPassword,
   signOut as fbSignOut,
 } from 'firebase/auth'
-import { deleteDoc, doc, getFirestore, setDoc } from 'firebase/firestore'
+import {
+  deleteDoc,
+  doc,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  setDoc,
+} from 'firebase/firestore'
 import { firebaseConfig } from './firebase-config'
 import type { Motorista } from './types'
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const firestore = getFirestore(app)
+
+// Cache local persistente (IndexedDB): o app abre INSTANTANEAMENTE com os dados
+// da última sessão e sincroniza com o servidor em segundo plano.
+export const firestore = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+})
 
 /** Grava o perfil de acesso de um motorista (papel + vínculo com o cadastro). */
 export async function salvarPerfilMotorista(uid: string, email: string) {

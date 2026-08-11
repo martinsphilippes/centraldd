@@ -41,21 +41,46 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         setStatusAuth('deslogado')
         return
       }
+
+      // Atalho de velocidade: perfil já conhecido deste aparelho → entra na hora,
+      // sem esperar a rede. A validação com o servidor segue em segundo plano.
+      const chaveCache = `mldisponibilidade:perfil:${user.uid}`
+      const emCache = localStorage.getItem(chaveCache)
+      if (emCache) {
+        try {
+          const p = JSON.parse(emCache) as { papel: Papel; motoristaId: string | null }
+          setPapel(p.papel)
+          setMotoristaId(p.motoristaId)
+          setUsuarioEmail(user.email)
+          setErroSessao(null)
+          iniciarSincronizacao()
+          setStatusAuth('logado')
+        } catch {
+          localStorage.removeItem(chaveCache)
+        }
+      }
+
       try {
-        // Carrega (ou cria) o perfil do usuário.
+        // Carrega (ou cria) o perfil do usuário no servidor.
         const ref = doc(firestore, 'perfis', user.uid)
         const snap = await getDoc(ref)
         if (snap.exists()) {
           const p = snap.data() as { papel: Papel; motoristaId?: string | null }
           setPapel(p.papel)
           setMotoristaId(p.motoristaId ?? null)
+          localStorage.setItem(
+            chaveCache,
+            JSON.stringify({ papel: p.papel, motoristaId: p.motoristaId ?? null }),
+          )
         } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
           // E-mail autorizado sem perfil → coordenador no primeiro login.
           await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
           setPapel('coordenador')
           setMotoristaId(null)
+          localStorage.setItem(chaveCache, JSON.stringify({ papel: 'coordenador', motoristaId: null }))
         } else {
           // Conta sem perfil e sem autorização: bloqueia o acesso.
+          localStorage.removeItem(chaveCache)
           setErroSessao('Sua conta ainda não foi liberada. Fale com a coordenação.')
           await signOut(auth)
           return
@@ -65,8 +90,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         iniciarSincronizacao()
         setStatusAuth('logado')
       } catch {
-        setErroSessao('Não foi possível carregar seus dados. Tente novamente em instantes.')
-        await signOut(auth)
+        // Sem rede agora: se o perfil era conhecido, mantém a sessão do cache.
+        if (!emCache) {
+          setErroSessao('Não foi possível carregar seus dados. Tente novamente em instantes.')
+          await signOut(auth)
+        }
       }
     })
   }, [])
