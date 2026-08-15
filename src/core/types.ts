@@ -184,6 +184,8 @@ export interface ResumoDia {
   sprReferencia: string
   pacotes: string
   veiculosDiv: string
+  /** true = AM (Utilitários/VUC) contado automaticamente da programação do Meli. */
+  amAutomatico?: boolean
   transportadoras: ResumoTransportadora[]
   mm: ResumoMM[]
   atualizadoEm: string

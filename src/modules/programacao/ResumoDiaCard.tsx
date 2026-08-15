@@ -19,6 +19,7 @@ function novoResumo(data: string, base: string): ResumoDia {
     sprReferencia: '',
     pacotes: '',
     veiculosDiv: '',
+    amAutomatico: true,
     transportadoras: [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }],
     mm: MM_PADRAO.map((m) => ({ ...m })),
     atualizadoEm: '',
@@ -26,6 +27,27 @@ function novoResumo(data: string, base: string): ResumoDia {
 }
 
 const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
+
+function normVeic(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+}
+
+/** Conta os veículos da programação do dia por tipo (base do AM automático). */
+function contarVeiculos(prog: { veiculo: string }[]) {
+  let utilitarios = 0
+  let vuc = 0
+  const outros = new Map<string, number>()
+  for (const p of prog) {
+    const v = normVeic(p.veiculo)
+    if (v.includes('UTIL')) utilitarios++
+    else if (v.includes('VUC')) vuc++
+    else {
+      const nome = p.veiculo.trim() || 'Outros'
+      outros.set(nome, (outros.get(nome) ?? 0) + 1)
+    }
+  }
+  return { utilitarios, vuc, outros: [...outros.entries()], total: prog.length }
+}
 
 export function ResumoDiaCard({ data }: { data: string }) {
   const db = useDB()
@@ -45,14 +67,24 @@ export function ResumoDiaCard({ data }: { data: string }) {
 
   const r = editando ? rascunho : existente ?? novoResumo(data, '')
 
-  const totalRotas = r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
-  const totalUtil = r.transportadoras.reduce((s, t) => s + num(t.utilitarios), 0)
-  const totalVuc = r.transportadoras.reduce((s, t) => s + num(t.vuc), 0)
-  const totalPosicoes = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
-
-  // Conferência com a programação importada do dia.
+  // Programação importada do dia → base do AM automático.
   const progDoDia = db.programacao.filter((p) => p.data === data)
   const rotasProg = progDoDia.length
+  const cont = contarVeiculos(progDoDia)
+  const auto = r.amAutomatico !== false && rotasProg > 0
+
+  // Linhas AM: automáticas (por veículo, da programação) ou manuais (por transportadora).
+  const linhasAM = auto
+    ? [{ nome: 'Programação (Meli)', utilitarios: String(cont.utilitarios), vuc: cont.vuc ? String(cont.vuc) : '' }]
+    : r.transportadoras
+  const outrosAM = auto ? cont.outros : []
+
+  const totalUtil = auto ? cont.utilitarios : r.transportadoras.reduce((s, t) => s + num(t.utilitarios), 0)
+  const totalVuc = auto ? cont.vuc : r.transportadoras.reduce((s, t) => s + num(t.vuc), 0)
+  const totalRotas = auto
+    ? cont.total
+    : r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
+  const totalPosicoes = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
 
   const salvar = () => {
     salvarResumoDia(rascunho)
@@ -62,9 +94,11 @@ export function ResumoDiaCard({ data }: { data: string }) {
   const imprimir = () => {
     const w = window.open('', '_blank')
     if (!w) return
-    const linhaT = r.transportadoras
-      .map((t) => `<tr><td>${t.nome}</td><td class="c">${t.utilitarios || ''}</td><td class="c">${t.vuc || ''}</td></tr>`)
-      .join('')
+    const linhaT =
+      linhasAM
+        .map((t) => `<tr><td>${t.nome}</td><td class="c">${t.utilitarios || ''}</td><td class="c">${t.vuc || ''}</td></tr>`)
+        .join('') +
+      outrosAM.map(([tipo, qtd]) => `<tr><td>${tipo}</td><td class="c" colspan="2">${qtd}</td></tr>`).join('')
     const linhaMM = r.mm
       .map(
         (m) =>
@@ -144,7 +178,35 @@ export function ResumoDiaCard({ data }: { data: string }) {
           </div>
 
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">AM — por transportadora</p>
+            <label className="mb-2 flex items-center gap-2 rounded-lg border border-ml-amarelo bg-yellow-50 px-3 py-2 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={rascunho.amAutomatico !== false}
+                onChange={(e) => setRascunho({ ...rascunho, amAutomatico: e.target.checked })}
+              />
+              🔄 Puxar Utilitários/VUC automaticamente da programação do Meli
+            </label>
+            {rascunho.amAutomatico !== false ? (
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                {rotasProg > 0 ? (
+                  <>
+                    Da programação de {formatarData(data)}: <strong>{cont.utilitarios} utilitários</strong> +{' '}
+                    <strong>{cont.vuc} VUC</strong>
+                    {cont.outros.length > 0 && ` + ${cont.outros.map(([t, q]) => `${q} ${t}`).join(', ')}`} ={' '}
+                    <strong>{cont.total} rotas</strong>. Atualiza sozinho a cada importação.
+                  </>
+                ) : (
+                  <>Ainda não há programação importada para este dia — importe a planilha do Meli, ou desmarque acima para preencher à mão.</>
+                )}
+              </p>
+            ) : (
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">AM — por transportadora (manual)</p>
+            )}
+          </div>
+
+          {rascunho.amAutomatico === false && (
+          <div>
             <div className="space-y-2">
               {rascunho.transportadoras.map((t, i) => (
                 <div key={i} className="flex gap-2">
@@ -168,6 +230,7 @@ export function ResumoDiaCard({ data }: { data: string }) {
               </Button>
             </div>
           </div>
+          )}
 
           <div>
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes (quantidade × posições por unidade)</p>
@@ -255,15 +318,21 @@ export function ResumoDiaCard({ data }: { data: string }) {
         <table className="w-full border-collapse">
           <tbody>
             <tr>
-              <td className={`${cel} ${SUB} text-left`}>AM · Transportadora</td>
+              <td className={`${cel} ${SUB} text-left`}>AM {auto ? '· automático' : '· Transportadora'}</td>
               <td className={`${cel} ${SUB}`}>Utilitários</td>
               <td className={`${cel} ${SUB}`}>VUC</td>
             </tr>
-            {r.transportadoras.map((t, i) => (
+            {linhasAM.map((t, i) => (
               <tr key={i}>
                 <td className={`${cel} font-semibold text-slate-700`}>{t.nome || '—'}</td>
                 <td className={`${cel} text-center`}>{t.utilitarios || ''}</td>
                 <td className={`${cel} text-center`}>{t.vuc || ''}</td>
+              </tr>
+            ))}
+            {outrosAM.map(([tipo, qtd]) => (
+              <tr key={tipo}>
+                <td className={`${cel} font-semibold text-slate-700`}>{tipo}</td>
+                <td className={`${cel} text-center text-slate-600`} colSpan={2}>{qtd}</td>
               </tr>
             ))}
             <tr>
@@ -291,8 +360,9 @@ export function ResumoDiaCard({ data }: { data: string }) {
         </table>
 
         <p className="text-center text-[11px] text-slate-400">
-          Total de rotas no resumo: {totalUtil} utilitários + {totalVuc} VUC = {totalRotas}
-          {rotasProg > 0 && ` • programação importada tem ${rotasProg} rota(s)`}
+          {auto ? '🔄 AM automático da programação: ' : 'Total do resumo: '}
+          {totalUtil} utilitários + {totalVuc} VUC = {totalRotas} rotas
+          {!auto && rotasProg > 0 && ` • programação importada tem ${rotasProg} rota(s)`}
         </p>
       </div>
     </Card>
