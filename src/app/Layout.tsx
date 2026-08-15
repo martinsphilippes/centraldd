@@ -7,6 +7,7 @@ import { InstalarBanner } from '../components/InstalarApp'
 
 const NAV_COORDENADOR = [
   { para: '/', rotulo: 'Dashboard', icone: '📊' },
+  { para: '/programacao', rotulo: 'Programação', icone: '📆' },
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰' },
   { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅' },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️' },
@@ -106,15 +107,15 @@ export function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      {/* Menu inferior mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-200 bg-white lg:hidden">
+      {/* Menu inferior mobile (rolável quando há muitos itens) */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-slate-200 bg-white lg:hidden">
         {nav.map((item) => (
           <NavLink
             key={item.para}
             to={item.para}
             end={item.para === '/'}
             className={({ isActive }) =>
-              `relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+              `relative flex min-w-16 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
                 isActive ? 'text-ml-azul' : 'text-slate-500'
               }`
             }

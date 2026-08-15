@@ -1,0 +1,453 @@
+import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  importarProgramacao,
+  removerProgramacaoItem,
+  salvarProgramacaoItem,
+  useDB,
+} from '../../core/db'
+import { cidadesDoTexto, parsearPlanilhaMeli, type ProgramacaoImportada } from '../../core/planilha'
+import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
+import type { ProgramacaoItem } from '../../core/types'
+import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
+import { Badge, Button, Card, EmptyState, Field, Input, Modal, SegmentedControl, Select, StatCard } from '../../components/ui'
+
+/** Remove acentos e baixa a caixa para comparar nomes. */
+function normalizar(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function ordemOnda(onda: string): number {
+  const n = onda.match(/(\d)/)
+  return n ? Number(n[1]) : 99
+}
+
+type Visao = 'dia' | 'rodizio'
+type PeriodoRodizio = '7' | '30' | 'todos'
+
+export function Programacao() {
+  const db = useDB()
+  const [visao, setVisao] = useState<Visao>('dia')
+  const [periodoRodizio, setPeriodoRodizio] = useState<PeriodoRodizio>('30')
+  const [modalImportar, setModalImportar] = useState(false)
+  const [textoColado, setTextoColado] = useState('')
+  const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
+  const [importando, setImportando] = useState(false)
+  const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
+  const arquivoRef = useRef<HTMLInputElement>(null)
+
+  const motoristas = db.motoristas
+    .filter((m) => m.ativo && m.aprovado !== false)
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+  const porId = new Map(motoristas.map((m) => [m.id, m]))
+
+  const datas = [...new Set(db.programacao.map((p) => p.data))].sort().reverse()
+  const [dataSelecionada, setDataSelecionada] = useState<string>('')
+  const dataAtiva = dataSelecionada || datas.find((d) => d >= hojeISO()) || datas[0] || hojeISO()
+
+  const doDia = db.programacao
+    .filter((p) => p.data === dataAtiva)
+    .sort(
+      (a, b) =>
+        ordemOnda(a.onda) - ordemOnda(b.onda) ||
+        a.rota.localeCompare(b.rota, 'pt-BR', { numeric: true }),
+    )
+  const alterados = doDia.filter((p) => p.driverFinal !== p.driverPlanejado)
+  const semVinculo = doDia.filter((p) => !p.motoristaId)
+
+  /** Vincula o nome da planilha a um motorista do cadastro (match único pelo 1º nome). */
+  const vincular = (driver: string): string | null => {
+    const alvo = normalizar(driver).split(' ')[0]
+    if (!alvo) return null
+    const candidatos = motoristas.filter((m) => {
+      const nome = normalizar(m.nome)
+      return nome.startsWith(normalizar(driver)) || nome.split(' ')[0] === alvo
+    })
+    return candidatos.length === 1 ? candidatos[0].id : null
+  }
+
+  const atualizarPrevia = (texto: string) => {
+    setTextoColado(texto)
+    setPrevia(texto.trim() ? parsearPlanilhaMeli(texto) : null)
+  }
+
+  const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0]
+    if (!arquivo) return
+    const leitor = new FileReader()
+    leitor.onload = () => atualizarPrevia(String(leitor.result ?? ''))
+    leitor.readAsText(arquivo)
+  }
+
+  const confirmarImportacao = async () => {
+    if (!previa || previa.itens.length === 0) return
+    setImportando(true)
+    try {
+      await importarProgramacao(previa.itens, vincular)
+      setDataSelecionada(previa.itens[0].data)
+      setModalImportar(false)
+      setTextoColado('')
+      setPrevia(null)
+      setVisao('dia')
+    } finally {
+      setImportando(false)
+    }
+  }
+
+  const definirMotorista = (p: ProgramacaoItem, motoristaId: string) => {
+    if (!motoristaId) {
+      // Restaura o plano original do Meli.
+      salvarProgramacaoItem({ ...p, motoristaId: vincular(p.driverPlanejado), driverFinal: p.driverPlanejado })
+      return
+    }
+    const m = porId.get(motoristaId)
+    if (m) salvarProgramacaoItem({ ...p, motoristaId, driverFinal: m.nome })
+  }
+
+  const tabelaDia = (): Tabela => ({
+    titulo: `Programacao ${formatarData(dataAtiva)}`,
+    colunas: ['Data', 'Driver (plano Meli)', 'Driver (definido)', 'Alterado?', 'Rota', 'Cidade', 'Veículo', 'Onda', 'Doca'],
+    linhas: doDia.map((p) => [
+      formatarData(p.data),
+      p.driverPlanejado,
+      p.driverFinal,
+      p.driverFinal !== p.driverPlanejado ? 'SIM' : '',
+      p.rota,
+      p.cidade,
+      p.veiculo,
+      p.onda,
+      p.doca,
+    ]),
+  })
+
+  // ---- Rodízio: quantas vezes cada driver foi a cada cidade ----
+  const rodizio = useMemo(() => {
+    const dataMinima =
+      periodoRodizio === 'todos' ? '0000-01-01' : hojeISO(-(Number(periodoRodizio) - 1))
+    const itens = db.programacao.filter((p) => p.data >= dataMinima)
+    const drivers = new Map<string, { nome: string; motoristaId: string | null; porCidade: Map<string, number>; total: number }>()
+    const cidades = new Map<string, number>()
+    for (const p of itens) {
+      const chave = normalizar(p.driverFinal)
+      if (!chave) continue
+      const d = drivers.get(chave) ?? { nome: p.driverFinal, motoristaId: p.motoristaId, porCidade: new Map(), total: 0 }
+      if (p.motoristaId) d.motoristaId = p.motoristaId
+      for (const cidade of cidadesDoTexto(p.cidade)) {
+        const c = cidade.toUpperCase()
+        d.porCidade.set(c, (d.porCidade.get(c) ?? 0) + 1)
+        d.total++
+        cidades.set(c, (cidades.get(c) ?? 0) + 1)
+      }
+      drivers.set(chave, d)
+    }
+    const listaCidades = [...cidades.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
+    const listaDrivers = [...drivers.values()].sort((a, b) => b.total - a.total)
+    return { listaCidades, listaDrivers }
+  }, [db.programacao, periodoRodizio])
+
+  const tabelaRodizio = (): Tabela => ({
+    titulo: `Rodizio motorista x cidade (${periodoRodizio === 'todos' ? 'todo o histórico' : `últimos ${periodoRodizio} dias`})`,
+    colunas: ['Driver', 'Total', ...rodizio.listaCidades],
+    linhas: rodizio.listaDrivers.map((d) => [
+      d.nome,
+      d.total,
+      ...rodizio.listaCidades.map((c) => d.porCidade.get(c) ?? 0),
+    ]),
+  })
+
+  const corCalor = (v: number, max: number) => {
+    if (v === 0) return ''
+    const forca = Math.min(1, v / Math.max(1, max))
+    if (forca > 0.66) return 'bg-ml-azul text-white font-bold'
+    if (forca > 0.33) return 'bg-blue-200 text-slate-800 font-semibold'
+    return 'bg-blue-50 text-slate-700'
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">📆 Programação do dia</h1>
+          <p className="text-sm text-slate-500">
+            O plano do Meli + os ajustes do dispatcher — cada troca fica registrada e vira histórico.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <SegmentedControl
+            opcoes={[
+              { valor: 'dia', rotulo: '📋 Dia' },
+              { valor: 'rodizio', rotulo: '🔄 Rodízio' },
+            ]}
+            valor={visao}
+            onChange={setVisao}
+          />
+          <Button variante="ml" onClick={() => setModalImportar(true)}>
+            📥 Importar planilha Meli
+          </Button>
+        </div>
+      </div>
+
+      {visao === 'dia' ? (
+        db.programacao.length === 0 ? (
+          <EmptyState
+            icone="📆"
+            titulo="Nenhuma programação importada"
+            descricao="Cole a planilha diária do Meli em “Importar planilha Meli” para começar."
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Dia:</span>
+              <Select value={dataAtiva} onChange={(e) => setDataSelecionada(e.target.value)} style={{ width: 'auto' }}>
+                {datas.map((d) => (
+                  <option key={d} value={d}>
+                    {rotuloDia(d)}
+                  </option>
+                ))}
+              </Select>
+              <div className="ml-auto flex gap-2">
+                <Button variante="secundario" onClick={() => exportarCSV(tabelaDia())}>⬇️ CSV</Button>
+                <Button variante="secundario" onClick={() => exportarExcel(tabelaDia())}>⬇️ Excel</Button>
+                <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(dataAtiva))}>🖨️ PDF</Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard icone="🛣️" valor={doDia.length} rotulo="Rotas no dia" />
+              <StatCard icone="🔁" valor={alterados.length} rotulo="Trocas do dispatcher" destaque={alterados.length > 0} />
+              <StatCard icone="❓" valor={semVinculo.length} rotulo="Sem vínculo com cadastro" />
+            </div>
+
+            <Card className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left uppercase tracking-wide text-slate-500">
+                    <th className="px-2 py-2.5">Onda</th>
+                    <th className="px-2 py-2.5">Rota</th>
+                    <th className="px-2 py-2.5">🚚 Driver (definido)</th>
+                    <th className="px-2 py-2.5">Plano Meli</th>
+                    <th className="px-2 py-2.5">Cidade</th>
+                    <th className="px-2 py-2.5">Veículo</th>
+                    <th className="px-2 py-2.5 text-center">Doca</th>
+                    <th className="px-2 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doDia.map((p) => {
+                    const alterado = p.driverFinal !== p.driverPlanejado
+                    return (
+                      <tr key={p.id} className={`border-b border-slate-100 ${alterado ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
+                        <td className="whitespace-nowrap px-2 py-2 font-semibold text-slate-600">{p.onda || '—'}</td>
+                        <td className="whitespace-nowrap px-2 py-2 font-bold text-slate-900">{p.rota}</td>
+                        <td className="whitespace-nowrap px-2 py-2">
+                          <select
+                            className={`rounded-lg border px-1.5 py-1 text-xs outline-none focus:border-ml-azul ${
+                              p.motoristaId ? 'border-slate-300 bg-white' : 'border-amber-300 bg-amber-50'
+                            }`}
+                            value={p.motoristaId ?? ''}
+                            onChange={(e) => definirMotorista(p, e.target.value)}
+                            title="Definir o motorista desta rota"
+                          >
+                            <option value="">{p.motoristaId ? '↩️ restaurar plano Meli' : `✍️ ${p.driverFinal} (planilha)`}</option>
+                            {motoristas.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-2 text-slate-500">
+                          {alterado ? (
+                            <Badge className="border-amber-300 bg-amber-100 text-amber-800">🔁 era {p.driverPlanejado}</Badge>
+                          ) : (
+                            p.driverPlanejado
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-slate-700">{p.cidade}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-slate-700">{p.veiculo}</td>
+                        <td className="px-2 py-2 text-center text-slate-700">{p.doca}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right">
+                          <button onClick={() => setEditando(p)} className="rounded-lg px-1.5 py-1 hover:bg-slate-200" title="Editar">
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Excluir a rota ${p.rota} deste dia?`)) removerProgramacaoItem(p.id)
+                            }}
+                            className="rounded-lg px-1.5 py-1 text-red-600 hover:bg-red-50"
+                            title="Excluir"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          </>
+        )
+      ) : (
+        // ---- Visão de rodízio ----
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SegmentedControl
+              opcoes={[
+                { valor: '7', rotulo: '7 dias' },
+                { valor: '30', rotulo: '30 dias' },
+                { valor: 'todos', rotulo: 'Tudo' },
+              ]}
+              valor={periodoRodizio}
+              onChange={setPeriodoRodizio}
+            />
+            <div className="flex gap-2">
+              <Button variante="secundario" onClick={() => exportarCSV(tabelaRodizio())}>⬇️ CSV</Button>
+              <Button variante="secundario" onClick={() => exportarExcel(tabelaRodizio())}>⬇️ Excel</Button>
+            </div>
+          </div>
+          {rodizio.listaDrivers.length === 0 ? (
+            <EmptyState icone="🔄" titulo="Sem dados no período" descricao="Importe programações diárias para medir o rodízio." />
+          ) : (
+            <Card className="overflow-x-auto">
+              <p className="px-3 pt-3 text-xs text-slate-500">
+                Quantas vezes cada driver foi a cada cidade — quanto mais escuro, mais repetido. Use para planejar o rodízio.
+              </p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left uppercase tracking-wide text-slate-500">
+                    <th className="sticky left-0 bg-white px-2 py-2.5">Driver</th>
+                    <th className="px-2 py-2.5 text-center">Total</th>
+                    {rodizio.listaCidades.map((c) => (
+                      <th key={c} className="whitespace-nowrap px-2 py-2.5 text-center">{c}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rodizio.listaDrivers.map((d) => {
+                    const max = Math.max(...rodizio.listaCidades.map((c) => d.porCidade.get(c) ?? 0), 1)
+                    return (
+                      <tr key={d.nome} className="border-b border-slate-100">
+                        <td className="sticky left-0 whitespace-nowrap bg-white px-2 py-1.5 font-semibold text-slate-800">
+                          {d.motoristaId ? (
+                            <Link to={`/motoristas/${d.motoristaId}`} className="hover:text-ml-azul">
+                              {d.nome}
+                            </Link>
+                          ) : (
+                            d.nome
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 text-center font-bold text-slate-900">{d.total}</td>
+                        {rodizio.listaCidades.map((c) => {
+                          const v = d.porCidade.get(c) ?? 0
+                          return (
+                            <td key={c} className={`px-2 py-1.5 text-center ${corCalor(v, max)}`}>
+                              {v || ''}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Importação da planilha Meli */}
+      <Modal aberto={modalImportar} titulo="📥 Importar planilha do Meli" onFechar={() => setModalImportar(false)}>
+        <p className="mb-2 text-sm text-slate-600">
+          Cole as linhas da planilha diária (Ctrl+C no Excel → Ctrl+V abaixo) ou envie o CSV. Ordem:
+        </p>
+        <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+          DATA • DRIVER • ROTA • CIDADE • VEÍCULO • ONDAS • DOCA
+        </p>
+        <textarea
+          className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
+          placeholder={'13/08/2026\tAdalberto\tVL9\tSÃO SIMÃO/SANTA VITORIA\tVUC\t1ª ONDA\t1\n…'}
+          value={textoColado}
+          onChange={(e) => atualizarPrevia(e.target.value)}
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
+          <Button variante="secundario" onClick={() => arquivoRef.current?.click()}>
+            📄 Enviar arquivo CSV
+          </Button>
+          {previa && (
+            <span className="text-sm font-semibold text-slate-700">
+              ✅ {previa.itens.length} rota(s)
+              {previa.ignoradas > 0 && ` • ${previa.ignoradas} linha(s) ignorada(s)`}
+            </span>
+          )}
+        </div>
+        <p className="mt-3 text-[11px] text-slate-500">
+          💡 Linhas de seção (UTILITARIO, DUPLAS) são puladas sozinhas. Os drivers são vinculados
+          automaticamente ao cadastro pelo nome. Reimportar o mesmo dia atualiza o plano sem apagar
+          os ajustes que você já fez.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variante="secundario" onClick={() => setModalImportar(false)}>
+            Cancelar
+          </Button>
+          <Button variante="ml" onClick={() => void confirmarImportacao()} disabled={!previa || previa.itens.length === 0 || importando}>
+            {importando ? 'Importando…' : `📥 Importar ${previa?.itens.length ?? 0} rota(s)`}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Edição completa de um item */}
+      <Modal aberto={!!editando} titulo={editando ? `✏️ ${editando.rota} — ${rotuloDia(editando.data)}` : ''} onFechar={() => setEditando(null)}>
+        {editando && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Rota">
+                <Input value={editando.rota} onChange={(e) => setEditando({ ...editando, rota: e.target.value })} />
+              </Field>
+              <Field label="Veículo">
+                <Input value={editando.veiculo} onChange={(e) => setEditando({ ...editando, veiculo: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Cidade / observações (+ AJUDA, + VD7…)">
+              <Input value={editando.cidade} onChange={(e) => setEditando({ ...editando, cidade: e.target.value })} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Onda">
+                <Input value={editando.onda} onChange={(e) => setEditando({ ...editando, onda: e.target.value })} />
+              </Field>
+              <Field label="Doca">
+                <Input value={editando.doca} onChange={(e) => setEditando({ ...editando, doca: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Driver definido (texto livre — para quem não está no cadastro)">
+              <Input
+                value={editando.driverFinal}
+                onChange={(e) => setEditando({ ...editando, driverFinal: e.target.value, motoristaId: null })}
+              />
+            </Field>
+            <p className="text-xs text-slate-500">Plano Meli: <strong>{editando.driverPlanejado}</strong></p>
+            <div className="flex justify-end gap-2">
+              <Button variante="secundario" onClick={() => setEditando(null)}>
+                Cancelar
+              </Button>
+              <Button
+                variante="ml"
+                onClick={() => {
+                  salvarProgramacaoItem(editando)
+                  setEditando(null)
+                }}
+              >
+                💾 Salvar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}

@@ -100,6 +100,29 @@ export interface Rota {
   atualizadaEm: string
 }
 
+/**
+ * Item da programação diária enviada pelo Meli (uma linha da planilha do dia).
+ * Guarda o plano original (driverPlanejado) e a decisão final do dispatcher
+ * (driverFinal/motoristaId) — a diferença entre os dois é a intervenção,
+ * que alimenta a medição de rodízio e a futura parametrização automática.
+ */
+export interface ProgramacaoItem {
+  id: string
+  data: string // YYYY-MM-DD
+  rota: string
+  cidade: string
+  veiculo: string
+  onda: string
+  doca: string
+  /** Driver que veio na planilha do Meli (texto original). */
+  driverPlanejado: string
+  /** Driver definido pelo dispatcher (começa igual ao planejado). */
+  driverFinal: string
+  /** Vínculo com o cadastro, quando identificado. */
+  motoristaId: string | null
+  atualizadaEm: string
+}
+
 /** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
 export interface LimiteDia {
   id: string // = data (YYYY-MM-DD)
@@ -125,6 +148,7 @@ export interface DB {
   agenda: DiaAgenda[]
   limites: LimiteDia[]
   rotas: Rota[]
+  programacao: ProgramacaoItem[]
   notificacoes: Notificacao[]
 }
 
