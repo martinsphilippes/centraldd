@@ -20,6 +20,7 @@ import type {
   Escala,
   Motorista,
   Notificacao,
+  ParametrosAlocacao,
   ProgramacaoItem,
   Resposta,
   Rota,
@@ -34,6 +35,7 @@ const VAZIO: DB = {
   limites: [],
   rotas: [],
   programacao: [],
+  config: [],
   notificacoes: [],
 }
 
@@ -76,6 +78,7 @@ export function iniciarSincronizacao() {
     'limites',
     'rotas',
     'programacao',
+    'config',
     'notificacoes',
   ]
   const chegaram = new Set<string>()
@@ -178,6 +181,10 @@ export function salvarRota(r: Rota) {
 
 export function removerRota(id: string) {
   void deleteDoc(doc(firestore, 'rotas', id))
+}
+
+export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
+  void setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })
 }
 
 export function salvarProgramacaoItem(p: ProgramacaoItem) {

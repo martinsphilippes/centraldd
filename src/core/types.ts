@@ -24,6 +24,10 @@ export interface Motorista {
   ativo: boolean
   /** false = pré-cadastro aguardando aprovação do coordenador (ausente = aprovado). */
   aprovado?: boolean
+  /** Cidades onde este motorista NÃO pode rodar (separadas por vírgula). */
+  cidadesBloqueadas?: string
+  /** Cidades onde este motorista rende melhor (separadas por vírgula). */
+  cidadesPreferidas?: string
   criadoEm: string
   transportadoraId?: string
   cdId?: string
@@ -123,6 +127,39 @@ export interface ProgramacaoItem {
   atualizadaEm: string
 }
 
+/**
+ * Parâmetros da sugestão automática de alocação — todos ajustáveis pelo
+ * dispatcher na tela de Programação (⚙️ Parâmetros). Pesos de 0 a 10.
+ */
+export interface ParametrosAlocacao {
+  id: string // sempre 'alocacao'
+  /** Quantos dias de histórico considerar (0 = tudo). */
+  janelaHistoricoDias: number
+  /** Valoriza quem mais conhece a(s) cidade(s) da rota. */
+  pesoExperienciaCidade: number
+  /** Valoriza quem já fez exatamente essa rota. */
+  pesoExperienciaRota: number
+  /** Valoriza manter o driver que veio no plano do Meli. */
+  pesoRespeitarPlanoMeli: number
+  /** Valoriza cidades marcadas como preferidas no cadastro do motorista. */
+  pesoCidadesPreferidas: number
+  /** Penaliza quem foi muitas vezes à mesma cidade recentemente (força o rodízio). */
+  pesoRodizio: number
+  /** Janela (dias) usada para medir a repetição do rodízio. */
+  janelaRodizioDias: number
+  /** Trava: depois de N dias seguidos na mesma cidade, o motorista é excluído dela (0 = desligado). */
+  maxVezesSeguidasMesmaCidade: number
+  /** Só sugere quem marcou disponibilidade na agenda do dia. */
+  exigirDisponibilidadeAgenda: boolean
+  /** Bônus para quem marcou disponibilidade (quando não é obrigatório). */
+  bonusDisponivelAgenda: number
+  /** Só sugere motorista com veículo compatível com o da rota. */
+  exigirVeiculoCompativel: boolean
+  /** Equivalências "veículo da rota = veículos do cadastro", uma por linha. Ex.: VUC = HR, Van */
+  equivalenciasVeiculo: string
+  atualizadoEm: string
+}
+
 /** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
 export interface LimiteDia {
   id: string // = data (YYYY-MM-DD)
@@ -149,6 +186,7 @@ export interface DB {
   limites: LimiteDia[]
   rotas: Rota[]
   programacao: ProgramacaoItem[]
+  config: ParametrosAlocacao[]
   notificacoes: Notificacao[]
 }
 

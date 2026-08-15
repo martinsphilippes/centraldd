@@ -24,6 +24,8 @@ export function MotoristaForm() {
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
   const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
+  const [cidadesBloqueadas, setCidadesBloqueadas] = useState(existente?.cidadesBloqueadas ?? '')
+  const [cidadesPreferidas, setCidadesPreferidas] = useState(existente?.cidadesPreferidas ?? '')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
@@ -57,6 +59,8 @@ export function MotoristaForm() {
         ativo,
         // Cadastro feito pelo coordenador já nasce aprovado; edição preserva o estado.
         aprovado: existente ? (existente.aprovado ?? true) : true,
+        cidadesBloqueadas: cidadesBloqueadas.trim(),
+        cidadesPreferidas: cidadesPreferidas.trim(),
         criadoEm: existente?.criadoEm ?? new Date().toISOString(),
       })
       navigate(`/motoristas/${novoId}`)
@@ -109,6 +113,22 @@ export function MotoristaForm() {
                   <option key={v}>{v}</option>
                 ))}
               </Select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="🚫 Cidades bloqueadas (não pode ir — separe por vírgula)">
+              <Input
+                value={cidadesBloqueadas}
+                onChange={(e) => setCidadesBloqueadas(e.target.value)}
+                placeholder="Ex.: Capinópolis, Ipiaçu"
+              />
+            </Field>
+            <Field label="⭐ Cidades preferidas (rende melhor — separe por vírgula)">
+              <Input
+                value={cidadesPreferidas}
+                onChange={(e) => setCidadesPreferidas(e.target.value)}
+                placeholder="Ex.: São Simão, Santa Vitória"
+              />
             </Field>
           </div>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

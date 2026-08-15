@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   importarProgramacao,
   removerProgramacaoItem,
+  salvarParametrosAlocacao,
   salvarProgramacaoItem,
   useDB,
 } from '../../core/db'
 import { cidadesDoTexto, parsearPlanilhaMeli, type ProgramacaoImportada } from '../../core/planilha'
+import { PARAMETROS_PADRAO, parametrosAtuais, sugerirAlocacao, type Sugestao } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
-import type { ProgramacaoItem } from '../../core/types'
+import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, SegmentedControl, Select, StatCard } from '../../components/ui'
 
@@ -38,6 +40,9 @@ export function Programacao() {
   const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
   const [importando, setImportando] = useState(false)
   const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
+  const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
+  const [paramsEdit, setParamsEdit] = useState<ParametrosAlocacao | null>(null)
   const arquivoRef = useRef<HTMLInputElement>(null)
 
   const motoristas = db.motoristas
@@ -106,6 +111,23 @@ export function Programacao() {
     }
     const m = porId.get(motoristaId)
     if (m) salvarProgramacaoItem({ ...p, motoristaId, driverFinal: m.nome })
+  }
+
+  const gerarSugestoes = () => {
+    const s = sugerirAlocacao(db, dataAtiva, parametrosAtuais(db))
+    setSugestoes(s)
+    // Pré-seleciona as sugestões que mudam algo (e têm motorista elegível).
+    setSelecionadas(new Set(s.filter((x) => x.motorista && x.motorista.id !== x.item.motoristaId).map((x) => x.item.id)))
+  }
+
+  const aplicarSugestoes = () => {
+    if (!sugestoes) return
+    for (const s of sugestoes) {
+      if (s.motorista && selecionadas.has(s.item.id)) {
+        salvarProgramacaoItem({ ...s.item, motoristaId: s.motorista.id, driverFinal: s.motorista.nome })
+      }
+    }
+    setSugestoes(null)
   }
 
   const tabelaDia = (): Tabela => ({
@@ -185,6 +207,9 @@ export function Programacao() {
             valor={visao}
             onChange={setVisao}
           />
+          <Button variante="secundario" onClick={() => setParamsEdit({ ...parametrosAtuais(db) })}>
+            ⚙️ Parâmetros
+          </Button>
           <Button variante="ml" onClick={() => setModalImportar(true)}>
             📥 Importar planilha Meli
           </Button>
@@ -209,10 +234,13 @@ export function Programacao() {
                   </option>
                 ))}
               </Select>
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex flex-wrap gap-2">
                 <Button variante="secundario" onClick={() => exportarCSV(tabelaDia())}>⬇️ CSV</Button>
                 <Button variante="secundario" onClick={() => exportarExcel(tabelaDia())}>⬇️ Excel</Button>
                 <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(dataAtiva))}>🖨️ PDF</Button>
+                <Button variante="primario" onClick={gerarSugestoes} disabled={doDia.length === 0}>
+                  🤖 Sugerir alocação
+                </Button>
               </div>
             </div>
 
@@ -399,6 +427,175 @@ export function Programacao() {
             {importando ? 'Importando…' : `📥 Importar ${previa?.itens.length ?? 0} rota(s)`}
           </Button>
         </div>
+      </Modal>
+
+      {/* Sugestão automática de alocação */}
+      <Modal aberto={!!sugestoes} titulo={`🤖 Sugestão de alocação — ${rotuloDia(dataAtiva)}`} onFechar={() => setSugestoes(null)}>
+        <p className="mb-3 text-sm text-slate-600">
+          Calculada pelo histórico + seus parâmetros (⚙️). Marque o que aplicar — nada muda sem a sua confirmação.
+        </p>
+        <ul className="max-h-96 space-y-2 overflow-y-auto">
+          {sugestoes?.map((s) => {
+            const mudanca = s.motorista && s.motorista.id !== s.item.motoristaId
+            const marcada = selecionadas.has(s.item.id)
+            return (
+              <li key={s.item.id}>
+                <button
+                  disabled={!s.motorista}
+                  onClick={() => {
+                    const novo = new Set(selecionadas)
+                    if (marcada) novo.delete(s.item.id)
+                    else novo.add(s.item.id)
+                    setSelecionadas(novo)
+                  }}
+                  className={`w-full rounded-lg border p-2.5 text-left transition-colors ${
+                    !s.motorista
+                      ? 'border-red-200 bg-red-50'
+                      : marcada
+                        ? 'border-ml-azul bg-blue-50'
+                        : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {s.motorista && <span className="text-base">{marcada ? '☑️' : '⬜'}</span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm">
+                        <strong>{s.item.rota}</strong> <span className="text-slate-500">({s.item.cidade})</span>
+                      </span>
+                      <span className="block text-sm font-semibold text-slate-800">
+                        {s.motorista ? (
+                          <>
+                            → {s.motorista.nome}
+                            {mudanca && <span className="font-normal text-slate-500"> (hoje: {s.item.driverFinal})</span>}
+                            {!mudanca && <span className="font-normal text-emerald-600"> ✓ mantém</span>}
+                          </>
+                        ) : (
+                          <span className="text-red-600">sem candidato elegível</span>
+                        )}
+                      </span>
+                    </span>
+                    {s.motorista && (
+                      <Badge className="border-slate-200 bg-slate-100 text-slate-600">{s.pontos} pts</Badge>
+                    )}
+                  </div>
+                  {(s.motivos.length > 0 || s.alertas.length > 0) && (
+                    <p className="mt-1 flex flex-wrap gap-1 pl-7 text-[11px]">
+                      {s.motivos.map((m, i) => (
+                        <span key={i} className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">{m}</span>
+                      ))}
+                      {s.alertas.map((a, i) => (
+                        <span key={i} className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">{a}</span>
+                      ))}
+                    </p>
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variante="secundario" onClick={() => setSugestoes(null)}>
+            Cancelar
+          </Button>
+          <Button variante="ml" onClick={aplicarSugestoes} disabled={selecionadas.size === 0}>
+            ✅ Aplicar {selecionadas.size} sugestão(ões)
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Parametrização da sugestão automática */}
+      <Modal aberto={!!paramsEdit} titulo="⚙️ Parâmetros da alocação automática" onFechar={() => setParamsEdit(null)}>
+        {paramsEdit && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Pesos de 0 a 10 — quanto maior, mais o critério influencia. Zero desliga o critério.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="🏙️ Experiência na cidade">
+                <Input type="number" min={0} max={10} value={paramsEdit.pesoExperienciaCidade}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoExperienciaCidade: Number(e.target.value) })} />
+              </Field>
+              <Field label="🛣️ Experiência na rota">
+                <Input type="number" min={0} max={10} value={paramsEdit.pesoExperienciaRota}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoExperienciaRota: Number(e.target.value) })} />
+              </Field>
+              <Field label="📋 Respeitar plano Meli">
+                <Input type="number" min={0} max={10} value={paramsEdit.pesoRespeitarPlanoMeli}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoRespeitarPlanoMeli: Number(e.target.value) })} />
+              </Field>
+              <Field label="⭐ Cidades preferidas">
+                <Input type="number" min={0} max={10} value={paramsEdit.pesoCidadesPreferidas}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoCidadesPreferidas: Number(e.target.value) })} />
+              </Field>
+              <Field label="🔁 Força do rodízio (penalidade)">
+                <Input type="number" min={0} max={10} value={paramsEdit.pesoRodizio}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoRodizio: Number(e.target.value) })} />
+              </Field>
+              <Field label="🔁 Janela do rodízio (dias)">
+                <Input type="number" min={1} max={60} value={paramsEdit.janelaRodizioDias}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, janelaRodizioDias: Number(e.target.value) })} />
+              </Field>
+              <Field label="✅ Bônus disponível na agenda">
+                <Input type="number" min={0} max={10} value={paramsEdit.bonusDisponivelAgenda}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, bonusDisponivelAgenda: Number(e.target.value) })} />
+              </Field>
+              <Field label="📆 Janela do histórico (dias, 0=tudo)">
+                <Input type="number" min={0} max={365} value={paramsEdit.janelaHistoricoDias}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, janelaHistoricoDias: Number(e.target.value) })} />
+              </Field>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Travas (excluem o motorista)</p>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirDisponibilidadeAgenda}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirDisponibilidadeAgenda: e.target.checked })} />
+                Só sugerir quem marcou <strong>disponível</strong> na agenda do dia
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirVeiculoCompativel}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirVeiculoCompativel: e.target.checked })} />
+                Exigir <strong>veículo compatível</strong> (equivalências abaixo)
+              </label>
+              <Field label="🚫 Trava de sequência: excluir quem já foi N vezes à mesma cidade no histórico recente (0 = desligada)">
+                <Input type="number" min={0} max={30} value={paramsEdit.maxVezesSeguidasMesmaCidade}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxVezesSeguidasMesmaCidade: Number(e.target.value) })} />
+              </Field>
+              <p className="text-[11px] text-slate-500">
+                💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
+                Cidades bloqueadas/preferidas de cada um ficam no cadastro do motorista.
+              </p>
+            </div>
+
+            <Field label="🚐 Equivalências de veículo (uma por linha: veículo da rota = veículos do cadastro)">
+              <textarea
+                className="h-20 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-ml-azul"
+                value={paramsEdit.equivalenciasVeiculo}
+                onChange={(e) => setParamsEdit({ ...paramsEdit, equivalenciasVeiculo: e.target.value })}
+              />
+            </Field>
+
+            <div className="flex justify-between gap-2">
+              <Button variante="fantasma" onClick={() => setParamsEdit({ ...PARAMETROS_PADRAO })}>
+                ↩️ Restaurar padrão
+              </Button>
+              <div className="flex gap-2">
+                <Button variante="secundario" onClick={() => setParamsEdit(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variante="ml"
+                  onClick={() => {
+                    salvarParametrosAlocacao(paramsEdit)
+                    setParamsEdit(null)
+                  }}
+                >
+                  💾 Salvar parâmetros
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Edição completa de um item */}
