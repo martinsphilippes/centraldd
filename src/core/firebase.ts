@@ -37,6 +37,16 @@ export async function removerPerfil(uid: string) {
 }
 
 /**
+ * Promove um pré-cadastro de dispatcher a COORDENADOR: troca o papel do perfil
+ * (a tela da pessoa vira o painel completo na hora) e remove o registro da
+ * frota — coordenador não é motorista. O e-mail já gravado no perfil é mantido.
+ */
+export async function promoverParaCoordenador(uid: string) {
+  await setDoc(doc(firestore, 'perfis', uid), { papel: 'coordenador', motoristaId: null }, { merge: true })
+  await deleteDoc(doc(firestore, 'motoristas', uid))
+}
+
+/**
  * Cria uma conta de acesso (e-mail/senha) para um motorista SEM derrubar a
  * sessão do coordenador: usa uma instância secundária do app só para o cadastro.
  * Retorna o uid do novo usuário.
@@ -61,6 +71,8 @@ export interface DadosPreCadastro {
   veiculo: string
   email: string
   senha: string
+  /** 'dispatcher' = ao ser aprovado, vira coordenador com acesso total. */
+  funcao: 'motorista' | 'dispatcher'
 }
 
 /**
@@ -91,6 +103,7 @@ export async function cadastrarPreCadastro(dados: DadosPreCadastro): Promise<voi
       veiculo: dados.veiculo,
       ativo: false,
       aprovado: false,
+      funcao: dados.funcao,
       criadoEm: new Date().toISOString(),
     }
     await setDoc(doc(fsSec, 'motoristas', uid), motorista)

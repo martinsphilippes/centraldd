@@ -33,6 +33,7 @@ export function Login() {
   const [enviando, setEnviando] = useState(false)
 
   // Pré-cadastro
+  const [funcao, setFuncao] = useState<'motorista' | 'dispatcher'>('motorista')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
@@ -64,7 +65,7 @@ export function Login() {
     }
     setEnviando(true)
     try {
-      await cadastrarPreCadastro({ nome, telefone, cidade, equipe, operacao, veiculo, email, senha })
+      await cadastrarPreCadastro({ nome, telefone, cidade, equipe, operacao, veiculo, email, senha, funcao })
       // Ao concluir, a sessão entra automaticamente e cai na tela de aguardando aprovação.
     } catch (err) {
       setErro(codigoParaMensagem(err))
@@ -139,6 +140,41 @@ export function Login() {
               <p className="text-sm text-slate-600">
                 Preencha seus dados. Seu acesso será liberado <strong>após a aprovação da coordenação</strong>.
               </p>
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Qual é a sua função?
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFuncao('motorista')}
+                    className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
+                      funcao === 'motorista'
+                        ? 'border-ml-azul bg-blue-50 text-ml-azul'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    🚚 Motorista
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFuncao('dispatcher')}
+                    className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
+                      funcao === 'dispatcher'
+                        ? 'border-ml-azul bg-blue-50 text-ml-azul'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    🧑‍💼 Dispatcher
+                  </button>
+                </div>
+                {funcao === 'dispatcher' && (
+                  <p className="mt-1.5 rounded-lg bg-yellow-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+                    Ao ser aprovado pela coordenação, seu acesso será de <strong>coordenador</strong> — painel
+                    completo da operação.
+                  </p>
+                )}
+              </div>
               <Field label="Nome completo">
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} required placeholder="Ex.: Carlos Silva" />
               </Field>
@@ -155,26 +191,30 @@ export function Login() {
                 <Field label="📍 Cidade">
                   <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
                 </Field>
-                <Field label="👥 Equipe">
-                  <Input value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Se souber" />
-                </Field>
+                {funcao === 'motorista' && (
+                  <Field label="👥 Equipe">
+                    <Input value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Se souber" />
+                  </Field>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="📦 Operação">
-                  <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
-                    {OPERACOES.map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="🚐 Veículo">
-                  <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
-                    {VEICULOS.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
+              {funcao === 'motorista' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="📦 Operação">
+                    <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
+                      {OPERACOES.map((o) => (
+                        <option key={o}>{o}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="🚐 Veículo">
+                    <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
+                      {VEICULOS.map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+              )}
               <Field label="📧 E-mail (será seu login)">
                 <Input
                   type="email"

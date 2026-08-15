@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerMotorista, salvarMotorista, useDB } from '../../core/db'
-import { removerPerfil } from '../../core/firebase'
+import { promoverParaCoordenador, removerPerfil } from '../../core/firebase'
 import { formatarTelefone } from '../../core/comunicacao'
 import type { Motorista } from '../../core/types'
 import { Avatar, Badge, Button, Card, EmptyState, Input, Select } from '../../components/ui'
@@ -28,6 +28,17 @@ export function MotoristasList() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
 
   const aprovar = (m: Motorista) => {
+    if (m.funcao === 'dispatcher') {
+      // Dispatcher aprovado vira COORDENADOR: painel completo, e a tela dele troca na hora.
+      if (
+        !confirm(
+          `Aprovar ${m.nome} como COORDENADOR?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
+        )
+      )
+        return
+      void promoverParaCoordenador(m.id)
+      return
+    }
     salvarMotorista({ ...m, aprovado: true, ativo: true })
     enviarNotificacao({
       motoristaId: m.id,
@@ -70,15 +81,22 @@ export function MotoristasList() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Avatar nome={m.nome} tamanho="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800">{m.nome}</p>
+                    <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
+                      {m.nome}
+                      {m.funcao === 'dispatcher' && (
+                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑‍💼 Dispatcher</Badge>
+                      )}
+                    </p>
                     <p className="text-[11px] text-slate-500">
                       📱 {formatarTelefone(m.telefone)} • 📍 {m.cidade}
-                      {m.equipe ? ` • 👥 ${m.equipe}` : ''} • 🚐 {m.veiculo} • {m.operacao}
+                      {m.funcao === 'dispatcher'
+                        ? ' • ao aprovar, vira COORDENADOR com painel completo'
+                        : `${m.equipe ? ` • 👥 ${m.equipe}` : ''} • 🚐 ${m.veiculo} • ${m.operacao}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button variante="ml" onClick={() => aprovar(m)}>
-                      ✅ Aprovar
+                      {m.funcao === 'dispatcher' ? '✅ Aprovar como coordenador' : '✅ Aprovar'}
                     </Button>
                     <Button variante="perigo" onClick={() => recusar(m)}>
                       ✕ Recusar

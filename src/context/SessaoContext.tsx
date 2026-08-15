@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { auth, firestore } from '../core/firebase'
 import { EMAILS_COORDENADOR } from '../core/firebase-config'
 import { iniciarSincronizacao, pararSincronizacao } from '../core/db'
@@ -33,7 +33,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [erroSessao, setErroSessao] = useState<string | null>(null)
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
+    let pararPerfil: (() => void) | null = null
+    const pararAuth = onAuthStateChanged(auth, (user) => {
+      pararPerfil?.()
+      pararPerfil = null
       if (!user) {
         pararSincronizacao()
         setUsuarioEmail(null)
@@ -60,43 +63,48 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      try {
-        // Carrega (ou cria) o perfil do usuário no servidor.
-        const ref = doc(firestore, 'perfis', user.uid)
-        const snap = await getDoc(ref)
-        if (snap.exists()) {
-          const p = snap.data() as { papel: Papel; motoristaId?: string | null }
-          setPapel(p.papel)
-          setMotoristaId(p.motoristaId ?? null)
-          localStorage.setItem(
-            chaveCache,
-            JSON.stringify({ papel: p.papel, motoristaId: p.motoristaId ?? null }),
-          )
-        } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
-          // E-mail autorizado sem perfil → coordenador no primeiro login.
-          await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
-          setPapel('coordenador')
-          setMotoristaId(null)
-          localStorage.setItem(chaveCache, JSON.stringify({ papel: 'coordenador', motoristaId: null }))
-        } else {
-          // Conta sem perfil e sem autorização: bloqueia o acesso.
-          localStorage.removeItem(chaveCache)
-          setErroSessao('Sua conta ainda não foi liberada. Fale com a coordenação.')
-          await signOut(auth)
-          return
-        }
-        setErroSessao(null)
-        setUsuarioEmail(user.email)
-        iniciarSincronizacao()
-        setStatusAuth('logado')
-      } catch {
-        // Sem rede agora: se o perfil era conhecido, mantém a sessão do cache.
-        if (!emCache) {
-          setErroSessao('Não foi possível carregar seus dados. Tente novamente em instantes.')
-          await signOut(auth)
-        }
-      }
+      // Escuta o perfil EM TEMPO REAL: se o papel mudar (ex.: dispatcher
+      // aprovado vira coordenador), a tela troca na hora, sem novo login.
+      const ref = doc(firestore, 'perfis', user.uid)
+      pararPerfil = onSnapshot(
+        ref,
+        async (snap) => {
+          if (snap.exists()) {
+            const p = snap.data() as { papel: Papel; motoristaId?: string | null }
+            setPapel(p.papel)
+            setMotoristaId(p.motoristaId ?? null)
+            localStorage.setItem(
+              chaveCache,
+              JSON.stringify({ papel: p.papel, motoristaId: p.motoristaId ?? null }),
+            )
+            setErroSessao(null)
+            setUsuarioEmail(user.email)
+            iniciarSincronizacao()
+            setStatusAuth('logado')
+          } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
+            // E-mail autorizado sem perfil → coordenador no primeiro login
+            // (o snapshot dispara de novo após a criação e conclui o login).
+            await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
+          } else {
+            // Conta sem perfil e sem autorização: bloqueia o acesso.
+            localStorage.removeItem(chaveCache)
+            setErroSessao('Sua conta ainda não foi liberada. Fale com a coordenação.')
+            await signOut(auth)
+          }
+        },
+        async () => {
+          // Sem rede agora: se o perfil era conhecido, mantém a sessão do cache.
+          if (!emCache) {
+            setErroSessao('Não foi possível carregar seus dados. Tente novamente em instantes.')
+            await signOut(auth)
+          }
+        },
+      )
     })
+    return () => {
+      pararPerfil?.()
+      pararAuth()
+    }
   }, [])
 
   const entrar = async (email: string, senha: string) => {

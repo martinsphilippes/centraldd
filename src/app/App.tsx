@@ -48,7 +48,7 @@ export default function App() {
     if (!carregado) return <TelaCarregando />
     const meuCadastro = db.motoristas.find((m) => m.id === motoristaId)
     if (meuCadastro && meuCadastro.aprovado === false) {
-      return <AguardandoAprovacao nome={meuCadastro.nome} />
+      return <AguardandoAprovacao nome={meuCadastro.nome} funcao={meuCadastro.funcao} />
     }
   }
 
