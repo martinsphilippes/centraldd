@@ -8,7 +8,13 @@ import {
   useDB,
 } from '../../core/db'
 import { cidadesDoTexto, parsearPlanilhaMeli, type ProgramacaoImportada } from '../../core/planilha'
-import { PARAMETROS_PADRAO, parametrosAtuais, sugerirAlocacao, type Sugestao } from '../../core/alocacao'
+import {
+  aderenciaHistorica,
+  PARAMETROS_PADRAO,
+  parametrosAtuais,
+  sugerirAlocacao,
+  type Sugestao,
+} from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -168,17 +174,29 @@ export function Programacao() {
     }
     const listaCidades = [...cidades.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
     const listaDrivers = [...drivers.values()].sort((a, b) => b.total - a.total)
-    return { listaCidades, listaDrivers }
-  }, [db.programacao, periodoRodizio])
+    // Aderência: sugestão automática × decisão final do dispatcher, no mesmo período.
+    const aderencia = aderenciaHistorica(db, parametrosAtuais(db), dataMinima)
+    return { listaCidades, listaDrivers, aderencia }
+  }, [db, periodoRodizio])
+
+  const pctAderencia = (motoristaId: string | null) => {
+    if (!motoristaId) return null
+    const a = rodizio.aderencia.get(motoristaId)
+    return a && a.total > 0 ? a : null
+  }
 
   const tabelaRodizio = (): Tabela => ({
     titulo: `Rodizio motorista x cidade (${periodoRodizio === 'todos' ? 'todo o histórico' : `últimos ${periodoRodizio} dias`})`,
-    colunas: ['Driver', 'Total', ...rodizio.listaCidades],
-    linhas: rodizio.listaDrivers.map((d) => [
-      d.nome,
-      d.total,
-      ...rodizio.listaCidades.map((c) => d.porCidade.get(c) ?? 0),
-    ]),
+    colunas: ['Driver', 'Total', 'Aderência à sugestão', ...rodizio.listaCidades],
+    linhas: rodizio.listaDrivers.map((d) => {
+      const a = pctAderencia(d.motoristaId)
+      return [
+        d.nome,
+        d.total,
+        a ? `${Math.round(a.taxa * 100)}% (${a.acertos}/${a.total})` : '—',
+        ...rodizio.listaCidades.map((c) => d.porCidade.get(c) ?? 0),
+      ]
+    }),
   })
 
   const corCalor = (v: number, max: number) => {
@@ -344,12 +362,16 @@ export function Programacao() {
             <Card className="overflow-x-auto">
               <p className="px-3 pt-3 text-xs text-slate-500">
                 Quantas vezes cada driver foi a cada cidade — quanto mais escuro, mais repetido. Use para planejar o rodízio.
+                A <strong>Aderência</strong> mostra o quanto a sugestão automática já bate com as decisões finais do dispatcher.
               </p>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-left uppercase tracking-wide text-slate-500">
                     <th className="sticky left-0 bg-white px-2 py-2.5">Driver</th>
                     <th className="px-2 py-2.5 text-center">Total</th>
+                    <th className="whitespace-nowrap px-2 py-2.5 text-center" title="Quantas vezes a sugestão do sistema bateu com a decisão final">
+                      🤖 Aderência
+                    </th>
                     {rodizio.listaCidades.map((c) => (
                       <th key={c} className="whitespace-nowrap px-2 py-2.5 text-center">{c}</th>
                     ))}
@@ -358,6 +380,16 @@ export function Programacao() {
                 <tbody>
                   {rodizio.listaDrivers.map((d) => {
                     const max = Math.max(...rodizio.listaCidades.map((c) => d.porCidade.get(c) ?? 0), 1)
+                    const ader = pctAderencia(d.motoristaId)
+                    const pct = ader ? Math.round(ader.taxa * 100) : null
+                    const corAder =
+                      pct === null
+                        ? 'text-slate-400'
+                        : pct >= 70
+                          ? 'bg-emerald-100 text-emerald-800 font-bold'
+                          : pct >= 40
+                            ? 'bg-amber-100 text-amber-800 font-semibold'
+                            : 'bg-red-100 text-red-700 font-semibold'
                     return (
                       <tr key={d.nome} className="border-b border-slate-100">
                         <td className="sticky left-0 whitespace-nowrap bg-white px-2 py-1.5 font-semibold text-slate-800">
@@ -370,6 +402,9 @@ export function Programacao() {
                           )}
                         </td>
                         <td className="px-2 py-1.5 text-center font-bold text-slate-900">{d.total}</td>
+                        <td className={`whitespace-nowrap px-2 py-1.5 text-center ${corAder}`} title={ader ? `${ader.acertos} de ${ader.total} rotas` : 'sem vínculo com cadastro'}>
+                          {pct === null ? '—' : `${pct}%`}
+                        </td>
                         {rodizio.listaCidades.map((c) => {
                           const v = d.porCidade.get(c) ?? 0
                           return (

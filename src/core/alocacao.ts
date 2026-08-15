@@ -198,3 +198,41 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
         : { item, motorista: null, pontos: 0, motivos: [], alertas: ['❌ nenhum motorista elegível (travas dos parâmetros)'] }
     })
 }
+
+export interface Aderencia {
+  acertos: number
+  total: number
+  /** 0..1 — quando o dispatcher escolheu este driver, o sistema também escolheria. */
+  taxa: number
+}
+
+/**
+ * Mede a aderência histórica da sugestão automática: para cada dia com
+ * programação no período, roda o motor e compara a sugestão de cada rota com a
+ * decisão final que o dispatcher tomou. Atribui o acerto ao motorista final.
+ * É o termômetro de quão confiável a automação já está, dado o histórico.
+ */
+export function aderenciaHistorica(
+  db: DB,
+  p: ParametrosAlocacao,
+  dataMinima: string,
+): Map<string, Aderencia> {
+  const dias = [...new Set(db.programacao.filter((i) => i.data >= dataMinima).map((i) => i.data))].sort()
+  const acc = new Map<string, { acertos: number; total: number }>()
+  for (const dia of dias) {
+    const sugestoes = sugerirAlocacao(db, dia, p)
+    const sugeridoPorItem = new Map(sugestoes.map((s) => [s.item.id, s.motorista?.id ?? null]))
+    for (const item of db.programacao.filter((i) => i.data === dia)) {
+      if (!item.motoristaId) continue // sem vínculo: não dá para comparar
+      const reg = acc.get(item.motoristaId) ?? { acertos: 0, total: 0 }
+      reg.total++
+      if (sugeridoPorItem.get(item.id) === item.motoristaId) reg.acertos++
+      acc.set(item.motoristaId, reg)
+    }
+  }
+  const resultado = new Map<string, Aderencia>()
+  for (const [id, r] of acc) {
+    resultado.set(id, { ...r, taxa: r.total ? r.acertos / r.total : 0 })
+  }
+  return resultado
+}
