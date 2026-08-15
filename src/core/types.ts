@@ -80,6 +80,26 @@ export interface DiaAgenda {
   atualizadaEm: string
 }
 
+/**
+ * Rota da operação (importada da planilha de rotas ou cadastrada à mão).
+ * Os campos vindos da planilha são preservados como texto, exatamente como estão lá.
+ */
+export interface Rota {
+  id: string
+  cidade: string
+  rotaExpedicao: string
+  rotaOriginal: string
+  base: string
+  veiculo: string
+  km: string
+  dps: string
+  ocupacao: string
+  transportadora: string
+  /** Motorista direcionado para esta rota (null = sem motorista definido). */
+  motoristaId: string | null
+  atualizadaEm: string
+}
+
 /** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
 export interface LimiteDia {
   id: string // = data (YYYY-MM-DD)
@@ -104,6 +124,7 @@ export interface DB {
   escalas: Escala[]
   agenda: DiaAgenda[]
   limites: LimiteDia[]
+  rotas: Rota[]
   notificacoes: Notificacao[]
 }
 

@@ -13,7 +13,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { firestore } from './firebase'
-import type { DB, Chamada, DiaAgenda, Escala, Motorista, Notificacao, Resposta } from './types'
+import type { DB, Chamada, DiaAgenda, Escala, Motorista, Notificacao, Resposta, Rota } from './types'
 
 const VAZIO: DB = {
   motoristas: [],
@@ -22,6 +22,7 @@ const VAZIO: DB = {
   escalas: [],
   agenda: [],
   limites: [],
+  rotas: [],
   notificacoes: [],
 }
 
@@ -55,7 +56,16 @@ export function useDBCarregado(): boolean {
 /** Liga os listeners de tempo real (chamado após o login). */
 export function iniciarSincronizacao() {
   if (unsubs.length > 0) return
-  const colecoes: (keyof DB)[] = ['motoristas', 'chamadas', 'respostas', 'escalas', 'agenda', 'limites', 'notificacoes']
+  const colecoes: (keyof DB)[] = [
+    'motoristas',
+    'chamadas',
+    'respostas',
+    'escalas',
+    'agenda',
+    'limites',
+    'rotas',
+    'notificacoes',
+  ]
   const chegaram = new Set<string>()
   for (const nome of colecoes) {
     unsubs.push(
@@ -148,6 +158,32 @@ export function salvarLimiteDia(data: string, maxDisponiveis: number) {
 
 export function removerLimiteDia(data: string) {
   void deleteDoc(doc(firestore, 'limites', data))
+}
+
+export function salvarRota(r: Rota) {
+  void setDoc(doc(firestore, 'rotas', r.id), { ...r, atualizadaEm: new Date().toISOString() })
+}
+
+export function removerRota(id: string) {
+  void deleteDoc(doc(firestore, 'rotas', id))
+}
+
+/**
+ * Importa rotas em lote. O id vem da "Rota expedição" (única por planilha):
+ * reimportar a mesma planilha ATUALIZA as rotas existentes em vez de duplicar,
+ * preservando o motorista já direcionado em cada uma.
+ */
+export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>[]) {
+  const agora = new Date().toISOString()
+  const existentes = new Map(state.rotas.map((r) => [r.id, r]))
+  await Promise.all(
+    novas.map((n) => {
+      const id = (n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')
+      const anterior = existentes.get(id)
+      const rota: Rota = { ...n, id, motoristaId: anterior?.motoristaId ?? null, atualizadaEm: agora }
+      return setDoc(doc(firestore, 'rotas', id), rota)
+    }),
+  )
 }
 
 export function salvarEscala(e: Escala) {

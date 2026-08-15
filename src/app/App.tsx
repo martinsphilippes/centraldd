@@ -17,6 +17,7 @@ import { EscalaDetail } from '../modules/escalas/EscalaDetail'
 import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
 import { MinhaAgenda } from '../modules/agenda/MinhaAgenda'
 import { AgendaFrota } from '../modules/agenda/AgendaFrota'
+import { Rotas } from '../modules/rotas/Rotas'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
 
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/chamadas/nova" element={<ChamadaForm />} />
             <Route path="/chamadas/:id" element={<ChamadaDetail />} />
             <Route path="/agenda-frota" element={<AgendaFrota />} />
+            <Route path="/rotas" element={<Rotas />} />
             <Route path="/motoristas" element={<MotoristasList />} />
             <Route path="/motoristas/novo" element={<MotoristaForm />} />
             <Route path="/motoristas/:id" element={<MotoristaDetail />} />

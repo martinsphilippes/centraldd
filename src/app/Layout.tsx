@@ -9,6 +9,7 @@ const NAV_COORDENADOR = [
   { para: '/', rotulo: 'Dashboard', icone: '📊' },
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰' },
   { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅' },
+  { para: '/rotas', rotulo: 'Rotas', icone: '🛣️' },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚' },
   { para: '/escalas', rotulo: 'Escalas', icone: '📋' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈' },
