@@ -136,6 +136,28 @@ export function Programacao() {
     setSugestoes(null)
   }
 
+  /** Aplica automaticamente, sem revisão, as sugestões acima do % de confiança configurado. */
+  const autoAlocar = () => {
+    const limite = parametrosAtuais(db).autoAplicarAcimaDe
+    if (!limite) {
+      setParamsEdit({ ...parametrosAtuais(db) })
+      return
+    }
+    const s = sugerirAlocacao(db, dataAtiva, parametrosAtuais(db))
+    const aplicaveis = s.filter(
+      (x) => x.motorista && x.confianca >= limite && x.motorista.id !== x.item.motoristaId,
+    )
+    if (aplicaveis.length === 0) {
+      alert(`Nenhuma rota com confiança ≥ ${limite}% para alterar em ${rotoOuData()}.`)
+      return
+    }
+    if (!confirm(`Aplicar automaticamente ${aplicaveis.length} rota(s) com confiança ≥ ${limite}%?\nAs demais continuam para revisão manual.`)) return
+    for (const x of aplicaveis) {
+      if (x.motorista) salvarProgramacaoItem({ ...x.item, motoristaId: x.motorista.id, driverFinal: x.motorista.nome })
+    }
+  }
+  const rotoOuData = () => rotuloDia(dataAtiva)
+
   const tabelaDia = (): Tabela => ({
     titulo: `Programacao ${formatarData(dataAtiva)}`,
     colunas: ['Data', 'Driver (plano Meli)', 'Driver (definido)', 'Alterado?', 'Rota', 'Cidade', 'Veículo', 'Onda', 'Doca'],
@@ -269,6 +291,10 @@ export function Programacao() {
                 <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(dataAtiva))}>🖨️ PDF</Button>
                 <Button variante="primario" onClick={gerarSugestoes} disabled={doDia.length === 0}>
                   🤖 Sugerir alocação
+                </Button>
+                <Button variante="ml" onClick={autoAlocar} disabled={doDia.length === 0} title="Aplica sozinho as sugestões acima do % de confiança configurado">
+                  ⚡ Auto-alocar
+                  {parametrosAtuais(db).autoAplicarAcimaDe > 0 && ` ≥${parametrosAtuais(db).autoAplicarAcimaDe}%`}
                 </Button>
               </div>
             </div>
@@ -525,9 +551,28 @@ export function Programacao() {
 
       {/* Sugestão automática de alocação */}
       <Modal aberto={!!sugestoes} titulo={`🤖 Sugestão de alocação — ${rotuloDia(dataAtiva)}`} onFechar={() => setSugestoes(null)}>
-        <p className="mb-3 text-sm text-slate-600">
+        <p className="mb-2 text-sm text-slate-600">
           Calculada pelo histórico + seus parâmetros (⚙️). Marque o que aplicar — nada muda sem a sua confirmação.
         </p>
+        {(() => {
+          const limite = parametrosAtuais(db).autoAplicarAcimaDe
+          return limite > 0 ? (
+            <button
+              onClick={() =>
+                setSelecionadas(
+                  new Set(
+                    (sugestoes ?? [])
+                      .filter((s) => s.motorista && s.confianca >= limite && s.motorista.id !== s.item.motoristaId)
+                      .map((s) => s.item.id),
+                  ),
+                )
+              }
+              className="mb-3 rounded-lg border border-dashed border-ml-azul px-3 py-1.5 text-xs font-semibold text-ml-azul hover:bg-blue-50"
+            >
+              ⚡ Marcar só as com confiança ≥ {limite}%
+            </button>
+          ) : null
+        })()}
         <ul className="max-h-96 space-y-2 overflow-y-auto">
           {sugestoes?.map((s) => {
             const mudanca = s.motorista && s.motorista.id !== s.item.motoristaId
@@ -569,7 +614,20 @@ export function Programacao() {
                       </span>
                     </span>
                     {s.motorista && (
-                      <Badge className="border-slate-200 bg-slate-100 text-slate-600">{s.pontos} pts</Badge>
+                      <span className="flex shrink-0 flex-col items-end gap-0.5">
+                        <Badge
+                          className={
+                            s.confianca >= 70
+                              ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                              : s.confianca >= 40
+                                ? 'border-amber-200 bg-amber-100 text-amber-800'
+                                : 'border-red-200 bg-red-100 text-red-700'
+                          }
+                        >
+                          {s.confianca}% confiança
+                        </Badge>
+                        <span className="text-[10px] text-slate-400">{s.pontos} pts</span>
+                      </span>
                     )}
                   </div>
                   {(s.motivos.length > 0 || s.alertas.length > 0) && (
@@ -668,6 +726,23 @@ export function Programacao() {
                 onChange={(e) => setParamsEdit({ ...paramsEdit, equivalenciasVeiculo: e.target.value })}
               />
             </Field>
+
+            <div className="rounded-lg border border-ml-amarelo bg-yellow-50 p-3">
+              <Field label="⚡ Auto-alocação: aplicar sozinho as sugestões com confiança ≥ (%) — 0 desliga">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={paramsEdit.autoAplicarAcimaDe}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, autoAplicarAcimaDe: Number(e.target.value) })}
+                />
+              </Field>
+              <p className="mt-1.5 text-[11px] text-slate-600">
+                Com isso ativo, o botão <strong>⚡ Auto-alocar</strong> aplica de uma vez as rotas em que o sistema tem
+                alta confiança, deixando só as duvidosas para você revisar. Comece alto (ex.: 85%) e vá baixando
+                conforme a aderência da frota sobe.
+              </p>
+            </div>
 
             <div className="flex justify-between gap-2">
               <Button variante="fantasma" onClick={() => setParamsEdit({ ...PARAMETROS_PADRAO })}>

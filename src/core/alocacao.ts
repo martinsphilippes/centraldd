@@ -21,6 +21,7 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   bonusDisponivelAgenda: 3,
   exigirVeiculoCompativel: false,
   equivalenciasVeiculo: 'VUC = HR, Van\nUTILITARIO = Fiorino, Van, HR\nVEÍCULO DE PASSEIO = Carro passeio',
+  autoAplicarAcimaDe: 0,
   atualizadoEm: '',
 }
 
@@ -58,6 +59,8 @@ export interface Sugestao {
   item: ProgramacaoItem
   motorista: Motorista | null
   pontos: number
+  /** 0..100 — o quanto o candidato escolhido se destaca dos demais para a rota. */
+  confianca: number
   motivos: string[]
   alertas: string[]
 }
@@ -116,6 +119,7 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
     item: ProgramacaoItem
     motorista: Motorista
     pontos: number
+    confianca: number
     motivos: string[]
     alertas: string[]
   }
@@ -172,17 +176,31 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
         motivos.push('✅ disponível na agenda')
       }
 
-      pares.push({ item, motorista: m, pontos, motivos, alertas })
+      pares.push({ item, motorista: m, pontos, confianca: 0, motivos, alertas })
     }
   }
 
   // Combinação gulosa: melhores pares primeiro, 1 rota por motorista.
   pares.sort((a, b) => b.pontos - a.pontos)
+  const paresPorItem = new Map<string, Par[]>()
+  for (const par of pares) {
+    const arr = paresPorItem.get(par.item.id) ?? []
+    arr.push(par) // pares já ordenados desc → cada lista fica desc
+    paresPorItem.set(par.item.id, arr)
+  }
   const rotaPreenchida = new Set<string>()
   const motoristaUsado = new Set<string>()
   const escolhidos = new Map<string, Par>()
   for (const par of pares) {
     if (rotaPreenchida.has(par.item.id) || motoristaUsado.has(par.motorista.id)) continue
+    // Confiança = quanto o escolhido se destaca do melhor concorrente livre da rota.
+    const alternativa = (paresPorItem.get(par.item.id) ?? []).find(
+      (o) => o.motorista.id !== par.motorista.id && !motoristaUsado.has(o.motorista.id),
+    )
+    const margem = alternativa ? par.pontos - alternativa.pontos : par.pontos + 4
+    let conf = (100 * margem) / (margem + 4) // saturante: margem 4 → 50%, 12 → 75%
+    if (par.pontos <= 0) conf = Math.min(conf, 35) // sem histórico = palpite, confiança baixa
+    par.confianca = Math.max(0, Math.min(100, Math.round(conf)))
     rotaPreenchida.add(par.item.id)
     motoristaUsado.add(par.motorista.id)
     escolhidos.set(par.item.id, par)
@@ -194,8 +212,15 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
     .map((item) => {
       const e = escolhidos.get(item.id)
       return e
-        ? { item, motorista: e.motorista, pontos: Math.round(e.pontos * 10) / 10, motivos: e.motivos, alertas: e.alertas }
-        : { item, motorista: null, pontos: 0, motivos: [], alertas: ['❌ nenhum motorista elegível (travas dos parâmetros)'] }
+        ? {
+            item,
+            motorista: e.motorista,
+            pontos: Math.round(e.pontos * 10) / 10,
+            confianca: e.confianca,
+            motivos: e.motivos,
+            alertas: e.alertas,
+          }
+        : { item, motorista: null, pontos: 0, confianca: 0, motivos: [], alertas: ['❌ nenhum motorista elegível (travas dos parâmetros)'] }
     })
 }
 

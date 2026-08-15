@@ -157,6 +157,8 @@ export interface ParametrosAlocacao {
   exigirVeiculoCompativel: boolean
   /** Equivalências "veículo da rota = veículos do cadastro", uma por linha. Ex.: VUC = HR, Van */
   equivalenciasVeiculo: string
+  /** Auto-alocação: aplica sozinho as sugestões com confiança ≥ este % (0 = desligado). */
+  autoAplicarAcimaDe: number
   atualizadoEm: string
 }
 
