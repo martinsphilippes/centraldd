@@ -18,7 +18,7 @@ import {
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
-import { Badge, Button, Card, EmptyState, Field, Input, Modal, SegmentedControl, Select, StatCard } from '../../components/ui'
+import { Badge, Button, Card, EmptyState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard } from '../../components/ui'
 
 /** Remove acentos e baixa a caixa para comparar nomes. */
 function normalizar(s: string): string {
@@ -184,6 +184,17 @@ export function Programacao() {
     const a = rodizio.aderencia.get(motoristaId)
     return a && a.total > 0 ? a : null
   }
+
+  // Aderência geral da frota: soma de acertos / soma de rotas avaliadas.
+  const aderenciaGeral = useMemo(() => {
+    let acertos = 0
+    let total = 0
+    for (const a of rodizio.aderencia.values()) {
+      acertos += a.acertos
+      total += a.total
+    }
+    return { acertos, total, taxa: total ? acertos / total : 0 }
+  }, [rodizio])
 
   const tabelaRodizio = (): Tabela => ({
     titulo: `Rodizio motorista x cidade (${periodoRodizio === 'todos' ? 'todo o histórico' : `últimos ${periodoRodizio} dias`})`,
@@ -356,6 +367,54 @@ export function Programacao() {
               <Button variante="secundario" onClick={() => exportarExcel(tabelaRodizio())}>⬇️ Excel</Button>
             </div>
           </div>
+          {aderenciaGeral.total > 0 && (
+            <Card className="p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">🤖</span>
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className={`text-3xl font-bold ${
+                          aderenciaGeral.taxa >= 0.7
+                            ? 'text-emerald-600'
+                            : aderenciaGeral.taxa >= 0.4
+                              ? 'text-amber-600'
+                              : 'text-red-600'
+                        }`}
+                      >
+                        {Math.round(aderenciaGeral.taxa * 100)}%
+                      </span>
+                      <span className="text-xs font-medium text-slate-500">
+                        {aderenciaGeral.acertos} de {aderenciaGeral.total} rotas avaliadas
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Aderência média da frota</p>
+                  </div>
+                </div>
+                <div className="min-w-40 flex-1">
+                  <ProgressBar
+                    valor={aderenciaGeral.acertos}
+                    total={aderenciaGeral.total}
+                    cor={
+                      aderenciaGeral.taxa >= 0.7
+                        ? 'bg-emerald-500'
+                        : aderenciaGeral.taxa >= 0.4
+                          ? 'bg-amber-500'
+                          : 'bg-red-500'
+                    }
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {aderenciaGeral.taxa >= 0.7
+                      ? '✅ A sugestão automática já acompanha bem as decisões do dispatcher — dá para confiar e revisar só as exceções.'
+                      : aderenciaGeral.taxa >= 0.4
+                        ? '🟡 A automação está no caminho. Ajuste os ⚙️ Parâmetros e as cidades preferidas/bloqueadas para subir a aderência.'
+                        : '🔴 Ainda há muito conhecimento seu fora dos parâmetros. Calibre os pesos e restrições para o sistema aprender suas regras.'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
           {rodizio.listaDrivers.length === 0 ? (
             <EmptyState icone="🔄" titulo="Sem dados no período" descricao="Importe programações diárias para medir o rodízio." />
           ) : (
