@@ -732,8 +732,14 @@ export function Programacao() {
                 <Input type="number" min={0} max={30} value={paramsEdit.maxVezesSeguidasMesmaCidade}
                   onChange={(e) => setParamsEdit({ ...paramsEdit, maxVezesSeguidasMesmaCidade: Number(e.target.value) })} />
               </Field>
+              <Field label="📌 Máximo de dias futuros que o motorista pode deixar agendados na agenda (0 = sem limite)">
+                <Input type="number" min={0} max={14} value={paramsEdit.maxDiasAgendados}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxDiasAgendados: Number(e.target.value) })} />
+              </Field>
               <p className="text-[11px] text-slate-500">
-                💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
+                📌 Com o limite em 2: o motorista agenda até 2 dias; quando trabalha um (a data passa),
+                libera vaga para agendar o próximo — reduz o risco de escala furada.
+                <br />💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
                 Cidades bloqueadas/preferidas de cada um ficam no cadastro do motorista.
               </p>
             </div>

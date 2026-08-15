@@ -22,11 +22,15 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   exigirVeiculoCompativel: false,
   equivalenciasVeiculo: 'VUC = HR, Van\nUTILITARIO = Fiorino, Van, HR\nVEÍCULO DE PASSEIO = Carro passeio',
   autoAplicarAcimaDe: 0,
+  maxDiasAgendados: 2,
   atualizadoEm: '',
 }
 
 export function parametrosAtuais(db: DB): ParametrosAlocacao {
-  return db.config.find((c) => c.id === 'alocacao') ?? PARAMETROS_PADRAO
+  const salvo = db.config.find((c) => c.id === 'alocacao')
+  // Mescla com o padrão: configurações salvas antes de um campo novo existir
+  // ganham o valor padrão desse campo automaticamente.
+  return salvo ? { ...PARAMETROS_PADRAO, ...salvo } : PARAMETROS_PADRAO
 }
 
 function norm(s: string): string {

@@ -159,6 +159,11 @@ export interface ParametrosAlocacao {
   equivalenciasVeiculo: string
   /** Auto-alocação: aplica sozinho as sugestões com confiança ≥ este % (0 = desligado). */
   autoAplicarAcimaDe: number
+  /**
+   * Máximo de dias FUTUROS que o motorista pode deixar agendados como disponível
+   * na agenda (0 = sem limite). Trabalhou um dia → a data passa → libera vaga.
+   */
+  maxDiasAgendados: number
   atualizadoEm: string
 }
 

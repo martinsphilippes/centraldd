@@ -3,6 +3,7 @@ import { removerDiaAgenda, salvarDiaAgenda, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { hojeISO, formatarDataLonga, rotuloDia } from '../../core/dates'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
+import { parametrosAtuais } from '../../core/alocacao'
 import type { Periodo, StatusResposta } from '../../core/types'
 import { Button, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
@@ -29,6 +30,21 @@ export function MinhaAgenda() {
   const disponiveisEm = (data: string) =>
     db.agenda.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
 
+  // Limite de dias agendados: só conta dias FUTUROS marcados como disponível.
+  // Dia trabalhado (data passou) sai da conta e libera novo agendamento.
+  const maxAgendados = parametrosAtuais(db).maxDiasAgendados
+  const meusAgendados = db.agenda.filter(
+    (a) => a.motoristaId === motoristaId && a.data >= hojeISO() && STATUS_DISPONIVEIS.includes(a.status),
+  ).length
+
+  /** true se o motorista já usou todas as vagas de agendamento (e este dia não é uma delas). */
+  const cotaEstourada = (data: string) => {
+    if (maxAgendados <= 0) return false
+    const minha = db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
+    const jaConta = !!minha && STATUS_DISPONIVEIS.includes(minha.status)
+    return !jaConta && meusAgendados >= maxAgendados
+  }
+
   /** true se as vagas de disponibilidade da data acabaram (e eu ainda não ocupo uma). */
   const vagasEsgotadas = (data: string) => {
     const limite = limiteDe(data)
@@ -40,6 +56,12 @@ export function MinhaAgenda() {
 
   const escolher = (s: StatusResposta) => {
     if (!dataSelecionada) return
+    if (STATUS_DISPONIVEIS.includes(s) && cotaEstourada(dataSelecionada)) {
+      setErroVaga(
+        `📌 Você já tem ${maxAgendados} dia(s) de trabalho agendado(s) — esse é o limite. Quando trabalhar um dia e a rota for concluída, uma nova vaga de agendamento é liberada automaticamente. (Marcar folga/indisponibilidade continua livre.)`,
+      )
+      return
+    }
     if (STATUS_DISPONIVEIS.includes(s) && vagasEsgotadas(dataSelecionada)) {
       setErroVaga('😕 As vagas de disponibilidade deste dia já foram preenchidas. Você ainda pode marcar indisponibilidade, folga, atestado ou férias.')
       return
@@ -82,6 +104,24 @@ export function MinhaAgenda() {
           Marque com antecedência os dias em que você está (ou não) disponível. A coordenação vê tudo em tempo real.
         </p>
       </div>
+
+      {maxAgendados > 0 && (
+        <div
+          className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+            meusAgendados >= maxAgendados
+              ? 'border-amber-300 bg-amber-50 text-amber-800'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          <span className="text-lg">📌</span>
+          <span className="flex-1">
+            Dias de trabalho agendados: <strong>{meusAgendados}/{maxAgendados}</strong>
+            {meusAgendados >= maxAgendados
+              ? ' — limite atingido. Trabalhe um dia agendado para liberar o próximo.'
+              : ` — você ainda pode agendar ${maxAgendados - meusAgendados} dia(s).`}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-2">
         {dias.map((data) => {
@@ -146,7 +186,9 @@ export function MinhaAgenda() {
             const info = STATUS_RESPOSTA[s]
             const atual = dataSelecionada ? minha(dataSelecionada)?.status === s : false
             const bloqueado =
-              !!dataSelecionada && STATUS_DISPONIVEIS.includes(s) && vagasEsgotadas(dataSelecionada)
+              !!dataSelecionada &&
+              STATUS_DISPONIVEIS.includes(s) &&
+              (vagasEsgotadas(dataSelecionada) || cotaEstourada(dataSelecionada))
             return (
               <button
                 key={s}
