@@ -162,6 +162,33 @@ export interface ParametrosAlocacao {
   atualizadoEm: string
 }
 
+/** Linha do desdobramento AM por transportadora no resumo do dia. */
+export interface ResumoTransportadora {
+  nome: string
+  utilitarios: string
+  vuc: string
+}
+
+/** Linha da seção MM (veículos grandes) no resumo do dia. */
+export interface ResumoMM {
+  tipo: string
+  quantidade: string
+  posicoesPorUnidade: string
+}
+
+/** Resumo operacional do dia (o "card" do dispatcher: pacotes, veículos, rotas, posições). */
+export interface ResumoDia {
+  id: string // = data (YYYY-MM-DD)
+  data: string
+  base: string
+  sprReferencia: string
+  pacotes: string
+  veiculosDiv: string
+  transportadoras: ResumoTransportadora[]
+  mm: ResumoMM[]
+  atualizadoEm: string
+}
+
 /** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
 export interface LimiteDia {
   id: string // = data (YYYY-MM-DD)
@@ -188,6 +215,7 @@ export interface DB {
   limites: LimiteDia[]
   rotas: Rota[]
   programacao: ProgramacaoItem[]
+  resumos: ResumoDia[]
   config: ParametrosAlocacao[]
   notificacoes: Notificacao[]
 }

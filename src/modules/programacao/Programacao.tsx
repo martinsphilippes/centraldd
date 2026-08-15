@@ -17,6 +17,7 @@ import {
 } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
+import { ResumoDiaCard } from './ResumoDiaCard'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard } from '../../components/ui'
 
@@ -268,24 +269,41 @@ export function Programacao() {
       </div>
 
       {visao === 'dia' ? (
-        db.programacao.length === 0 ? (
-          <EmptyState
-            icone="📆"
-            titulo="Nenhuma programação importada"
-            descricao="Cole a planilha diária do Meli em “Importar planilha Meli” para começar."
-          />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Dia:</span>
-              <Select value={dataAtiva} onChange={(e) => setDataSelecionada(e.target.value)} style={{ width: 'auto' }}>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Dia:</span>
+            {datas.length > 0 && (
+              <Select value={datas.includes(dataAtiva) ? dataAtiva : ''} onChange={(e) => setDataSelecionada(e.target.value)} style={{ width: 'auto' }}>
+                {!datas.includes(dataAtiva) && <option value="">{rotuloDia(dataAtiva)}</option>}
                 {datas.map((d) => (
                   <option key={d} value={d}>
                     {rotuloDia(d)}
                   </option>
                 ))}
               </Select>
-              <div className="ml-auto flex flex-wrap gap-2">
+            )}
+            <input
+              type="date"
+              value={dataAtiva}
+              onChange={(e) => setDataSelecionada(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-ml-azul"
+              title="Escolher qualquer data"
+            />
+          </div>
+
+          <ResumoDiaCard data={dataAtiva} />
+
+          {db.programacao.length === 0 ? (
+            <EmptyState
+              icone="📆"
+              titulo="Nenhuma programação importada"
+              descricao="Cole a planilha diária do Meli em “Importar planilha Meli” para preencher a alocação por rota."
+            />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Rotas do dia:</span>
+                <div className="ml-auto flex flex-wrap gap-2">
                 <Button variante="secundario" onClick={() => exportarCSV(tabelaDia())}>⬇️ CSV</Button>
                 <Button variante="secundario" onClick={() => exportarExcel(tabelaDia())}>⬇️ Excel</Button>
                 <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(dataAtiva))}>🖨️ PDF</Button>
@@ -373,8 +391,9 @@ export function Programacao() {
                 </tbody>
               </table>
             </Card>
-          </>
-        )
+            </>
+          )}
+        </>
       ) : (
         // ---- Visão de rodízio ----
         <>

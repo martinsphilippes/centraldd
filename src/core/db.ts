@@ -23,6 +23,7 @@ import type {
   ParametrosAlocacao,
   ProgramacaoItem,
   Resposta,
+  ResumoDia,
   Rota,
 } from './types'
 
@@ -35,6 +36,7 @@ const VAZIO: DB = {
   limites: [],
   rotas: [],
   programacao: [],
+  resumos: [],
   config: [],
   notificacoes: [],
 }
@@ -78,6 +80,7 @@ export function iniciarSincronizacao() {
     'limites',
     'rotas',
     'programacao',
+    'resumos',
     'config',
     'notificacoes',
   ]
@@ -181,6 +184,10 @@ export function salvarRota(r: Rota) {
 
 export function removerRota(id: string) {
   void deleteDoc(doc(firestore, 'rotas', id))
+}
+
+export function salvarResumoDia(r: ResumoDia) {
+  void setDoc(doc(firestore, 'resumos', r.id), { ...r, atualizadoEm: new Date().toISOString() })
 }
 
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
