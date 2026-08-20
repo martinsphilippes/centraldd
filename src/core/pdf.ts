@@ -155,7 +155,7 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
   // (evita travar aparelhos fracos) e prints/fotos pequenas são ampliadas
   // (melhora muito o acerto em tabelas densas). Calibrado com planilhas reais.
   const LARGURA_ALVO = 2400
-  const escala = Math.min(3, LARGURA_ALVO / largura)
+  const escala = Math.min(4, LARGURA_ALVO / largura)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(largura * escala)
   canvas.height = Math.round(altura * escala)

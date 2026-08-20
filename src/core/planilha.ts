@@ -104,6 +104,95 @@ export function cidadesDoTexto(cidade: string): string[] {
     .filter((c) => !/^(vd|vl|vg|g|d)\d+$/i.test(c.replace(/\s/g, '')))
 }
 
+export interface ModeloResumo {
+  data?: string
+  base?: string
+  sprReferencia?: string
+  pacotes?: string
+  veiculosDiv?: string
+  transportadoras: { nome: string; utilitarios: string; vuc: string }[]
+  mm: { tipo: string; quantidade: string; posicoesPorUnidade: string }[]
+  camposDetectados: number
+}
+
+/**
+ * Lê o MODELO do resumo do dia (o card EMG13 com pacotes, SPR, AM e MM) a
+ * partir de texto colado, CSV, PDF ou foto. Reconhece pelos rótulos, então
+ * a ordem das linhas não importa e linhas extras são ignoradas.
+ */
+export function parsearModeloResumo(texto: string): ModeloResumo {
+  const r: ModeloResumo = { transportadoras: [], mm: [], camposDetectados: 0 }
+  const IGNORAR = /^(PACOTES|VE.?CULOS|SPR|TOTAL|POSI|MM$|AM\b|TRANSPORTADORA|UTILIT|VUC|DATA)/i
+  let dentroAM = false
+
+  for (const bruta of texto.split(/\r?\n/)) {
+    const linha = bruta.trim()
+    if (!linha) continue
+    const celulas = linha.split(/\t+|;/).map((c) => c.trim()).filter(Boolean)
+    const primeira = celulas[0] ?? ''
+    const numeros = celulas.slice(1).filter((c) => /^[\d.,]+$/.test(c))
+
+    // Data (dd/mm/aaaa em qualquer lugar da linha)
+    const mData = linha.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+    if (mData && !r.data) {
+      r.data = `${mData[3]}-${mData[2].padStart(2, '0')}-${mData[1].padStart(2, '0')}`
+      r.camposDetectados++
+    }
+
+    // Base: "EMG13 - ITUIUTABA" (tolerante a ruído de OCR em volta)
+    const mBase = linha.match(/([A-Za-z]{2,}\d+\s*[-–—]\s*[A-Za-zÀ-ú][A-Za-zÀ-ú\s.]*)/)
+    if (!r.base && mBase && !/SPR|PACOTE|VE.?CULO/i.test(linha)) {
+      r.base = mBase[1].replace(/\s+/g, ' ').trim().toUpperCase()
+      r.camposDetectados++
+      continue
+    }
+    // SPR de referência
+    if (/SPR/i.test(linha) && !r.sprReferencia) {
+      const n = linha.match(/([\d.,]+)\s*$/)
+      if (n) {
+        r.sprReferencia = n[1]
+        r.camposDetectados++
+      }
+      continue
+    }
+    // Pacotes
+    if (/^PACOTES/i.test(primeira) && !r.pacotes && numeros[0]) {
+      r.pacotes = numeros[0]
+      r.camposDetectados++
+      continue
+    }
+    // Veículos DIV
+    if (/VE.?CULOS?\s*DIV/i.test(primeira) && !r.veiculosDiv && numeros[0]) {
+      r.veiculosDiv = numeros[0]
+      r.camposDetectados++
+      continue
+    }
+    // Seção MM: "TRUCK  1  x16 posições" (quantidade pode faltar)
+    const mPos = linha.match(/x\s*(\d+)\s*posi/i)
+    if (mPos) {
+      const quantidade = numeros.find((n) => n !== mPos[1]) ?? ''
+      r.mm.push({ tipo: primeira, quantidade, posicoesPorUnidade: mPos[1] })
+      r.camposDetectados++
+      continue
+    }
+    // Cabeçalho da seção AM liga o modo transportadora até o TOTAL.
+    if (/TRANSPORTADORA/i.test(linha)) {
+      dentroAM = true
+      continue
+    }
+    if (/^TOTAL/i.test(primeira)) {
+      dentroAM = false
+      continue
+    }
+    // Linhas de transportadora: "RODACOOP  50  4" / "ME EXTRA  1"
+    if (dentroAM && !IGNORAR.test(primeira) && /[A-ZÀ-Ú]{3,}/.test(primeira) && numeros.length >= 1) {
+      r.transportadoras.push({ nome: primeira, utilitarios: numeros[0] ?? '', vuc: numeros[1] ?? '' })
+      r.camposDetectados++
+    }
+  }
+  return r
+}
+
 export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; ignoradas: number } {
   const linhas = texto
     .split(/\r?\n/)

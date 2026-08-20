@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { salvarResumoDia, useDB } from '../../core/db'
 import { formatarData } from '../../core/dates'
+import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
+import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
-import { Button, Card, Input } from '../../components/ui'
+import { Button, Card, Input, Modal } from '../../components/ui'
 
 const MM_PADRAO = [
   { tipo: '3/4', quantidade: '', posicoesPorUnidade: '8' },
@@ -101,6 +103,14 @@ export function ResumoDiaCard({ data }: { data: string }) {
   const [editando, setEditando] = useState(false)
   const existente = db.resumos.find((r) => r.id === data)
 
+  // Importação do modelo (colar / CSV / PDF / foto)
+  const [modalModelo, setModalModelo] = useState(false)
+  const [textoModelo, setTextoModelo] = useState('')
+  const [previaModelo, setPreviaModelo] = useState<ModeloResumo | null>(null)
+  const [lendoModelo, setLendoModelo] = useState('')
+  const [erroModelo, setErroModelo] = useState('')
+  const arquivoModeloRef = useRef<HTMLInputElement>(null)
+
   // Base sugerida a partir da programação (primeira que aparecer) — só como padrão.
   const [rascunho, setRascunho] = useState<ResumoDia>(() => existente ?? novoResumo(data, ''))
 
@@ -142,6 +152,62 @@ export function ResumoDiaCard({ data }: { data: string }) {
   const salvar = () => {
     salvarResumoDia(rascunho)
     setEditando(false)
+  }
+
+  // ---------- Importação do modelo ----------
+  const atualizarPreviaModelo = (texto: string) => {
+    setTextoModelo(texto)
+    setPreviaModelo(texto.trim() ? parsearModeloResumo(texto) : null)
+  }
+
+  const lerArquivoModelo = (e: ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!arquivo) return
+    setErroModelo('')
+    const nome = arquivo.name.toLowerCase()
+    const ehPdf = nome.endsWith('.pdf')
+    const ehImagem = arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
+    if (ehPdf || ehImagem) {
+      setLendoModelo(ehPdf ? '⏳ Lendo PDF…' : '🔍 Lendo imagem…')
+      void (async () => {
+        try {
+          const texto = ehPdf
+            ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoModelo)
+            : await extrairTextoDeImagem(arquivo, setLendoModelo)
+          atualizarPreviaModelo(texto)
+        } catch (err) {
+          setErroModelo(`Não consegui ler esse arquivo (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
+        } finally {
+          setLendoModelo('')
+        }
+      })()
+      return
+    }
+    const leitor = new FileReader()
+    leitor.onload = () => atualizarPreviaModelo(String(leitor.result ?? ''))
+    leitor.readAsText(arquivo)
+  }
+
+  const aplicarModelo = () => {
+    if (!previaModelo) return
+    const base = existente ?? novoResumo(data, '')
+    salvarResumoDia({
+      ...base,
+      id: data,
+      data,
+      base: previaModelo.base ?? base.base,
+      sprReferencia: previaModelo.sprReferencia ?? base.sprReferencia,
+      pacotes: previaModelo.pacotes ?? base.pacotes,
+      veiculosDiv: previaModelo.veiculosDiv ?? base.veiculosDiv,
+      transportadoras: previaModelo.transportadoras.length ? previaModelo.transportadoras : base.transportadoras,
+      // O modelo traz o AM por transportadora → passa a valer o manual importado.
+      amAutomatico: previaModelo.transportadoras.length ? false : base.amAutomatico,
+      mm: previaModelo.mm.length ? previaModelo.mm : base.mm,
+    })
+    setModalModelo(false)
+    setTextoModelo('')
+    setPreviaModelo(null)
   }
 
   const imprimir = () => {
@@ -339,8 +405,11 @@ export function ResumoDiaCard({ data }: { data: string }) {
     <Card className="overflow-hidden p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-bold text-slate-900">📋 Resumo do dia</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variante="secundario" onClick={imprimir}>🖨️ Imprimir / PDF</Button>
+          <Button variante="secundario" onClick={() => { setErroModelo(''); setModalModelo(true) }}>
+            📥 Importar modelo
+          </Button>
           <Button variante="ml" onClick={() => { setRascunho(existente ?? novoResumo(data, '')); setEditando(true) }}>
             ✏️ {existente ? 'Editar' : 'Preencher'}
           </Button>
@@ -440,6 +509,74 @@ export function ResumoDiaCard({ data }: { data: string }) {
           {!auto && rotasProg > 0 && ` • programação importada tem ${rotasProg} rota(s)`}
         </p>
       </div>
+
+      {/* Importar o modelo do resumo (colar / CSV / PDF / foto) */}
+      <Modal aberto={modalModelo} titulo={`📥 Importar modelo — ${formatarData(data)}`} onFechar={() => setModalModelo(false)}>
+        <p className="mb-2 text-sm text-slate-600">
+          Cole o texto do modelo do dia, ou envie o arquivo (CSV, PDF ou foto). O sistema reconhece pelos
+          rótulos: <strong>base, SPR, pacotes, veículos DIV, transportadoras (AM) e MM</strong>.
+        </p>
+        <textarea
+          className="h-32 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
+          placeholder={'EMG13 - ITUIUTABA\nSPR DE REFERÊNCIA\t100\nPACOTES\t6653\nVeículos DIV\t54\n…'}
+          value={textoModelo}
+          onChange={(e) => atualizarPreviaModelo(e.target.value)}
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input ref={arquivoModeloRef} type="file" accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivoModelo} className="hidden" />
+          <Button variante="secundario" onClick={() => arquivoModeloRef.current?.click()} disabled={!!lendoModelo}>
+            {lendoModelo || '📄 Enviar CSV, PDF ou foto'}
+          </Button>
+        </div>
+        {erroModelo && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroModelo}</p>
+        )}
+        {previaModelo && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-slate-700">
+            <p className="font-bold text-emerald-800">✅ Reconhecido no modelo:</p>
+            <ul className="mt-1 space-y-0.5 text-xs">
+              {previaModelo.base && <li>🏢 Base: <strong>{previaModelo.base}</strong></li>}
+              {previaModelo.sprReferencia && <li>🎯 SPR de referência: <strong>{previaModelo.sprReferencia}</strong></li>}
+              {previaModelo.pacotes && <li>📦 Pacotes: <strong>{previaModelo.pacotes}</strong></li>}
+              {previaModelo.veiculosDiv && <li>🚐 Veículos DIV: <strong>{previaModelo.veiculosDiv}</strong></li>}
+              {previaModelo.transportadoras.length > 0 && (
+                <li>
+                  🚛 AM:{' '}
+                  <strong>
+                    {previaModelo.transportadoras
+                      .map((t) => `${t.nome} (${t.utilitarios || 0}${t.vuc ? `+${t.vuc} VUC` : ''})`)
+                      .join(', ')}
+                  </strong>
+                </li>
+              )}
+              {previaModelo.mm.length > 0 && (
+                <li>
+                  🚚 MM:{' '}
+                  <strong>
+                    {previaModelo.mm.map((m) => `${m.tipo}${m.quantidade ? ` ${m.quantidade}` : ''} (x${m.posicoesPorUnidade})`).join(', ')}
+                  </strong>
+                </li>
+              )}
+              {previaModelo.data && previaModelo.data !== data && (
+                <li className="text-amber-700">
+                  ⚠️ O modelo indica {formatarData(previaModelo.data)} — será aplicado ao dia selecionado ({formatarData(data)}).
+                </li>
+              )}
+            </ul>
+            {previaModelo.camposDetectados === 0 && (
+              <p className="mt-1 text-xs text-amber-700">Nenhum campo reconhecido — confira se o texto tem os rótulos do modelo.</p>
+            )}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variante="secundario" onClick={() => setModalModelo(false)}>
+            Cancelar
+          </Button>
+          <Button variante="ml" onClick={aplicarModelo} disabled={!previaModelo || previaModelo.camposDetectados === 0}>
+            📥 Preencher o card
+          </Button>
+        </div>
+      </Modal>
     </Card>
   )
 }
