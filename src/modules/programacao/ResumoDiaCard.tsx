@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { aplicarModeloResumo, registrarDiagnosticoOcr, salvarResumoDia, useDB } from '../../core/db'
 import { formatarData } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
-import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
+import { extrairTextoDeImagem, extrairTextoTabularDePdf, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input, Modal } from '../../components/ui'
 
@@ -184,6 +184,7 @@ export function ResumoDiaCard({
       registrarDiagnosticoOcr('resumo-modelo', texto, {
         arquivo: arquivo.name,
         camposDetectados: modelo.camposDetectados,
+        miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
       })
       if (modelo.camposDetectados > 0) {
         // A data escrita NO MODELO manda: o card daquele dia é preenchido

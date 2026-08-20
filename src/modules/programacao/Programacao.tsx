@@ -16,7 +16,7 @@ import {
   type ModeloResumo,
   type ProgramacaoImportada,
 } from '../../core/planilha'
-import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
+import { extrairTextoDeImagem, extrairTextoTabularDePdf, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import {
   aderenciaHistorica,
   PARAMETROS_PADRAO,
@@ -131,7 +131,10 @@ export function Programacao() {
           const texto = ehPdf
             ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
             : await extrairTextoDeImagem(arquivo, setLendoPdf)
-          registrarDiagnosticoOcr('programacao-meli', texto, { arquivo: arquivo.name })
+          registrarDiagnosticoOcr('programacao-meli', texto, {
+            arquivo: arquivo.name,
+            miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
+          })
           atualizarPrevia(texto)
         } catch (err) {
           const detalhe = err instanceof Error ? err.message : String(err)

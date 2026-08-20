@@ -212,6 +212,27 @@ function reforcarContraste(canvas: HTMLCanvasElement) {
   contexto.putImageData(imagem, 0, 0)
 }
 
+// Cópia reduzida da última imagem lida — vai junto no diagnóstico para dar
+// para reproduzir exatamente a leitura que aconteceu no aparelho do usuário.
+let ultimaMiniatura = ''
+
+export function obterUltimaMiniaturaOcr(): string {
+  return ultimaMiniatura
+}
+
+function gerarMiniatura(canvas: HTMLCanvasElement): string {
+  try {
+    const escala = Math.min(1, 900 / canvas.width)
+    const c = document.createElement('canvas')
+    c.width = Math.max(1, Math.round(canvas.width * escala))
+    c.height = Math.max(1, Math.round(canvas.height * escala))
+    c.getContext('2d')?.drawImage(canvas, 0, 0, c.width, c.height)
+    return c.toDataURL('image/jpeg', 0.6)
+  } catch {
+    return ''
+  }
+}
+
 /**
  * Lê uma IMAGEM (JPG, PNG, foto de celular, print…) com OCR e devolve o texto
  * tabular. Fotos pequenas são ampliadas antes da leitura para melhorar o acerto.
@@ -227,6 +248,7 @@ export async function extrairTextoDeImagem(
   }
   onProgresso?.('🖼️ Preparando a imagem…')
   const canvas = await imagemParaCanvas(arquivo)
+  ultimaMiniatura = gerarMiniatura(canvas)
   const worker = await criarWorkerOcr(onProgresso)
   try {
     onProgresso?.('🔍 Lendo a imagem com OCR…')
@@ -243,10 +265,14 @@ export async function extrairTextoDeImagem(
       ])
     const resultado = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
     let texto = ocrTsvParaTexto(resultado.data.tsv ?? '')
-    // Quase nenhum número reconhecido? Foto muito escura/apagada — 2ª passada
+    // Poucos números reconhecidos? Foto muito escura/apagada — 2ª passada
     // com contraste reforçado (mesmo modo de leitura, que é o que funciona).
-    const gruposDeDigitos = (texto.match(/\d+/g) ?? []).length
-    if (gruposDeDigitos < 6) {
+    // Conta só números SOLTOS (célula numérica): dígitos grudados em letra
+    // (EMG13) ou em data (13/08/2026) não provam que os valores foram lidos.
+    const numerosSoltos = texto
+      .split(/[\s\t]+/)
+      .filter((t) => /^\d+([.,]\d+)?$/.test(t)).length
+    if (numerosSoltos < 6) {
       onProgresso?.('🔍 Refinando a leitura (2ª passada com contraste)…')
       reforcarContraste(canvas)
       const segunda = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))

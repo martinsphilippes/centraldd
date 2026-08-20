@@ -180,14 +180,15 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
       continue
     }
     // Seção MM: "TRUCK  1  x16 posições" (quantidade pode faltar).
-    // Normaliza ruído comum de OCR: "xi2posições" → "x12posições".
-    const linhaMM = linha.replace(/x[il](\d)/gi, 'x1$1')
+    // Normaliza ruído comum de OCR: "xi2posições" → "x12", "xsposições" → "x8".
+    const linhaMM = linha.replace(/x[il](\d)/gi, 'x1$1').replace(/x[sb$]\s*(?=posi)/gi, 'x8 ')
     const mPos = linhaMM.match(/x\s*(\d+)\s*posi/i)
     if (mPos) {
       const quantidade = numeros.find((n) => n !== mPos[1]) ?? ''
-      // Nome ilegível no OCR? O xN denuncia o veículo (x8 = 3/4, x12 = TOCO…).
+      // O xN denuncia o veículo (x8 = 3/4, x12 = TOCO…) — mais confiável que o
+      // nome, que o OCR costuma estropiar ("S/N" no lugar de "3/4").
       const nomeLegivel = !/^x\s*\d/i.test(primeira) && (primeira.length >= 3 || primeira === '3/4')
-      const tipo = nomeLegivel ? primeira : (MM_POR_POSICOES[mPos[1]] ?? primeira)
+      const tipo = MM_POR_POSICOES[mPos[1]] ?? (nomeLegivel ? primeira : 'MM')
       // Não duplica entre passadas de OCR: completa a quantidade se faltava.
       const existente = r.mm.find((m) => m.posicoesPorUnidade === mPos[1])
       if (existente) {

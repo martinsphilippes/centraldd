@@ -213,16 +213,45 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     ],
     atualizadoEm: '',
   }
+  const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
+  // A leitura só ACRESCENTA ou refina — nunca apaga o que o card já tinha.
+  // Uma foto ruim que leu metade das linhas não pode destruir a outra metade.
+  // Nomes com ruído de OCR ("RODACEEP" = RODACOOP) casam pelo começo do nome.
+  const chaveNome = (s: string) => s.toUpperCase().replace(/[^A-ZÀ-Ú]/g, '').slice(0, 5)
+  let transportadoras = base.transportadoras.map((t) => ({ ...t }))
+  for (const lida of m.transportadoras) {
+    const igual = transportadoras.find((t) => chaveNome(t.nome) === chaveNome(lida.nome))
+    if (igual) {
+      if (lida.utilitarios) igual.utilitarios = lida.utilitarios
+      if (lida.vuc) igual.vuc = lida.vuc
+    } else {
+      transportadoras.push({ ...lida })
+    }
+  }
+  // Sobrou linha placeholder sem número junto de linhas preenchidas? Sai.
+  if (transportadoras.some((t) => num(t.utilitarios) > 0 || num(t.vuc) > 0)) {
+    transportadoras = transportadoras.filter((t) => num(t.utilitarios) > 0 || num(t.vuc) > 0)
+  }
   // O TOTAL ROTAS lido no modelo é a verdade: se as transportadoras
   // reconhecidas não somarem, completa a diferença numa linha extra.
-  const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
-  let transportadoras = m.transportadoras.length ? [...m.transportadoras] : base.transportadoras
   if (m.totalRotas) {
-    const soma = transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
+    const soma = transportadoras
+      .filter((t) => t.nome !== 'OUTRAS')
+      .reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
     const diferenca = num(m.totalRotas) - soma
+    transportadoras = transportadoras.filter((t) => t.nome !== 'OUTRAS')
     if (diferenca > 0) {
       transportadoras = [...transportadoras, { nome: 'OUTRAS', utilitarios: String(diferenca), vuc: '' }]
     }
+  }
+  // MM: mescla pelo número de posições (x8 = 3/4, x16 = TRUCK…) — as linhas
+  // padrão ficam, e a leitura só preenche/atualiza as quantidades que achou.
+  const mm = base.mm.map((linha) => {
+    const lida = m.mm.find((n) => n.posicoesPorUnidade === linha.posicoesPorUnidade)
+    return lida?.quantidade ? { ...linha, quantidade: lida.quantidade } : linha
+  })
+  for (const lida of m.mm) {
+    if (!mm.some((linha) => linha.posicoesPorUnidade === lida.posicoesPorUnidade)) mm.push({ ...lida })
   }
   const resultado: ResumoDia = {
     ...base,
@@ -235,7 +264,7 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     transportadoras,
     // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
     amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
-    mm: m.mm.length ? m.mm : base.mm,
+    mm,
   }
   salvarResumoDia(resultado)
   return resultado
