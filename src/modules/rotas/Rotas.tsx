@@ -56,6 +56,7 @@ export function Rotas() {
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
     const arquivo = e.target.files?.[0]
+    e.target.value = '' // permite reenviar o mesmo arquivo
     if (!arquivo) return
     setErroArquivo('')
     const nome = arquivo.name.toLowerCase()
@@ -69,8 +70,9 @@ export function Rotas() {
             ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
             : await extrairTextoDeImagem(arquivo, setLendoPdf)
           atualizarPrevia(texto)
-        } catch {
-          setErroArquivo('Não consegui ler esse arquivo. Tente uma foto/PDF mais nítido, cole os dados ou use CSV.')
+        } catch (err) {
+          const detalhe = err instanceof Error ? err.message : String(err)
+          setErroArquivo(`Não consegui ler esse arquivo (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
         } finally {
           setLendoPdf('')
         }

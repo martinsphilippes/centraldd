@@ -94,14 +94,74 @@ export function ocrTsvParaTexto(tsv: string): string {
   return linhas.join('\n')
 }
 
-/** Cria o worker de OCR em português, configurado para ler tabelas. */
+const ETAPAS_OCR: Record<string, string> = {
+  'loading tesseract core': 'carregando o motor',
+  'initializing tesseract': 'iniciando o motor',
+  'loading language traineddata': 'baixando o pacote de leitura',
+  'initializing api': 'preparando a leitura',
+  'recognizing text': 'lendo o documento',
+}
+
+/**
+ * Cria o worker de OCR em português, configurado para ler tabelas.
+ * Todos os arquivos do motor são servidos pelo PRÓPRIO app (/ocr/…) —
+ * sem depender de servidores externos que podem estar bloqueados.
+ */
 async function criarWorkerOcr(onProgresso?: (mensagem: string) => void) {
   const { createWorker } = await import('tesseract.js')
   onProgresso?.('🔍 Preparando OCR (1ª vez demora um pouco)…')
-  const worker = await createWorker('por')
+  const worker = await createWorker('por', 1, {
+    workerPath: '/ocr/worker.min.js',
+    corePath: '/ocr',
+    langPath: '/ocr',
+    gzip: true,
+    logger: (m: { status?: string; progress?: number }) => {
+      const etapa = ETAPAS_OCR[m.status ?? '']
+      if (etapa) onProgresso?.(`🔍 OCR: ${etapa}… ${Math.round((m.progress ?? 0) * 100)}%`)
+    },
+  })
   // PSM 4 (coluna única, tamanhos variados) lê tabelas muito melhor que o padrão.
   await worker.setParameters({ tessedit_pageseg_mode: '4' as never })
   return worker
+}
+
+/** Decodifica uma imagem em canvas, com caminho alternativo para Safari/iOS. */
+async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
+  let largura = 0
+  let altura = 0
+  let fonte: CanvasImageSource
+  try {
+    const bitmap = await createImageBitmap(arquivo)
+    largura = bitmap.width
+    altura = bitmap.height
+    fonte = bitmap
+  } catch {
+    // Safari/iOS às vezes não decodifica via createImageBitmap → usa <img>.
+    const url = URL.createObjectURL(arquivo)
+    try {
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = url
+      await img.decode()
+      largura = img.naturalWidth
+      altura = img.naturalHeight
+      fonte = img
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    }
+  }
+  if (!largura || !altura) throw new Error('imagem vazia ou em formato não suportado pelo aparelho')
+  const escala = largura < 1600 ? Math.min(3, 1600 / largura) : 1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(largura * escala)
+  canvas.height = Math.round(altura * escala)
+  const contexto = canvas.getContext('2d')
+  if (!contexto) throw new Error('canvas indisponível')
+  contexto.imageSmoothingEnabled = true
+  contexto.imageSmoothingQuality = 'high'
+  contexto.drawImage(fonte, 0, 0, canvas.width, canvas.height)
+  if ('close' in fonte) (fonte as ImageBitmap).close()
+  return canvas
 }
 
 /**
@@ -112,17 +172,11 @@ export async function extrairTextoDeImagem(
   arquivo: Blob,
   onProgresso?: (mensagem: string) => void,
 ): Promise<string> {
-  const bitmap = await createImageBitmap(arquivo)
-  const escala = bitmap.width < 1600 ? Math.min(3, 1600 / bitmap.width) : 1
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * escala)
-  canvas.height = Math.round(bitmap.height * escala)
-  const contexto = canvas.getContext('2d')
-  if (!contexto) throw new Error('canvas indisponível')
-  contexto.imageSmoothingEnabled = true
-  contexto.imageSmoothingQuality = 'high'
-  contexto.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
+  if (!arquivo.size) {
+    throw new Error('arquivo vazio — se a foto está no iCloud, abra-a na galeria antes de enviar')
+  }
+  onProgresso?.('🖼️ Preparando a imagem…')
+  const canvas = await imagemParaCanvas(arquivo)
   const worker = await criarWorkerOcr(onProgresso)
   try {
     onProgresso?.('🔍 Lendo a imagem com OCR…')

@@ -6,7 +6,7 @@
 //    chegam na hora, e o app ainda abre offline.
 //  - Firebase/dados: sempre direto na rede (tempo real).
 
-const CACHE = 'mldisponibilidade-v2'
+const CACHE = 'mldisponibilidade-v3'
 
 self.addEventListener('install', () => self.skipWaiting())
 
@@ -45,9 +45,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Estáticos: cache primeiro (os nomes têm hash — nunca ficam desatualizados).
+  // /ocr/ = motor de leitura de PDF escaneado/fotos: pesado, muda raramente —
+  // depois do 1º uso fica guardado no aparelho.
   if (
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
+    url.pathname.startsWith('/ocr/') ||
     url.pathname.endsWith('.webmanifest')
   ) {
     event.respondWith(
