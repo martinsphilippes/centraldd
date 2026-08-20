@@ -1,6 +1,16 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { aplicarModeloResumo, registrarDiagnosticoOcr, salvarResumoDia, useDB } from '../../core/db'
-import { formatarData } from '../../core/dates'
+import { Link } from 'react-router-dom'
+import {
+  aplicarModeloResumo,
+  enviarNotificacao,
+  registrarDiagnosticoOcr,
+  salvarChamada,
+  salvarResumoDia,
+  uid,
+  useDB,
+} from '../../core/db'
+import { OPERACOES } from '../../core/constants'
+import { formatarData, formatarDataLonga } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeImagem, extrairTextoTabularDePdf, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
@@ -161,6 +171,37 @@ export function ResumoDiaCard({
     salvarResumoDia(rascunho)
     setEditando(false)
     setAvisoAplicado('')
+  }
+
+  // ---------- Chamada automática a partir do resumo ----------
+  // A meta vem do próprio card (TOTAL ROTAS); a frota inteira é notificada.
+  const chamadaDoDia = db.chamadas.find((c) => c.data === data)
+  const respostasDaChamada = chamadaDoDia
+    ? db.respostas.filter((resp) => resp.chamadaId === chamadaDoDia.id)
+    : []
+  const disponiveisNaChamada = respostasDaChamada.filter((resp) => resp.status === 'disponivel').length
+
+  const chamarMotoristas = () => {
+    if (chamadaDoDia) return
+    const id = uid()
+    const meta = totalRotas > 0 ? totalRotas : 45
+    const titulo = `Disponibilidade — ${r.base}`
+    salvarChamada({
+      id,
+      titulo,
+      data,
+      operacao: OPERACOES[0],
+      horarioInicio: '07:00',
+      horarioFim: '18:00',
+      qtdNecessaria: meta,
+      status: 'aberta',
+      criadaEm: new Date().toISOString(),
+    })
+    enviarNotificacao({
+      motoristaId: null,
+      titulo: `Nova chamada: ${titulo}`,
+      mensagem: `📅 ${formatarDataLonga(data)} • ${OPERACOES[0]} • 🚚 ${meta} motoristas necessários. Responda sua disponibilidade!`,
+    })
   }
 
   // ---------- Importação do modelo ----------
@@ -561,6 +602,26 @@ export function ResumoDiaCard({
           {totalUtil} utilitários + {totalVuc} VUC = {totalRotas} rotas
           {!auto && rotasProg > 0 && ` • programação importada tem ${rotasProg} rota(s)`}
         </p>
+
+        {/* Do resumo direto para a chamada: um toque convoca a frota do dia. */}
+        {chamadaDoDia ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2">
+            <p className="text-sm font-semibold text-emerald-800">
+              📢 Chamada de {formatarData(data)} {chamadaDoDia.status === 'aberta' ? 'aberta' : 'encerrada'} —{' '}
+              {disponiveisNaChamada}/{chamadaDoDia.qtdNecessaria} disponíveis
+            </p>
+            <Link
+              to={`/chamadas/${chamadaDoDia.id}`}
+              className="rounded-lg bg-ml-azul px-3 py-1.5 text-sm font-bold text-white hover:opacity-90"
+            >
+              Ver respostas →
+            </Link>
+          </div>
+        ) : (
+          <Button variante="ml" className="w-full" onClick={chamarMotoristas}>
+            📢 Chamar motoristas{totalRotas > 0 ? ` — meta ${totalRotas} (TOTAL ROTAS)` : ''}
+          </Button>
+        )}
       </div>
 
       {/* Importar o modelo do resumo (colar / CSV / PDF / foto) */}
