@@ -47,7 +47,7 @@ export function Programacao() {
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
   const [importando, setImportando] = useState(false)
-  const [lendoPdf, setLendoPdf] = useState(false)
+  const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
   const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
   const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
@@ -95,15 +95,15 @@ export function Programacao() {
     if (!arquivo) return
     setErroArquivo('')
     if (arquivo.name.toLowerCase().endsWith('.pdf')) {
-      setLendoPdf(true)
+      setLendoPdf('⏳ Lendo PDF…')
       void (async () => {
         try {
-          const texto = await extrairTextoTabularDePdf(await arquivo.arrayBuffer())
+          const texto = await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
           atualizarPrevia(texto)
         } catch {
-          setErroArquivo('Não consegui ler esse PDF. Se ele for uma foto/escaneado, cole os dados ou use CSV.')
+          setErroArquivo('Não consegui ler esse PDF. Tente um PDF mais nítido, cole os dados ou use CSV.')
         } finally {
-          setLendoPdf(false)
+          setLendoPdf('')
         }
       })()
       return
@@ -561,8 +561,8 @@ export function Programacao() {
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf" onChange={lerArquivo} className="hidden" />
-          <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={lendoPdf}>
-            {lendoPdf ? '⏳ Lendo PDF…' : '📄 Enviar CSV ou PDF'}
+          <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
+            {lendoPdf || '📄 Enviar CSV ou PDF (até escaneado)'}
           </Button>
           {previa && (
             <span className="text-sm font-semibold text-slate-700">
