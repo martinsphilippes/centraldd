@@ -151,11 +151,11 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
     }
   }
   if (!largura || !altura) throw new Error('imagem vazia ou em formato não suportado pelo aparelho')
-  // Fotos de celular (12MP+) travam o OCR em aparelhos mais fracos: reduz para
-  // no máx. ~2400px; fotos pequenas são ampliadas. O acerto quase não muda.
-  const MAX_LARGURA = 2400
-  const escala =
-    largura > MAX_LARGURA ? MAX_LARGURA / largura : largura < 1600 ? Math.min(3, 1600 / largura) : 1
+  // Normaliza para ~2400px de largura: fotos gigantes (12MP) são reduzidas
+  // (evita travar aparelhos fracos) e prints/fotos pequenas são ampliadas
+  // (melhora muito o acerto em tabelas densas). Calibrado com planilhas reais.
+  const LARGURA_ALVO = 2400
+  const escala = Math.min(3, LARGURA_ALVO / largura)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(largura * escala)
   canvas.height = Math.round(altura * escala)
