@@ -139,11 +139,18 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
       r.camposDetectados++
     }
 
-    // Base: "EMG13 - ITUIUTABA" (tolerante a ruído de OCR em volta)
+    // Base: "EMG13 - ITUIUTABA" (tolerante a ruído de OCR em volta). O modelo
+    // costuma repetir a base — quando houver mais de uma leitura, fica a mais
+    // curta, que tende a ser a sem ruído (EMG13 em vez de EMGA13).
     const mBase = linha.match(/([A-Za-z]{2,}\d+\s*[-–—]\s*[A-Za-zÀ-ú][A-Za-zÀ-ú\s.]*)/)
-    if (!r.base && mBase && !/SPR|PACOTE|VE.?CULO/i.test(linha)) {
-      r.base = mBase[1].replace(/\s+/g, ' ').trim().toUpperCase()
-      r.camposDetectados++
+    if (mBase && !/SPR|PACOTE|VE.?CULO/i.test(linha)) {
+      const candidata = mBase[1].replace(/\s+/g, ' ').trim().toUpperCase()
+      if (!r.base) {
+        r.base = candidata
+        r.camposDetectados++
+      } else if (candidata.length < r.base.length) {
+        r.base = candidata
+      }
       continue
     }
     // SPR de referência
