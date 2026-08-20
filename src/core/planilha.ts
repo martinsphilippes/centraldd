@@ -110,10 +110,15 @@ export interface ModeloResumo {
   sprReferencia?: string
   pacotes?: string
   veiculosDiv?: string
+  /** TOTAL ROTAS lido do modelo — usado para conferir/completar o AM. */
+  totalRotas?: string
   transportadoras: { nome: string; utilitarios: string; vuc: string }[]
   mm: { tipo: string; quantidade: string; posicoesPorUnidade: string }[]
   camposDetectados: number
 }
+
+/** Nome canônico dos veículos MM pelo número de posições (OCR erra o nome, não o xN). */
+const MM_POR_POSICOES: Record<string, string> = { '8': '3/4', '12': 'TOCO', '16': 'TRUCK', '28': 'CARRETA' }
 
 /**
  * Lê o MODELO do resumo do dia (o card EMG13 com pacotes, SPR, AM e MM) a
@@ -180,8 +185,17 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
     const mPos = linhaMM.match(/x\s*(\d+)\s*posi/i)
     if (mPos) {
       const quantidade = numeros.find((n) => n !== mPos[1]) ?? ''
-      r.mm.push({ tipo: primeira, quantidade, posicoesPorUnidade: mPos[1] })
-      r.camposDetectados++
+      // Nome ilegível no OCR? O xN denuncia o veículo (x8 = 3/4, x12 = TOCO…).
+      const nomeLegivel = !/^x\s*\d/i.test(primeira) && (primeira.length >= 3 || primeira === '3/4')
+      const tipo = nomeLegivel ? primeira : (MM_POR_POSICOES[mPos[1]] ?? primeira)
+      // Não duplica entre passadas de OCR: completa a quantidade se faltava.
+      const existente = r.mm.find((m) => m.posicoesPorUnidade === mPos[1])
+      if (existente) {
+        if (!existente.quantidade && quantidade) existente.quantidade = quantidade
+      } else {
+        r.mm.push({ tipo, quantidade, posicoesPorUnidade: mPos[1] })
+        r.camposDetectados++
+      }
       continue
     }
     // Cabeçalho da seção AM liga o modo transportadora até o TOTAL.
@@ -191,12 +205,23 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
     }
     if (/^TOTAL/i.test(primeira)) {
       dentroAM = false
+      if (!r.totalRotas && numeros[0]) {
+        r.totalRotas = numeros[0]
+        r.camposDetectados++
+      }
       continue
     }
     // Linhas de transportadora: "RODACOOP  50  4" / "ME EXTRA  1"
     if (dentroAM && !IGNORAR.test(primeira) && /[A-ZÀ-Ú]{3,}/.test(primeira) && numeros.length >= 1) {
-      r.transportadoras.push({ nome: primeira, utilitarios: numeros[0] ?? '', vuc: numeros[1] ?? '' })
-      r.camposDetectados++
+      const nomeNorm = primeira.toUpperCase()
+      const existente = r.transportadoras.find((t) => t.nome.toUpperCase() === nomeNorm)
+      if (existente) {
+        if (!existente.utilitarios && numeros[0]) existente.utilitarios = numeros[0]
+        if (!existente.vuc && numeros[1]) existente.vuc = numeros[1]
+      } else {
+        r.transportadoras.push({ nome: primeira, utilitarios: numeros[0] ?? '', vuc: numeros[1] ?? '' })
+        r.camposDetectados++
+      }
     }
   }
   return r

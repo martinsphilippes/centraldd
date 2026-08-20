@@ -98,7 +98,14 @@ function resumoPorTransportadora(
   return { grupos: ordenados, outros: [...outros.entries()], comTransp, total: prog.length }
 }
 
-export function ResumoDiaCard({ data }: { data: string }) {
+export function ResumoDiaCard({
+  data,
+  aoMudarDia,
+}: {
+  data: string
+  /** Chamado quando um modelo importado pertence a outra data (o card salta para ela). */
+  aoMudarDia?: (novaData: string) => void
+}) {
   const db = useDB()
   const [editando, setEditando] = useState(false)
   const existente = db.resumos.find((r) => r.id === data)
@@ -174,12 +181,16 @@ export function ResumoDiaCard({ data }: { data: string }) {
     const aplicarDireto = (texto: string) => {
       const modelo = parsearModeloResumo(texto)
       if (modelo.camposDetectados > 0) {
-        aplicarModeloResumo(data, modelo)
+        // A data escrita NO MODELO manda: o card daquele dia é preenchido
+        // e a tela salta para ele.
+        const dia = modelo.data ?? data
+        aplicarModeloResumo(dia, modelo)
+        if (dia !== data) aoMudarDia?.(dia)
         setModalModelo(false)
         setTextoModelo('')
         setPreviaModelo(null)
         setAvisoAplicado(
-          `✅ Card preenchido automaticamente (${modelo.camposDetectados} campo(s) reconhecido(s)). Confira e ajuste no ✏️ Editar se precisar.`,
+          `✅ Card de ${formatarData(dia)} preenchido automaticamente (${modelo.camposDetectados} campo(s) reconhecido(s)). Confira e ajuste no ✏️ Editar se precisar.`,
         )
         setTimeout(() => setAvisoAplicado(''), 10000)
       } else {
@@ -212,7 +223,9 @@ export function ResumoDiaCard({ data }: { data: string }) {
 
   const aplicarModelo = () => {
     if (!previaModelo) return
-    aplicarModeloResumo(data, previaModelo)
+    const dia = previaModelo.data ?? data
+    aplicarModeloResumo(dia, previaModelo)
+    if (dia !== data) aoMudarDia?.(dia)
     setModalModelo(false)
     setTextoModelo('')
     setPreviaModelo(null)

@@ -169,8 +169,52 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
 }
 
 /**
+ * Reforço de contraste (tons de cinza + esticamento do histograma): recupera
+ * números perdidos em fotos de tela de computador (moiré, brilho irregular).
+ */
+function reforcarContraste(canvas: HTMLCanvasElement) {
+  const contexto = canvas.getContext('2d')
+  if (!contexto) return
+  const imagem = contexto.getImageData(0, 0, canvas.width, canvas.height)
+  const d = imagem.data
+  const histograma = new Array<number>(256).fill(0)
+  for (let i = 0; i < d.length; i += 4) {
+    const luz = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0
+    d[i] = d[i + 1] = d[i + 2] = luz
+    histograma[luz]++
+  }
+  const total = d.length / 4
+  let acumulado = 0
+  let p5 = 0
+  for (let v = 0; v < 256; v++) {
+    acumulado += histograma[v]
+    if (acumulado / total >= 0.05) {
+      p5 = v
+      break
+    }
+  }
+  acumulado = 0
+  let p95 = 255
+  for (let v = 255; v >= 0; v--) {
+    acumulado += histograma[v]
+    if (acumulado / total >= 0.05) {
+      p95 = v
+      break
+    }
+  }
+  const faixa = Math.max(1, p95 - p5)
+  for (let i = 0; i < d.length; i += 4) {
+    const novo = Math.max(0, Math.min(255, (((d[i] - p5) * 255) / faixa) | 0))
+    d[i] = d[i + 1] = d[i + 2] = novo
+  }
+  contexto.putImageData(imagem, 0, 0)
+}
+
+/**
  * Lê uma IMAGEM (JPG, PNG, foto de celular, print…) com OCR e devolve o texto
  * tabular. Fotos pequenas são ampliadas antes da leitura para melhorar o acerto.
+ * Se a 1ª passada reconhecer poucos números (foto de tela, baixa qualidade),
+ * roda uma 2ª passada com contraste reforçado e junta o que cada uma achou.
  */
 export async function extrairTextoDeImagem(
   arquivo: Blob,
@@ -185,16 +229,29 @@ export async function extrairTextoDeImagem(
   try {
     onProgresso?.('🔍 Lendo a imagem com OCR…')
     // Guarda-chuva de tempo: melhor um erro claro do que ficar rodando para sempre.
-    const resultado = await Promise.race([
-      worker.recognize(canvas, {}, { tsv: true, text: false }),
-      new Promise<never>((_, rejeitar) =>
-        setTimeout(
-          () => rejeitar(new Error('a leitura demorou demais — tente uma foto menor ou mais próxima da tabela')),
-          180000,
+    const comTempoLimite = <T,>(p: Promise<T>) =>
+      Promise.race([
+        p,
+        new Promise<never>((_, rejeitar) =>
+          setTimeout(
+            () => rejeitar(new Error('a leitura demorou demais — tente uma foto menor ou mais próxima da tabela')),
+            180000,
+          ),
         ),
-      ),
-    ])
-    return ocrTsvParaTexto(resultado.data.tsv ?? '')
+      ])
+    const resultado = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
+    let texto = ocrTsvParaTexto(resultado.data.tsv ?? '')
+    // Poucos números reconhecidos? Foto de tela/baixa qualidade — 2ª passada.
+    const gruposDeDigitos = (texto.match(/\d+/g) ?? []).length
+    if (gruposDeDigitos < 10) {
+      onProgresso?.('🔍 Refinando a leitura (2ª passada com contraste)…')
+      reforcarContraste(canvas)
+      await worker.setParameters({ tessedit_pageseg_mode: '6' as never })
+      const segunda = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
+      // Junta as duas leituras: o leitor de rótulos usa o melhor de cada uma.
+      texto = texto + '\n' + ocrTsvParaTexto(segunda.data.tsv ?? '')
+    }
+    return texto
   } finally {
     void worker.terminate()
   }

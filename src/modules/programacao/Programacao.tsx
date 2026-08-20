@@ -341,7 +341,7 @@ export function Programacao() {
             />
           </div>
 
-          <ResumoDiaCard data={dataAtiva} />
+          <ResumoDiaCard data={dataAtiva} aoMudarDia={setDataSelecionada} />
 
           {db.programacao.length === 0 ? (
             <EmptyState

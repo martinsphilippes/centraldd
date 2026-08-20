@@ -213,6 +213,17 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     ],
     atualizadoEm: '',
   }
+  // O TOTAL ROTAS lido no modelo é a verdade: se as transportadoras
+  // reconhecidas não somarem, completa a diferença numa linha extra.
+  const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
+  let transportadoras = m.transportadoras.length ? [...m.transportadoras] : base.transportadoras
+  if (m.totalRotas) {
+    const soma = transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
+    const diferenca = num(m.totalRotas) - soma
+    if (diferenca > 0) {
+      transportadoras = [...transportadoras, { nome: 'OUTRAS', utilitarios: String(diferenca), vuc: '' }]
+    }
+  }
   salvarResumoDia({
     ...base,
     id: dataDia,
@@ -221,9 +232,9 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     sprReferencia: m.sprReferencia ?? base.sprReferencia,
     pacotes: m.pacotes ?? base.pacotes,
     veiculosDiv: m.veiculosDiv ?? base.veiculosDiv,
-    transportadoras: m.transportadoras.length ? m.transportadoras : base.transportadoras,
-    // Modelo com AM por transportadora passa a valer o manual importado.
-    amAutomatico: m.transportadoras.length ? false : base.amAutomatico,
+    transportadoras,
+    // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
+    amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
     mm: m.mm.length ? m.mm : base.mm,
   })
 }
