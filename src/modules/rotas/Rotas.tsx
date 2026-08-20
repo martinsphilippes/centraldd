@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { importarRotas, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
-import { VEICULOS } from '../../core/constants'
+import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
+import { STATUS_DISPONIVEIS, VEICULOS } from '../../core/constants'
+import { formatarData } from '../../core/dates'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
@@ -22,6 +24,7 @@ export function Rotas() {
   const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
   const [editando, setEditando] = useState<Rota | null>(null)
+  const [avisoAuto, setAvisoAuto] = useState('')
   const arquivoRef = useRef<HTMLInputElement>(null)
 
   const motoristas = db.motoristas
@@ -48,6 +51,50 @@ export function Rotas() {
     .sort((a, b) => a.rotaExpedicao.localeCompare(b.rotaExpedicao, 'pt-BR', { numeric: true }))
 
   const semMotorista = rotas.filter((r) => !r.motoristaId).length
+
+  // ---------- Direcionamento automático a partir da chamada ----------
+  // Candidatos = quem respondeu "disponível" na chamada mais recente
+  // (aberta tem prioridade). As rotas já direcionadas à mão são preservadas.
+  const chamadaBase = db.chamadas
+    .slice()
+    .sort((a, b) =>
+      a.status === b.status ? b.data.localeCompare(a.data) : a.status === 'aberta' ? -1 : 1,
+    )[0]
+  const idsDisponiveis = new Set(
+    chamadaBase
+      ? db.respostas
+          .filter((resp) => resp.chamadaId === chamadaBase.id && STATUS_DISPONIVEIS.includes(resp.status))
+          .map((resp) => resp.motoristaId)
+      : [],
+  )
+  const candidatosChamada = motoristas.filter((m) => idsDisponiveis.has(m.id))
+
+  const direcionarAutomatico = () => {
+    const vagas = db.rotas.filter((r) => !r.motoristaId)
+    const jaDirecionados = new Set(db.rotas.map((r) => r.motoristaId).filter(Boolean))
+    const livres = candidatosChamada.filter((m) => !jaDirecionados.has(m.id))
+    const alocacoes = alocarMotoristasNasRotas(db, vagas, livres, parametrosAtuais(db))
+    if (alocacoes.length === 0) {
+      setAvisoAuto('⚠️ Nenhuma rota vaga com motorista disponível compatível — confira as travas nos ⚙️ Parâmetros da Programação.')
+      return
+    }
+    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os disponíveis da chamada de ${formatarData(chamadaBase.data)}?`))
+      return
+    for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id })
+    const sobraram = livres.length - alocacoes.length
+    setAvisoAuto(
+      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os disponíveis da chamada de ${formatarData(chamadaBase.data)}.` +
+        (sobraram > 0 ? ` ${sobraram} motorista(s) disponível(is) ficaram de reserva.` : ''),
+    )
+  }
+
+  const limparDirecionamentos = () => {
+    const direcionadas = db.rotas.filter((r) => r.motoristaId)
+    if (direcionadas.length === 0) return
+    if (!confirm(`Tirar o motorista de ${direcionadas.length} rota(s)? (as rotas continuam cadastradas)`)) return
+    for (const r of direcionadas) salvarRota({ ...r, motoristaId: null })
+    setAvisoAuto('🧹 Direcionamentos limpos.')
+  }
 
   const atualizarPrevia = (texto: string) => {
     setTextoColado(texto)
@@ -144,6 +191,14 @@ export function Rotas() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {candidatosChamada.length > 0 && semMotorista > 0 && (
+            <Button variante="ml" onClick={direcionarAutomatico}>
+              ⚡ Direcionar disponíveis ({candidatosChamada.length})
+            </Button>
+          )}
+          {db.rotas.some((r) => r.motoristaId) && (
+            <Button variante="secundario" onClick={limparDirecionamentos}>🧹 Limpar</Button>
+          )}
           <Button variante="secundario" onClick={() => exportarCSV(tabela())}>⬇️ CSV</Button>
           <Button variante="secundario" onClick={() => exportarExcel(tabela())}>⬇️ Excel</Button>
           <Button variante="secundario" onClick={() => exportarPDF(tabela())}>🖨️ PDF</Button>
@@ -151,6 +206,12 @@ export function Rotas() {
           <Button variante="ml" onClick={() => setModalImportar(true)}>📥 Importar planilha</Button>
         </div>
       </div>
+
+      {avisoAuto && (
+        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+          {avisoAuto}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <div className="min-w-52 flex-1">

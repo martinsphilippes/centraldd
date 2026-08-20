@@ -2,7 +2,7 @@
 // com base no histórico da programação e nos parâmetros definidos pelo
 // dispatcher, e monta a melhor combinação (1 rota por motorista no dia).
 
-import type { DB, Motorista, ParametrosAlocacao, ProgramacaoItem } from './types'
+import type { DB, Motorista, ParametrosAlocacao, ProgramacaoItem, Rota } from './types'
 import { cidadesDoTexto } from './planilha'
 import { STATUS_DISPONIVEIS } from './constants'
 import { hojeISO } from './dates'
@@ -226,6 +226,103 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
           }
         : { item, motorista: null, pontos: 0, confianca: 0, motivos: [], alertas: ['❌ nenhum motorista elegível (travas dos parâmetros)'] }
     })
+}
+
+export interface AlocacaoRota {
+  rota: Rota
+  motorista: Motorista
+  motivos: string[]
+}
+
+/**
+ * Direciona motoristas (ex.: os disponíveis de uma chamada) para as rotas da
+ * planilha de Rotas. Mesma lógica do motor da programação, adaptada à rota fixa:
+ * pontua cidade do motorista, preferências, histórico e veículo; respeita
+ * cidades bloqueadas e rodízio; combina 1 rota por motorista (melhores antes).
+ */
+export function alocarMotoristasNasRotas(
+  db: DB,
+  rotas: Rota[],
+  candidatos: Motorista[],
+  p: ParametrosAlocacao,
+): AlocacaoRota[] {
+  const equivalencias = parseEquivalencias(p.equivalenciasVeiculo)
+  const dataMinima = p.janelaHistoricoDias > 0 ? hojeISO(-p.janelaHistoricoDias) : '0000-01-01'
+  const dataMinimaRodizio = hojeISO(-Math.max(1, p.janelaRodizioDias))
+
+  // Histórico da programação: experiência e repetição recente por cidade.
+  const expPorMotorista = new Map<string, Map<string, number>>()
+  const rodizioPorMotorista = new Map<string, Map<string, number>>()
+  for (const h of db.programacao) {
+    if (!h.motoristaId || h.data < dataMinima) continue
+    for (const c of cidadesDoTexto(h.cidade)) {
+      const cidade = norm(c)
+      const exp = expPorMotorista.get(h.motoristaId) ?? new Map()
+      exp.set(cidade, (exp.get(cidade) ?? 0) + 1)
+      expPorMotorista.set(h.motoristaId, exp)
+      if (h.data >= dataMinimaRodizio) {
+        const rod = rodizioPorMotorista.get(h.motoristaId) ?? new Map()
+        rod.set(cidade, (rod.get(cidade) ?? 0) + 1)
+        rodizioPorMotorista.set(h.motoristaId, rod)
+      }
+    }
+  }
+
+  interface Par {
+    rota: Rota
+    motorista: Motorista
+    pontos: number
+    motivos: string[]
+  }
+  const pares: Par[] = []
+  for (const rota of rotas) {
+    const cidades = cidadesDoTexto(rota.cidade).map(norm)
+    if (cidades.length === 0 && rota.cidade.trim()) cidades.push(norm(rota.cidade))
+    for (const m of candidatos) {
+      const motivos: string[] = []
+      const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
+      if (cidades.some((c) => bloqueadas.some((b) => c.includes(b) || b.includes(c)))) continue
+      const aceitos = equivalencias.get(norm(rota.veiculo))
+      const veiculoCompativel = !aceitos || aceitos.size === 0 || aceitos.has(norm(m.veiculo)) || norm(rota.veiculo) === norm(m.veiculo)
+      if (p.exigirVeiculoCompativel && !veiculoCompativel) continue
+
+      let pontos = 0
+      if (cidades.some((c) => c.includes(norm(m.cidade)) || norm(m.cidade).includes(c))) {
+        pontos += 4
+        motivos.push('🏠 mora na cidade da rota')
+      }
+      const preferidas = listaDeTexto(m.cidadesPreferidas)
+      if (cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))) {
+        pontos += p.pesoCidadesPreferidas
+        motivos.push('⭐ cidade preferida dele')
+      }
+      const exp = cidades.reduce((s, c) => s + (expPorMotorista.get(m.id)?.get(c) ?? 0), 0)
+      if (exp > 0) {
+        pontos += p.pesoExperienciaCidade * Math.min(1, exp / 8)
+        motivos.push(`🏙️ ${exp}x nessa(s) cidade(s)`)
+      }
+      const repeticao = cidades.reduce((s, c) => s + (rodizioPorMotorista.get(m.id)?.get(c) ?? 0), 0)
+      if (repeticao > 0) pontos -= p.pesoRodizio * Math.min(1, repeticao / Math.max(1, p.janelaRodizioDias))
+      if (veiculoCompativel && aceitos && aceitos.size > 0) {
+        pontos += 2
+        motivos.push('🚐 veículo compatível')
+      }
+      pares.push({ rota, motorista: m, pontos, motivos })
+    }
+  }
+
+  // Combinação gulosa: melhores pares primeiro, 1 rota por motorista.
+  pares.sort((a, b) => b.pontos - a.pontos)
+  const rotaPreenchida = new Set<string>()
+  const motoristaUsado = new Set<string>()
+  const resultado: AlocacaoRota[] = []
+  for (const par of pares) {
+    if (rotaPreenchida.has(par.rota.id) || motoristaUsado.has(par.motorista.id)) continue
+    rotaPreenchida.add(par.rota.id)
+    motoristaUsado.add(par.motorista.id)
+    resultado.push({ rota: par.rota, motorista: par.motorista, motivos: par.motivos })
+  }
+  return resultado
 }
 
 export interface Aderencia {
