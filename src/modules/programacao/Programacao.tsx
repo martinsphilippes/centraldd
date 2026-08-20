@@ -1,13 +1,20 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  aplicarModeloResumo,
   importarProgramacao,
   removerProgramacaoItem,
   salvarParametrosAlocacao,
   salvarProgramacaoItem,
   useDB,
 } from '../../core/db'
-import { cidadesDoTexto, parsearPlanilhaMeli, type ProgramacaoImportada } from '../../core/planilha'
+import {
+  cidadesDoTexto,
+  parsearModeloResumo,
+  parsearPlanilhaMeli,
+  type ModeloResumo,
+  type ProgramacaoImportada,
+} from '../../core/planilha'
 import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
 import {
   aderenciaHistorica,
@@ -46,6 +53,7 @@ export function Programacao() {
   const [modalImportar, setModalImportar] = useState(false)
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
+  const [modeloDetectado, setModeloDetectado] = useState<ModeloResumo | null>(null)
   const [importando, setImportando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
@@ -87,7 +95,24 @@ export function Programacao() {
 
   const atualizarPrevia = (texto: string) => {
     setTextoColado(texto)
-    setPrevia(texto.trim() ? parsearPlanilhaMeli(texto) : null)
+    const p = texto.trim() ? parsearPlanilhaMeli(texto) : null
+    setPrevia(p)
+    // Rede de proteção: se não há rotas mas o conteúdo parece o MODELO do
+    // resumo do dia (pacotes/SPR/MM…), oferece preencher o card direto daqui.
+    const alt = texto.trim() && (!p || p.itens.length === 0) ? parsearModeloResumo(texto) : null
+    setModeloDetectado(alt && alt.camposDetectados >= 2 ? alt : null)
+  }
+
+  const preencherResumoDetectado = () => {
+    if (!modeloDetectado) return
+    const dia = modeloDetectado.data ?? dataAtiva
+    aplicarModeloResumo(dia, modeloDetectado)
+    if (modeloDetectado.data) setDataSelecionada(modeloDetectado.data)
+    setModalImportar(false)
+    setTextoColado('')
+    setPrevia(null)
+    setModeloDetectado(null)
+    setVisao('dia')
   }
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
@@ -580,6 +605,30 @@ export function Programacao() {
         </div>
         {erroArquivo && (
           <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
+        )}
+        {modeloDetectado && (
+          <div className="mt-3 rounded-lg border border-ml-amarelo bg-yellow-50 p-3">
+            <p className="text-sm font-bold text-slate-800">
+              🧠 Isso não é a planilha de rotas — parece o <u>MODELO do resumo do dia</u>!
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Reconheci:{' '}
+              {[
+                modeloDetectado.base && `base ${modeloDetectado.base}`,
+                modeloDetectado.pacotes && `${modeloDetectado.pacotes} pacotes`,
+                modeloDetectado.sprReferencia && `SPR ${modeloDetectado.sprReferencia}`,
+                modeloDetectado.veiculosDiv && `${modeloDetectado.veiculosDiv} veículos DIV`,
+                modeloDetectado.transportadoras.length > 0 && `${modeloDetectado.transportadoras.length} transportadora(s)`,
+                modeloDetectado.mm.length > 0 && `MM com ${modeloDetectado.mm.length} linha(s)`,
+                modeloDetectado.data && `data ${formatarData(modeloDetectado.data)}`,
+              ]
+                .filter(Boolean)
+                .join(' • ')}
+            </p>
+            <Button variante="ml" className="mt-2" onClick={preencherResumoDetectado}>
+              📋 Preencher o Resumo do Dia com isso
+            </Button>
+          </div>
         )}
         <p className="mt-3 text-[11px] text-slate-500">
           💡 Linhas de seção (UTILITARIO, DUPLAS) são puladas sozinhas. Os drivers são vinculados

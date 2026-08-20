@@ -190,6 +190,44 @@ export function salvarResumoDia(r: ResumoDia) {
   void setDoc(doc(firestore, 'resumos', r.id), { ...r, atualizadoEm: new Date().toISOString() })
 }
 
+/**
+ * Preenche o Resumo do Dia a partir de um modelo lido (colado/CSV/PDF/foto).
+ * Campos não reconhecidos preservam o que já estava no card.
+ */
+export function aplicarModeloResumo(dataDia: string, m: import('./planilha').ModeloResumo) {
+  const existente = state.resumos.find((r) => r.id === dataDia)
+  const base: ResumoDia = existente ?? {
+    id: dataDia,
+    data: dataDia,
+    base: 'BASE - CIDADE',
+    sprReferencia: '',
+    pacotes: '',
+    veiculosDiv: '',
+    amAutomatico: true,
+    transportadoras: [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }],
+    mm: [
+      { tipo: '3/4', quantidade: '', posicoesPorUnidade: '8' },
+      { tipo: 'TOCO', quantidade: '', posicoesPorUnidade: '12' },
+      { tipo: 'TRUCK', quantidade: '', posicoesPorUnidade: '16' },
+      { tipo: 'CARRETA', quantidade: '', posicoesPorUnidade: '28' },
+    ],
+    atualizadoEm: '',
+  }
+  salvarResumoDia({
+    ...base,
+    id: dataDia,
+    data: dataDia,
+    base: m.base ?? base.base,
+    sprReferencia: m.sprReferencia ?? base.sprReferencia,
+    pacotes: m.pacotes ?? base.pacotes,
+    veiculosDiv: m.veiculosDiv ?? base.veiculosDiv,
+    transportadoras: m.transportadoras.length ? m.transportadoras : base.transportadoras,
+    // Modelo com AM por transportadora passa a valer o manual importado.
+    amAutomatico: m.transportadoras.length ? false : base.amAutomatico,
+    mm: m.mm.length ? m.mm : base.mm,
+  })
+}
+
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
   void setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })
 }

@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { salvarResumoDia, useDB } from '../../core/db'
+import { aplicarModeloResumo, salvarResumoDia, useDB } from '../../core/db'
 import { formatarData } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
@@ -191,20 +191,7 @@ export function ResumoDiaCard({ data }: { data: string }) {
 
   const aplicarModelo = () => {
     if (!previaModelo) return
-    const base = existente ?? novoResumo(data, '')
-    salvarResumoDia({
-      ...base,
-      id: data,
-      data,
-      base: previaModelo.base ?? base.base,
-      sprReferencia: previaModelo.sprReferencia ?? base.sprReferencia,
-      pacotes: previaModelo.pacotes ?? base.pacotes,
-      veiculosDiv: previaModelo.veiculosDiv ?? base.veiculosDiv,
-      transportadoras: previaModelo.transportadoras.length ? previaModelo.transportadoras : base.transportadoras,
-      // O modelo traz o AM por transportadora → passa a valer o manual importado.
-      amAutomatico: previaModelo.transportadoras.length ? false : base.amAutomatico,
-      mm: previaModelo.mm.length ? previaModelo.mm : base.mm,
-    })
+    aplicarModeloResumo(data, previaModelo)
     setModalModelo(false)
     setTextoModelo('')
     setPreviaModelo(null)

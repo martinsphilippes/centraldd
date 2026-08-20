@@ -174,8 +174,10 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
       r.camposDetectados++
       continue
     }
-    // Seção MM: "TRUCK  1  x16 posições" (quantidade pode faltar)
-    const mPos = linha.match(/x\s*(\d+)\s*posi/i)
+    // Seção MM: "TRUCK  1  x16 posições" (quantidade pode faltar).
+    // Normaliza ruído comum de OCR: "xi2posições" → "x12posições".
+    const linhaMM = linha.replace(/x[il](\d)/gi, 'x1$1')
+    const mPos = linhaMM.match(/x\s*(\d+)\s*posi/i)
     if (mPos) {
       const quantidade = numeros.find((n) => n !== mPos[1]) ?? ''
       r.mm.push({ tipo: primeira, quantidade, posicoesPorUnidade: mPos[1] })
