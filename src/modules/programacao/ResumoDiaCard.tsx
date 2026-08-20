@@ -109,6 +109,7 @@ export function ResumoDiaCard({ data }: { data: string }) {
   const [previaModelo, setPreviaModelo] = useState<ModeloResumo | null>(null)
   const [lendoModelo, setLendoModelo] = useState('')
   const [erroModelo, setErroModelo] = useState('')
+  const [avisoAplicado, setAvisoAplicado] = useState('')
   const arquivoModeloRef = useRef<HTMLInputElement>(null)
 
   // Base sugerida a partir da programação (primeira que aparecer) — só como padrão.
@@ -168,6 +169,26 @@ export function ResumoDiaCard({ data }: { data: string }) {
     const nome = arquivo.name.toLowerCase()
     const ehPdf = nome.endsWith('.pdf')
     const ehImagem = arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
+    // Arquivo enviado: se a leitura reconhecer o modelo, PREENCHE SOZINHO —
+    // sem depender de mais nenhum toque (o modal fecha e o card confirma).
+    const aplicarDireto = (texto: string) => {
+      const modelo = parsearModeloResumo(texto)
+      if (modelo.camposDetectados > 0) {
+        aplicarModeloResumo(data, modelo)
+        setModalModelo(false)
+        setTextoModelo('')
+        setPreviaModelo(null)
+        setAvisoAplicado(
+          `✅ Card preenchido automaticamente (${modelo.camposDetectados} campo(s) reconhecido(s)). Confira e ajuste no ✏️ Editar se precisar.`,
+        )
+        setTimeout(() => setAvisoAplicado(''), 10000)
+      } else {
+        atualizarPreviaModelo(texto)
+        setErroModelo(
+          'Li o arquivo, mas não reconheci os rótulos do modelo (PACOTES, SPR, Veículos DIV, MM…). O texto lido está na caixa acima — tente uma imagem mais nítida (print em vez de foto da tela) ou cole o texto.',
+        )
+      }
+    }
     if (ehPdf || ehImagem) {
       setLendoModelo(ehPdf ? '⏳ Lendo PDF…' : '🔍 Lendo imagem…')
       void (async () => {
@@ -175,7 +196,7 @@ export function ResumoDiaCard({ data }: { data: string }) {
           const texto = ehPdf
             ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoModelo)
             : await extrairTextoDeImagem(arquivo, setLendoModelo)
-          atualizarPreviaModelo(texto)
+          aplicarDireto(texto)
         } catch (err) {
           setErroModelo(`Não consegui ler esse arquivo (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
         } finally {
@@ -185,7 +206,7 @@ export function ResumoDiaCard({ data }: { data: string }) {
       return
     }
     const leitor = new FileReader()
-    leitor.onload = () => atualizarPreviaModelo(String(leitor.result ?? ''))
+    leitor.onload = () => aplicarDireto(String(leitor.result ?? ''))
     leitor.readAsText(arquivo)
   }
 
@@ -403,9 +424,15 @@ export function ResumoDiaCard({ data }: { data: string }) {
         </div>
       </div>
 
-      {!existente && (
+      {avisoAplicado && (
+        <p className="mb-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+          {avisoAplicado}
+        </p>
+      )}
+      {!existente && !avisoAplicado && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Ainda não há resumo para {formatarData(data)}. Toque em <strong>Preencher</strong> para montar o card.
+          Ainda não há resumo para {formatarData(data)}. Toque em <strong>📥 Importar modelo</strong> (foto/PDF) ou{' '}
+          <strong>Preencher</strong>.
         </p>
       )}
 
@@ -550,8 +577,12 @@ export function ResumoDiaCard({ data }: { data: string }) {
                 </li>
               )}
             </ul>
-            {previaModelo.camposDetectados === 0 && (
+            {previaModelo.camposDetectados === 0 ? (
               <p className="mt-1 text-xs text-amber-700">Nenhum campo reconhecido — confira se o texto tem os rótulos do modelo.</p>
+            ) : (
+              <Button variante="ml" className="mt-2 w-full" onClick={aplicarModelo}>
+                📥 Preencher o card agora
+              </Button>
             )}
           </div>
         )}
