@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { importarRotas, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
-import { extrairTextoTabularDePdf } from '../../core/pdf'
+import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
 import { VEICULOS } from '../../core/constants'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -58,14 +58,19 @@ export function Rotas() {
     const arquivo = e.target.files?.[0]
     if (!arquivo) return
     setErroArquivo('')
-    if (arquivo.name.toLowerCase().endsWith('.pdf')) {
-      setLendoPdf('⏳ Lendo PDF…')
+    const nome = arquivo.name.toLowerCase()
+    const ehPdf = nome.endsWith('.pdf')
+    const ehImagem = arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
+    if (ehPdf || ehImagem) {
+      setLendoPdf(ehPdf ? '⏳ Lendo PDF…' : '🔍 Lendo imagem…')
       void (async () => {
         try {
-          const texto = await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
+          const texto = ehPdf
+            ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
+            : await extrairTextoDeImagem(arquivo, setLendoPdf)
           atualizarPrevia(texto)
         } catch {
-          setErroArquivo('Não consegui ler esse PDF. Tente um PDF mais nítido, cole os dados ou use CSV.')
+          setErroArquivo('Não consegui ler esse arquivo. Tente uma foto/PDF mais nítido, cole os dados ou use CSV.')
         } finally {
           setLendoPdf('')
         }
@@ -276,9 +281,9 @@ export function Rotas() {
           onChange={(e) => atualizarPrevia(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf" onChange={lerArquivo} className="hidden" />
+          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-            {lendoPdf || '📄 Enviar CSV ou PDF (até escaneado)'}
+            {lendoPdf || '📄 Enviar CSV, PDF ou foto'}
           </Button>
           {previa && (
             <span className="text-sm font-semibold text-slate-700">

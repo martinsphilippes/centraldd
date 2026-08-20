@@ -94,16 +94,51 @@ export function ocrTsvParaTexto(tsv: string): string {
   return linhas.join('\n')
 }
 
-/** Lê um PDF escaneado renderizando cada página e aplicando OCR (português). */
-async function extrairComOcr(
-  doc: { numPages: number; getPage: (n: number) => Promise<unknown> },
-  onProgresso?: (mensagem: string) => void,
-): Promise<string> {
+/** Cria o worker de OCR em português, configurado para ler tabelas. */
+async function criarWorkerOcr(onProgresso?: (mensagem: string) => void) {
   const { createWorker } = await import('tesseract.js')
   onProgresso?.('🔍 Preparando OCR (1ª vez demora um pouco)…')
   const worker = await createWorker('por')
   // PSM 4 (coluna única, tamanhos variados) lê tabelas muito melhor que o padrão.
   await worker.setParameters({ tessedit_pageseg_mode: '4' as never })
+  return worker
+}
+
+/**
+ * Lê uma IMAGEM (JPG, PNG, foto de celular, print…) com OCR e devolve o texto
+ * tabular. Fotos pequenas são ampliadas antes da leitura para melhorar o acerto.
+ */
+export async function extrairTextoDeImagem(
+  arquivo: Blob,
+  onProgresso?: (mensagem: string) => void,
+): Promise<string> {
+  const bitmap = await createImageBitmap(arquivo)
+  const escala = bitmap.width < 1600 ? Math.min(3, 1600 / bitmap.width) : 1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * escala)
+  canvas.height = Math.round(bitmap.height * escala)
+  const contexto = canvas.getContext('2d')
+  if (!contexto) throw new Error('canvas indisponível')
+  contexto.imageSmoothingEnabled = true
+  contexto.imageSmoothingQuality = 'high'
+  contexto.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const worker = await criarWorkerOcr(onProgresso)
+  try {
+    onProgresso?.('🔍 Lendo a imagem com OCR…')
+    const resultado = await worker.recognize(canvas, {}, { tsv: true, text: false })
+    return ocrTsvParaTexto(resultado.data.tsv ?? '')
+  } finally {
+    await worker.terminate()
+  }
+}
+
+/** Lê um PDF escaneado renderizando cada página e aplicando OCR (português). */
+async function extrairComOcr(
+  doc: { numPages: number; getPage: (n: number) => Promise<unknown> },
+  onProgresso?: (mensagem: string) => void,
+): Promise<string> {
+  const worker = await criarWorkerOcr(onProgresso)
   const partes: string[] = []
   try {
     for (let p = 1; p <= doc.numPages; p++) {
