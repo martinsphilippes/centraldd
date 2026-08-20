@@ -20,4 +20,14 @@ if ('serviceWorker' in navigator && !location.hostname.includes('localhost')) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/sw.js')
   })
+  // Quando uma versão nova assume o controle, recarrega UMA vez — assim o app
+  // instalado nunca fica preso numa versão antiga.
+  const tinhaControlador = !!navigator.serviceWorker.controller
+  let recarregou = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (tinhaControlador && !recarregou) {
+      recarregou = true
+      location.reload()
+    }
+  })
 }

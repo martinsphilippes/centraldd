@@ -68,7 +68,7 @@ export function Layout({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-white/10 p-3 text-[10px] text-slate-400">
-          Operação logística • v2.0
+          Operação logística • versão {__BUILD_ID__}
         </div>
       </aside>
 

@@ -4,6 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    // Carimbo de versão exibido no rodapé — permite confirmar qual build está no aparelho.
+    __BUILD_ID__: JSON.stringify(new Date().toISOString().slice(5, 16).replace('T', ' ')),
+  },
   build: {
     rollupOptions: {
       output: {

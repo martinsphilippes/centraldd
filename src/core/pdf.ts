@@ -151,7 +151,11 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
     }
   }
   if (!largura || !altura) throw new Error('imagem vazia ou em formato não suportado pelo aparelho')
-  const escala = largura < 1600 ? Math.min(3, 1600 / largura) : 1
+  // Fotos de celular (12MP+) travam o OCR em aparelhos mais fracos: reduz para
+  // no máx. ~2400px; fotos pequenas são ampliadas. O acerto quase não muda.
+  const MAX_LARGURA = 2400
+  const escala =
+    largura > MAX_LARGURA ? MAX_LARGURA / largura : largura < 1600 ? Math.min(3, 1600 / largura) : 1
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(largura * escala)
   canvas.height = Math.round(altura * escala)
@@ -180,10 +184,19 @@ export async function extrairTextoDeImagem(
   const worker = await criarWorkerOcr(onProgresso)
   try {
     onProgresso?.('🔍 Lendo a imagem com OCR…')
-    const resultado = await worker.recognize(canvas, {}, { tsv: true, text: false })
+    // Guarda-chuva de tempo: melhor um erro claro do que ficar rodando para sempre.
+    const resultado = await Promise.race([
+      worker.recognize(canvas, {}, { tsv: true, text: false }),
+      new Promise<never>((_, rejeitar) =>
+        setTimeout(
+          () => rejeitar(new Error('a leitura demorou demais — tente uma foto menor ou mais próxima da tabela')),
+          180000,
+        ),
+      ),
+    ])
     return ocrTsvParaTexto(resultado.data.tsv ?? '')
   } finally {
-    await worker.terminate()
+    void worker.terminate()
   }
 }
 
