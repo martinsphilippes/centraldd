@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { importarRotas, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
+import { extrairTextoTabularDePdf } from '../../core/pdf'
 import { VEICULOS } from '../../core/constants'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -18,6 +19,8 @@ export function Rotas() {
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ rotas: RotaImportada[]; ignoradas: number } | null>(null)
   const [importando, setImportando] = useState(false)
+  const [lendoPdf, setLendoPdf] = useState(false)
+  const [erroArquivo, setErroArquivo] = useState('')
   const [editando, setEditando] = useState<Rota | null>(null)
   const arquivoRef = useRef<HTMLInputElement>(null)
 
@@ -54,6 +57,21 @@ export function Rotas() {
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
     const arquivo = e.target.files?.[0]
     if (!arquivo) return
+    setErroArquivo('')
+    if (arquivo.name.toLowerCase().endsWith('.pdf')) {
+      setLendoPdf(true)
+      void (async () => {
+        try {
+          const texto = await extrairTextoTabularDePdf(await arquivo.arrayBuffer())
+          atualizarPrevia(texto)
+        } catch {
+          setErroArquivo('Não consegui ler esse PDF. Se ele for uma foto/escaneado, cole os dados ou use CSV.')
+        } finally {
+          setLendoPdf(false)
+        }
+      })()
+      return
+    }
     const leitor = new FileReader()
     leitor.onload = () => atualizarPrevia(String(leitor.result ?? ''))
     leitor.readAsText(arquivo)
@@ -257,10 +275,10 @@ export function Rotas() {
           value={textoColado}
           onChange={(e) => atualizarPrevia(e.target.value)}
         />
-        <div className="mt-2 flex items-center gap-2">
-          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
-          <Button variante="secundario" onClick={() => arquivoRef.current?.click()}>
-            📄 Enviar arquivo CSV
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf" onChange={lerArquivo} className="hidden" />
+          <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={lendoPdf}>
+            {lendoPdf ? '⏳ Lendo PDF…' : '📄 Enviar CSV ou PDF'}
           </Button>
           {previa && (
             <span className="text-sm font-semibold text-slate-700">
@@ -269,6 +287,9 @@ export function Rotas() {
             </span>
           )}
         </div>
+        {erroArquivo && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
+        )}
         <p className="mt-3 text-[11px] text-slate-500">
           💡 Reimportar a planilha <strong>atualiza</strong> as rotas existentes (pela Rota expedição) sem duplicar
           e sem perder os motoristas já direcionados.

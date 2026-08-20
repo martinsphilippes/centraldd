@@ -8,6 +8,7 @@ import {
   useDB,
 } from '../../core/db'
 import { cidadesDoTexto, parsearPlanilhaMeli, type ProgramacaoImportada } from '../../core/planilha'
+import { extrairTextoTabularDePdf } from '../../core/pdf'
 import {
   aderenciaHistorica,
   PARAMETROS_PADRAO,
@@ -46,6 +47,8 @@ export function Programacao() {
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
   const [importando, setImportando] = useState(false)
+  const [lendoPdf, setLendoPdf] = useState(false)
+  const [erroArquivo, setErroArquivo] = useState('')
   const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
   const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
@@ -90,6 +93,21 @@ export function Programacao() {
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
     const arquivo = e.target.files?.[0]
     if (!arquivo) return
+    setErroArquivo('')
+    if (arquivo.name.toLowerCase().endsWith('.pdf')) {
+      setLendoPdf(true)
+      void (async () => {
+        try {
+          const texto = await extrairTextoTabularDePdf(await arquivo.arrayBuffer())
+          atualizarPrevia(texto)
+        } catch {
+          setErroArquivo('Não consegui ler esse PDF. Se ele for uma foto/escaneado, cole os dados ou use CSV.')
+        } finally {
+          setLendoPdf(false)
+        }
+      })()
+      return
+    }
     const leitor = new FileReader()
     leitor.onload = () => atualizarPrevia(String(leitor.result ?? ''))
     leitor.readAsText(arquivo)
@@ -541,10 +559,10 @@ export function Programacao() {
           value={textoColado}
           onChange={(e) => atualizarPrevia(e.target.value)}
         />
-        <div className="mt-2 flex items-center gap-2">
-          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
-          <Button variante="secundario" onClick={() => arquivoRef.current?.click()}>
-            📄 Enviar arquivo CSV
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf" onChange={lerArquivo} className="hidden" />
+          <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={lendoPdf}>
+            {lendoPdf ? '⏳ Lendo PDF…' : '📄 Enviar CSV ou PDF'}
           </Button>
           {previa && (
             <span className="text-sm font-semibold text-slate-700">
@@ -553,6 +571,9 @@ export function Programacao() {
             </span>
           )}
         </div>
+        {erroArquivo && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
+        )}
         <p className="mt-3 text-[11px] text-slate-500">
           💡 Linhas de seção (UTILITARIO, DUPLAS) são puladas sozinhas. Os drivers são vinculados
           automaticamente ao cadastro pelo nome. Reimportar o mesmo dia atualiza o plano sem apagar
