@@ -194,7 +194,7 @@ export function salvarResumoDia(r: ResumoDia) {
  * Preenche o Resumo do Dia a partir de um modelo lido (colado/CSV/PDF/foto).
  * Campos não reconhecidos preservam o que já estava no card.
  */
-export function aplicarModeloResumo(dataDia: string, m: import('./planilha').ModeloResumo) {
+export function aplicarModeloResumo(dataDia: string, m: import('./planilha').ModeloResumo): ResumoDia {
   const existente = state.resumos.find((r) => r.id === dataDia)
   const base: ResumoDia = existente ?? {
     id: dataDia,
@@ -224,7 +224,7 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
       transportadoras = [...transportadoras, { nome: 'OUTRAS', utilitarios: String(diferenca), vuc: '' }]
     }
   }
-  salvarResumoDia({
+  const resultado: ResumoDia = {
     ...base,
     id: dataDia,
     data: dataDia,
@@ -236,7 +236,9 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
     amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
     mm: m.mm.length ? m.mm : base.mm,
-  })
+  }
+  salvarResumoDia(resultado)
+  return resultado
 }
 
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
