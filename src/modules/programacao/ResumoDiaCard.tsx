@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { aplicarModeloResumo, salvarResumoDia, useDB } from '../../core/db'
+import { aplicarModeloResumo, registrarDiagnosticoOcr, salvarResumoDia, useDB } from '../../core/db'
 import { formatarData } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeImagem, extrairTextoTabularDePdf } from '../../core/pdf'
@@ -181,6 +181,10 @@ export function ResumoDiaCard({
     // sem depender de mais nenhum toque (o modal fecha e o card confirma).
     const aplicarDireto = (texto: string) => {
       const modelo = parsearModeloResumo(texto)
+      registrarDiagnosticoOcr('resumo-modelo', texto, {
+        arquivo: arquivo.name,
+        camposDetectados: modelo.camposDetectados,
+      })
       if (modelo.camposDetectados > 0) {
         // A data escrita NO MODELO manda: o card daquele dia é preenchido
         // e a tela salta para ele.

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   aplicarModeloResumo,
   importarProgramacao,
+  registrarDiagnosticoOcr,
   removerProgramacaoItem,
   salvarParametrosAlocacao,
   salvarProgramacaoItem,
@@ -130,6 +131,7 @@ export function Programacao() {
           const texto = ehPdf
             ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
             : await extrairTextoDeImagem(arquivo, setLendoPdf)
+          registrarDiagnosticoOcr('programacao-meli', texto, { arquivo: arquivo.name })
           atualizarPrevia(texto)
         } catch (err) {
           const detalhe = err instanceof Error ? err.message : String(err)

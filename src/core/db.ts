@@ -241,6 +241,23 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
   return resultado
 }
 
+/**
+ * Guarda o texto bruto da última leitura de OCR (foto/PDF) para diagnóstico:
+ * quando uma importação "não funciona" no aparelho, dá para ver exatamente o
+ * que o motor de leitura enxergou lá — sem depender de print do usuário.
+ */
+export function registrarDiagnosticoOcr(origem: string, texto: string, info: Record<string, unknown> = {}) {
+  void setDoc(doc(firestore, 'diagnosticos', 'ultimo-ocr'), {
+    id: 'ultimo-ocr',
+    origem,
+    texto: texto.slice(0, 40000),
+    build: typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : '?',
+    aparelho: typeof navigator !== 'undefined' ? navigator.userAgent : '?',
+    ...info,
+    registradoEm: new Date().toISOString(),
+  }).catch(() => {})
+}
+
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
   void setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })
 }
