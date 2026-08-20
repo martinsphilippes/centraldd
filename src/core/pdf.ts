@@ -154,8 +154,10 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
   // Normaliza para ~2400px de largura: fotos gigantes (12MP) são reduzidas
   // (evita travar aparelhos fracos) e prints/fotos pequenas são ampliadas
   // (melhora muito o acerto em tabelas densas). Calibrado com planilhas reais.
+  // Calibrado com os documentos reais da operação: imagens pequenas (cards,
+  // prints comprimidos) precisam de até 6x para o OCR ler os números miúdos.
   const LARGURA_ALVO = 2400
-  const escala = Math.min(4, LARGURA_ALVO / largura)
+  const escala = Math.min(6, LARGURA_ALVO / largura)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(largura * escala)
   canvas.height = Math.round(altura * escala)
@@ -241,12 +243,12 @@ export async function extrairTextoDeImagem(
       ])
     const resultado = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
     let texto = ocrTsvParaTexto(resultado.data.tsv ?? '')
-    // Poucos números reconhecidos? Foto de tela/baixa qualidade — 2ª passada.
+    // Quase nenhum número reconhecido? Foto muito escura/apagada — 2ª passada
+    // com contraste reforçado (mesmo modo de leitura, que é o que funciona).
     const gruposDeDigitos = (texto.match(/\d+/g) ?? []).length
-    if (gruposDeDigitos < 10) {
+    if (gruposDeDigitos < 6) {
       onProgresso?.('🔍 Refinando a leitura (2ª passada com contraste)…')
       reforcarContraste(canvas)
-      await worker.setParameters({ tessedit_pageseg_mode: '6' as never })
       const segunda = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
       // Junta as duas leituras: o leitor de rótulos usa o melhor de cada uma.
       texto = texto + '\n' + ocrTsvParaTexto(segunda.data.tsv ?? '')
