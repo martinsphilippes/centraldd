@@ -119,19 +119,31 @@ export function Rotas() {
     setAvisoAuto(`🏁 Rota ${r.rotaExpedicao} encerrada como pendente.`)
   }
 
-  /** Encerra TODAS as rotas em andamento de uma vez (fim do dia). */
+  /**
+   * Encerra a operação do dia a qualquer momento: toda rota ainda aberta —
+   * com motorista em campo ou sequer direcionada — fica registrada como
+   * encerrada com pendência. O que o motorista finalizou continua entregue.
+   */
   const encerrarRotasDoDia = () => {
-    const emAndamento = db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm)
-    if (emAndamento.length === 0) return
+    const abertas = db.rotas.filter((r) => !r.finalizadaEm)
     const entregues = db.rotas.filter((r) => r.finalizadaEm && r.resultadoFinalizacao !== 'pendente').length
+    if (abertas.length === 0) {
+      setAvisoAuto(`🏁 Todas as ${db.rotas.length} rota(s) já estão encerradas — ${entregues} entregues.`)
+      return
+    }
+    const comMotorista = abertas.filter((r) => r.motoristaId).length
+    const semMotoristaAinda = abertas.length - comMotorista
     if (
       !confirm(
-        `Encerrar as ${emAndamento.length} rota(s) ainda em andamento? Elas ficam registradas como PENDENTES (os motoristas não finalizaram). ${entregues} já foram entregues pelos motoristas.`,
+        `Encerrar a operação do dia?\n\n` +
+          `• ${comMotorista} rota(s) em andamento viram PENDENTES (o motorista não finalizou)\n` +
+          `• ${semMotoristaAinda} rota(s) sem motorista ficam registradas como não realizadas\n` +
+          `• ${entregues} já entregues continuam como estão`,
       )
     )
       return
     const agora = new Date().toISOString()
-    for (const r of emAndamento) {
+    for (const r of abertas) {
       salvarRota({ ...r, finalizadaEm: agora, resultadoFinalizacao: 'pendente' })
       if (r.motoristaId) {
         enviarNotificacao({
@@ -142,7 +154,7 @@ export function Rotas() {
       }
     }
     setAvisoAuto(
-      `🏁 Dia encerrado: ${emAndamento.length} rota(s) marcadas como pendentes • ${entregues} entregues pelos motoristas.`,
+      `🏁 Dia encerrado: ${abertas.length} rota(s) marcadas como pendentes • ${entregues} entregues pelos motoristas.`,
     )
   }
 
@@ -221,9 +233,16 @@ export function Rotas() {
               ⚡ Direcionar escalados ({candidatosChamada.length})
             </Button>
           )}
-          {db.rotas.some((r) => r.motoristaId && !r.finalizadaEm) && (
-            <Button variante="secundario" onClick={encerrarRotasDoDia}>
-              🏁 Encerrar rotas ({db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).length})
+          {db.rotas.length > 0 && (
+            <Button
+              variante="secundario"
+              onClick={encerrarRotasDoDia}
+              title="Encerrar a operação do dia — as rotas abertas ficam registradas como pendentes"
+            >
+              🏁 Encerrar dia
+              {db.rotas.some((r) => !r.finalizadaEm)
+                ? ` (${db.rotas.filter((r) => !r.finalizadaEm).length} aberta(s))`
+                : ''}
             </Button>
           )}
           {db.rotas.some((r) => r.motoristaId) && (
