@@ -242,7 +242,14 @@ export function temRotaPendente(rotas: Rota[], motoristaId: string): boolean {
 }
 
 export function salvarResumoDia(r: ResumoDia) {
-  void setDoc(doc(firestore, 'resumos', r.id), { ...r, atualizadoEm: new Date().toISOString() })
+  // O Firestore rejeita undefined: campos opcionais em branco viram ''.
+  const dados: Record<string, unknown> = { ...r, atualizadoEm: new Date().toISOString() }
+  for (const chave of Object.keys(dados)) {
+    if (dados[chave] === undefined) dados[chave] = ''
+  }
+  setDoc(doc(firestore, 'resumos', r.id), dados).catch(() => {
+    alert('❌ Não consegui salvar o resumo. Tente de novo em instantes.')
+  })
 }
 
 /**
@@ -311,8 +318,9 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
     amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
     mm,
-    totalRotas: m.totalRotas ?? base.totalRotas,
-    posicoesTotal: m.posicoesTotal ?? base.posicoesTotal,
+    // Campos opcionais nunca podem ir como undefined para o Firestore.
+    totalRotas: m.totalRotas ?? base.totalRotas ?? '',
+    posicoesTotal: m.posicoesTotal ?? base.posicoesTotal ?? '',
   }
   salvarResumoDia(resultado)
   return resultado
