@@ -4,6 +4,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { hojeISO, formatarDataLonga, rotuloDia } from '../../core/dates'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import { parametrosAtuais } from '../../core/alocacao'
+import { calcularLimiteDoDia } from '../../core/limites'
 import type { Periodo, StatusResposta } from '../../core/types'
 import { Button, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
@@ -26,7 +27,11 @@ export function MinhaAgenda() {
   const minha = (data: string) => db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
   const precisaComplemento = (s: StatusResposta) => s === 'apos_horario' || s === 'meio_periodo' || s === 'outro'
 
-  const limiteDe = (data: string) => db.limites.find((l) => l.data === data)
+  // O limite do dia vem do planejamento + reserva parametrizada (ou manual).
+  const limiteDe = (data: string) => {
+    const calc = calcularLimiteDoDia(db, data, parametrosAtuais(db))
+    return calc.limite !== null ? { maxDisponiveis: calc.limite } : undefined
+  }
   const disponiveisEm = (data: string) =>
     db.agenda.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
 

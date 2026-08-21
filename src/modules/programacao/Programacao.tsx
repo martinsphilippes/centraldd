@@ -836,6 +836,44 @@ export function Programacao() {
               />
             </Field>
 
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="mb-2 text-sm font-bold text-slate-800">🎯 Limite de disponíveis por dia</p>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={paramsEdit.limiteAutomatico}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, limiteAutomatico: e.target.checked })}
+                />
+                Calcular pelo <strong>planejamento do dia</strong> (rotas do Meli, resumo ou roteirização)
+              </label>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <Field label="Reserva sobre as rotas (%)">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={paramsEdit.limiteFolgaPercentual}
+                    onChange={(e) => setParamsEdit({ ...paramsEdit, limiteFolgaPercentual: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Reserva fixa (motoristas a mais)">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={50}
+                    value={paramsEdit.limiteFolgaFixa}
+                    onChange={(e) => setParamsEdit({ ...paramsEdit, limiteFolgaFixa: Number(e.target.value) })}
+                  />
+                </Field>
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-600">
+                Limite = <strong>rotas planejadas + reserva</strong>. Ex.: 55 rotas com 10% e +0 fixo → 61
+                disponíveis no máximo. A reserva cobre furo de última hora sem estourar a escala. Na Agenda
+                dá para sobrescrever o limite de um dia específico à mão.
+              </p>
+            </div>
+
             <div className="rounded-lg border border-ml-amarelo bg-yellow-50 p-3">
               <Field label="⚡ Auto-alocação: aplicar sozinho as sugestões com confiança ≥ (%) — 0 desliga">
                 <Input

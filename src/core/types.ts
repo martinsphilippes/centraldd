@@ -174,6 +174,12 @@ export interface ParametrosAlocacao {
    * na agenda (0 = sem limite). Trabalhou um dia → a data passa → libera vaga.
    */
   maxDiasAgendados: number
+  /** Calcular o limite de disponíveis do dia a partir do planejamento. */
+  limiteAutomatico: boolean
+  /** Reserva em % sobre as rotas planejadas (ex.: 10 = 10% a mais). */
+  limiteFolgaPercentual: number
+  /** Reserva fixa somada ao limite (ex.: 2 motoristas de retaguarda). */
+  limiteFolgaFixa: number
   atualizadoEm: string
 }
 

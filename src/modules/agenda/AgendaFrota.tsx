@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { removerLimiteDia, salvarDiaAgenda, salvarLimiteDia, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
+import { calcularLimiteDoDia } from '../../core/limites'
+import { parametrosAtuais } from '../../core/alocacao'
 import { hojeISO, formatarData, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaAgenda, Motorista } from '../../core/types'
@@ -54,7 +56,9 @@ export function AgendaFrota() {
     )
   }
 
-  const limiteDoDia = db.limites.find((l) => l.data === diaSelecionado)
+  // Limite = planejamento + reserva parametrizada (ou o valor manual do dia).
+  const limiteCalc = calcularLimiteDoDia(db, diaSelecionado, parametrosAtuais(db))
+  const limiteDoDia = limiteCalc.limite !== null ? { maxDisponiveis: limiteCalc.limite } : null
   // Total de disponíveis do dia SEM filtros (é o número que consome as vagas).
   const disponiveisTotais = db.agenda.filter(
     (a) => a.data === diaSelecionado && STATUS_DISPONIVEIS.includes(a.status),
@@ -283,7 +287,31 @@ export function AgendaFrota() {
               </>
             ) : (
               <p className="text-xs text-slate-500">
-                Sem limite — qualquer quantidade de motoristas pode se marcar disponível neste dia.
+                Sem limite — o dia ainda não tem planejamento (importe as rotas ou o resumo na
+                Programação) e não há limite manual definido.
+              </p>
+            )}
+            {limiteDoDia && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                {limiteCalc.origem === 'manual' ? (
+                  <>✏️ Limite manual deste dia (ignora o cálculo automático).</>
+                ) : (
+                  <>
+                    🎯 Automático: <strong>{limiteCalc.base}</strong> rota(s) planejada(s) ({limiteCalc.fonte})
+                    {limiteCalc.reserva > 0 ? (
+                      <>
+                        {' '}
+                        + <strong>{limiteCalc.reserva}</strong> de reserva
+                      </>
+                    ) : (
+                      ' sem reserva'
+                    )}{' '}
+                    = <strong>{limiteDoDia.maxDisponiveis}</strong>.{' '}
+                    <Link to="/programacao" className="font-semibold text-ml-azul hover:underline">
+                      Parametrizar
+                    </Link>
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -320,11 +348,15 @@ export function AgendaFrota() {
                   setEditandoLimite(true)
                 }}
               >
-                {limiteDoDia ? '✏️ Alterar limite' : '🎯 Definir limite'}
+                {limiteCalc.origem === 'manual' ? '✏️ Alterar limite' : '✏️ Definir manual'}
               </Button>
-              {limiteDoDia && (
-                <Button variante="perigo" onClick={() => removerLimiteDia(diaSelecionado)}>
-                  ✕ Remover
+              {limiteCalc.origem === 'manual' && (
+                <Button
+                  variante="secundario"
+                  onClick={() => removerLimiteDia(diaSelecionado)}
+                  title="Voltar a calcular pelo planejamento + reserva parametrizada"
+                >
+                  ↩️ Voltar ao automático
                 </Button>
               )}
             </div>

@@ -23,6 +23,9 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   equivalenciasVeiculo: 'VUC = HR, Van\nUTILITARIO = Fiorino, Van, HR\nVEÍCULO DE PASSEIO = Carro passeio',
   autoAplicarAcimaDe: 0,
   maxDiasAgendados: 2,
+  limiteAutomatico: true,
+  limiteFolgaPercentual: 10,
+  limiteFolgaFixa: 0,
   atualizadoEm: '',
 }
 
