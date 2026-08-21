@@ -19,6 +19,8 @@ export function ResponderChamadas() {
   const [horario, setHorario] = useState('12:00')
   const [periodo, setPeriodo] = useState<Periodo>('manha')
   const [observacao, setObservacao] = useState('')
+  // Chamada cuja resposta o motorista quis reabrir para alterar.
+  const [alterando, setAlterando] = useState<string | null>(null)
 
   const motorista = db.motoristas.find((m) => m.id === motoristaId)
   if (!motorista) return <EmptyState icone="🚚" titulo="Nenhum motorista selecionado" />
@@ -30,7 +32,13 @@ export function ResponderChamadas() {
   const minhaResposta = (c: Chamada) =>
     db.respostas.find((r) => r.chamadaId === c.id && r.motoristaId === motorista.id)
 
+  // Depois que o circuito anda (escala montada / chamada encerrada), a
+  // resposta fica CONCLUÍDA — só a coordenação pode mudar dali em diante.
+  const respostaTravada = (c: Chamada) =>
+    c.status !== 'aberta' || db.escalas.some((e) => e.chamadaId === c.id)
+
   const responder = (c: Chamada, status: StatusResposta) => {
+    if (respostaTravada(c)) return
     // Status que precisam de complemento abrem o modal; os demais são um toque só.
     if (status === 'apos_horario' || status === 'meio_periodo' || status === 'outro') {
       setHorario('12:00')
@@ -40,10 +48,12 @@ export function ResponderChamadas() {
       return
     }
     responderChamada({ chamadaId: c.id, motoristaId: motorista.id, status })
+    setAlterando(null)
   }
 
   const confirmarComplemento = () => {
-    if (!complemento) return
+    if (!complemento || respostaTravada(complemento.chamada)) return
+    setAlterando(null)
     responderChamada({
       chamadaId: complemento.chamada.id,
       motoristaId: motorista.id,
@@ -68,12 +78,19 @@ export function ResponderChamadas() {
 
       {abertas.map((c) => {
         const r = minhaResposta(c)
+        const travada = respostaTravada(c)
+        const mostrarGrade = !r || (!travada && alterando === c.id)
         return (
           <Card key={c.id} className="overflow-hidden">
             <div className="border-b border-yellow-200 bg-gradient-to-r from-ml-amarelo/70 to-yellow-100 px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="font-bold text-slate-900">{c.titulo}</h2>
-                {r && <Badge className="border-emerald-300 bg-white text-emerald-700">✔️ Respondido</Badge>}
+                {r &&
+                  (travada ? (
+                    <Badge className="border-slate-300 bg-white text-slate-700">🔒 Concluída</Badge>
+                  ) : (
+                    <Badge className="border-emerald-300 bg-white text-emerald-700">✔️ Respondido</Badge>
+                  ))}
               </div>
               <p className="mt-0.5 text-sm text-slate-700">
                 📅 {rotuloDia(c.data)}
@@ -81,31 +98,52 @@ export function ResponderChamadas() {
               </p>
             </div>
             <div className="p-4">
-              {r && (
-                <p className="mb-3 flex items-center gap-2 text-sm text-slate-600">
-                  Sua resposta: <StatusPill resposta={r} />
-                </p>
+              {r && !mostrarGrade ? (
+                // Resposta dada: o quadrante encolhe para só o status escolhido.
+                <div className="space-y-3">
+                  <p className="flex items-center gap-2 text-sm text-slate-600">
+                    Sua resposta: <StatusPill resposta={r} />
+                  </p>
+                  {travada ? (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                      🔒 Resposta registrada e <strong>concluída</strong> — a escala do dia já foi
+                      montada. Precisa mudar? Fale com a coordenação.
+                    </p>
+                  ) : (
+                    <Button variante="secundario" onClick={() => setAlterando(c.id)}>
+                      ✏️ Alterar resposta
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {r && (
+                    <p className="mb-3 flex items-center gap-2 text-sm text-slate-600">
+                      Sua resposta: <StatusPill resposta={r} />
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {ORDEM_STATUS.map((s) => {
+                      const info = STATUS_RESPOSTA[s]
+                      const ativo = r?.status === s
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => responder(c, s)}
+                          className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center text-xs font-semibold transition-all active:scale-95 ${
+                            ativo
+                              ? 'border-ml-azul bg-blue-50 text-ml-azul shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-2xl">{info.emoji}</span>
+                          {info.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
               )}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {ORDEM_STATUS.map((s) => {
-                  const info = STATUS_RESPOSTA[s]
-                  const ativo = r?.status === s
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => responder(c, s)}
-                      className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center text-xs font-semibold transition-all active:scale-95 ${
-                        ativo
-                          ? 'border-ml-azul bg-blue-50 text-ml-azul shadow-sm'
-                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="text-2xl">{info.emoji}</span>
-                      {info.label}
-                    </button>
-                  )
-                })}
-              </div>
             </div>
           </Card>
         )
