@@ -105,6 +105,19 @@ export function Rotas() {
     setAvisoAuto('🧹 Direcionamentos limpos.')
   }
 
+  /** Apaga TODAS as rotas — para carregar a planilha de outra operação do zero. */
+  const apagarTodasAsRotas = () => {
+    if (db.rotas.length === 0) return
+    if (
+      !confirm(
+        `Apagar TODAS as ${db.rotas.length} rota(s) cadastradas? Use para trocar de operação — depois é só importar a nova planilha.`,
+      )
+    )
+      return
+    for (const r of db.rotas) removerRota(r.id)
+    setAvisoAuto('🗑️ Rotas apagadas — importe a planilha da nova operação.')
+  }
+
   const atualizarPrevia = (texto: string) => {
     setTextoColado(texto)
     setPrevia(texto.trim() ? parsearPlanilhaRotas(texto) : null)
@@ -203,6 +216,9 @@ export function Rotas() {
           )}
           {db.rotas.some((r) => r.motoristaId) && (
             <Button variante="secundario" onClick={limparDirecionamentos}>🧹 Limpar</Button>
+          )}
+          {db.rotas.length > 0 && (
+            <Button variante="secundario" onClick={apagarTodasAsRotas}>🗑️ Apagar todas</Button>
           )}
           <Button variante="secundario" onClick={() => exportarCSV(tabela())}>⬇️ CSV</Button>
           <Button variante="secundario" onClick={() => exportarExcel(tabela())}>⬇️ Excel</Button>
