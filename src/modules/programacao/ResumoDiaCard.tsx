@@ -9,6 +9,7 @@ import {
   uid,
   useDB,
 } from '../../core/db'
+import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { OPERACOES } from '../../core/constants'
 import { formatarData, formatarDataLonga } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
@@ -122,6 +123,9 @@ export function ResumoDiaCard({
 
   // Importação do modelo (colar / CSV / PDF / foto)
   const [modalModelo, setModalModelo] = useState(false)
+  // Importação das ROTAS do dia (o mesmo importador da tela de Rotas) — as
+  // duas importações do dia ficam lado a lado aqui na Programação.
+  const [modalRotas, setModalRotas] = useState(false)
   const [textoModelo, setTextoModelo] = useState('')
   const [previaModelo, setPreviaModelo] = useState<ModeloResumo | null>(null)
   const [lendoModelo, setLendoModelo] = useState('')
@@ -486,6 +490,9 @@ export function ResumoDiaCard({
           <Button variante="secundario" onClick={() => { setErroModelo(''); setModalModelo(true) }}>
             📥 Importar modelo
           </Button>
+          <Button variante="secundario" onClick={() => setModalRotas(true)}>
+            🛣️ Importar rotas
+          </Button>
           <Button variante="ml" onClick={() => { setRascunho(existente ?? novoResumo(data, '')); setEditando(true) }}>
             ✏️ {existente ? 'Editar' : 'Preencher'}
           </Button>
@@ -611,6 +618,9 @@ export function ResumoDiaCard({
           </Button>
         )}
       </div>
+
+      {/* Importar as rotas do dia (mesmo importador da tela de Rotas) */}
+      <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} />
 
       {/* Importar o modelo do resumo (colar / CSV / PDF / foto) */}
       <Modal aberto={modalModelo} titulo={`📥 Importar modelo — ${formatarData(data)}`} onFechar={() => setModalModelo(false)}>

@@ -309,8 +309,8 @@ export function Programacao() {
           <Button variante="secundario" onClick={() => setParamsEdit({ ...parametrosAtuais(db) })}>
             ⚙️ Parâmetros
           </Button>
-          <Button variante="ml" onClick={() => setModalImportar(true)}>
-            📥 Importar planilha Meli
+          <Button variante="secundario" onClick={() => setModalImportar(true)}>
+            📄 Planilha Meli
           </Button>
         </div>
       </div>
