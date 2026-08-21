@@ -142,21 +142,26 @@ export function MinhasRotas() {
         <Card className="p-4">
           <h2 className="mb-2 text-sm font-bold text-slate-700">✅ Finalizadas ({finalizadas.length})</h2>
           <ul className="space-y-1.5">
-            {finalizadas.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"
-              >
-                <span className="font-bold text-slate-800">{r.rotaExpedicao}</span>
-                <span className="text-xs text-emerald-700">
-                  finalizada às{' '}
-                  {new Date(r.finalizadaEm!).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </li>
-            ))}
+            {finalizadas.map((r) => {
+              const pendente = r.resultadoFinalizacao === 'pendente'
+              return (
+                <li
+                  key={r.id}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                    pendente ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                  }`}
+                >
+                  <span className="font-bold text-slate-800">{r.rotaExpedicao}</span>
+                  <span className={`text-xs ${pendente ? 'font-semibold text-amber-700' : 'text-emerald-700'}`}>
+                    {pendente ? '⚠️ encerrada pela coordenação · entregas pendentes' : '✅ entregue'} às{' '}
+                    {new Date(r.finalizadaEm!).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </Card>
       )}

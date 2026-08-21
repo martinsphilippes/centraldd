@@ -105,6 +105,12 @@ export interface Rota {
   motoristaId: string | null
   /** Quando o motorista marcou a rota como finalizada (null = em andamento). */
   finalizadaEm?: string | null
+  /**
+   * Como a rota foi encerrada: ausente/'entregue' = o motorista finalizou;
+   * 'pendente' = a coordenação encerrou sem o motorista concluir (ficaram
+   * entregas pendentes registradas).
+   */
+  resultadoFinalizacao?: 'entregue' | 'pendente' | null
   atualizadaEm: string
 }
 

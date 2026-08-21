@@ -29,10 +29,25 @@ export function MinhasEscalas() {
           <ul className="space-y-2">
             {minhasRotas.map((r) => (
               <li key={r.id} className="rounded-lg border border-yellow-200 bg-white p-3">
-                <p className="text-sm font-bold text-slate-900">
-                  {r.rotaExpedicao}
-                  {r.rotaOriginal ? ` (${r.rotaOriginal})` : ''} — {r.cidade}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-slate-900">
+                    {r.rotaExpedicao}
+                    {r.rotaOriginal ? ` (${r.rotaOriginal})` : ''} — {r.cidade}
+                  </p>
+                  {r.finalizadaEm ? (
+                    r.resultadoFinalizacao === 'pendente' ? (
+                      <Badge className="border-amber-300 bg-amber-100 text-amber-800">
+                        ⚠️ Finalizada · pendências
+                      </Badge>
+                    ) : (
+                      <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">
+                        ✅ Finalizada · entregue
+                      </Badge>
+                    )
+                  ) : (
+                    <Badge className="border-sky-200 bg-sky-100 text-sky-800">🚚 Em andamento</Badge>
+                  )}
+                </div>
                 <p className="text-xs text-slate-600">
                   🚐 {r.veiculo} • 📏 {r.km} km • ⏱️ DPS {r.dps} • 🏢 {r.base}
                   {r.transportadora ? ` • 🚛 ${r.transportadora}` : ''}

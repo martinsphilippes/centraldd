@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { importarRotas, registrarDiagnosticoOcr, removerRota, salvarRota, uid, useDB } from '../../core/db'
+import { enviarNotificacao, importarRotas, registrarDiagnosticoOcr, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
@@ -90,7 +90,7 @@ export function Rotas() {
     }
     if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os ${origemCandidatos} da chamada de ${formatarData(chamadaBase.data)}?`))
       return
-    for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null })
+    for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null, resultadoFinalizacao: null })
     const sobraram = livres.length - alocacoes.length
     setAvisoAuto(
       `⚡ ${alocacoes.length} rota(s) direcionada(s) com os ${origemCandidatos} ${escalaDaChamada ? 'da escala' : 'da chamada'} de ${formatarData(chamadaBase.data)}.` +
@@ -103,7 +103,7 @@ export function Rotas() {
    * fica com um segundo motorista. A cópia nasce sem motorista direcionado.
    */
   const duplicarRota = (r: Rota) => {
-    salvarRota({ ...r, id: uid(), motoristaId: null, finalizadaEm: null, atualizadaEm: new Date().toISOString() })
+    salvarRota({ ...r, id: uid(), motoristaId: null, finalizadaEm: null, resultadoFinalizacao: null, atualizadaEm: new Date().toISOString() })
     setAvisoAuto(`➕ Rota ${r.rotaExpedicao} duplicada — direcione o segundo motorista na nova linha.`)
   }
 
@@ -111,8 +111,55 @@ export function Rotas() {
     const direcionadas = db.rotas.filter((r) => r.motoristaId)
     if (direcionadas.length === 0) return
     if (!confirm(`Tirar o motorista de ${direcionadas.length} rota(s)? (as rotas continuam cadastradas)`)) return
-    for (const r of direcionadas) salvarRota({ ...r, motoristaId: null, finalizadaEm: null })
+    for (const r of direcionadas) salvarRota({ ...r, motoristaId: null, finalizadaEm: null, resultadoFinalizacao: null })
     setAvisoAuto('🧹 Direcionamentos limpos.')
+  }
+
+  /**
+   * A COORDENAÇÃO encerra uma rota que o motorista não finalizou: fica
+   * registrada como finalizada COM PENDÊNCIA (entregas que não saíram),
+   * e o motorista é avisado na hora.
+   */
+  const finalizarPelaCoordenacao = (r: Rota) => {
+    const nome = r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '') : ''
+    if (!confirm(`Encerrar a rota ${r.rotaExpedicao} pela coordenação? Ela fica registrada como PENDENTE (o motorista ${nome} não finalizou).`))
+      return
+    salvarRota({ ...r, finalizadaEm: new Date().toISOString(), resultadoFinalizacao: 'pendente' })
+    if (r.motoristaId) {
+      enviarNotificacao({
+        motoristaId: r.motoristaId,
+        titulo: `Rota ${r.rotaExpedicao} encerrada pela coordenação`,
+        mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pela coordenação com entregas pendentes. Qualquer dúvida, fale com a coordenação.`,
+      })
+    }
+    setAvisoAuto(`🏁 Rota ${r.rotaExpedicao} encerrada como pendente.`)
+  }
+
+  /** Encerra TODAS as rotas em andamento de uma vez (fim do dia). */
+  const encerrarRotasDoDia = () => {
+    const emAndamento = db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm)
+    if (emAndamento.length === 0) return
+    const entregues = db.rotas.filter((r) => r.finalizadaEm && r.resultadoFinalizacao !== 'pendente').length
+    if (
+      !confirm(
+        `Encerrar as ${emAndamento.length} rota(s) ainda em andamento? Elas ficam registradas como PENDENTES (os motoristas não finalizaram). ${entregues} já foram entregues pelos motoristas.`,
+      )
+    )
+      return
+    const agora = new Date().toISOString()
+    for (const r of emAndamento) {
+      salvarRota({ ...r, finalizadaEm: agora, resultadoFinalizacao: 'pendente' })
+      if (r.motoristaId) {
+        enviarNotificacao({
+          motoristaId: r.motoristaId,
+          titulo: `Rota ${r.rotaExpedicao} encerrada pela coordenação`,
+          mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pela coordenação com entregas pendentes. Qualquer dúvida, fale com a coordenação.`,
+        })
+      }
+    }
+    setAvisoAuto(
+      `🏁 Dia encerrado: ${emAndamento.length} rota(s) marcadas como pendentes • ${entregues} entregues pelos motoristas.`,
+    )
   }
 
   /** Apaga TODAS as rotas — para carregar a planilha de outra operação do zero. */
@@ -224,6 +271,11 @@ export function Rotas() {
               ⚡ Direcionar {origemCandidatos} ({candidatosChamada.length})
             </Button>
           )}
+          {db.rotas.some((r) => r.motoristaId && !r.finalizadaEm) && (
+            <Button variante="secundario" onClick={encerrarRotasDoDia}>
+              🏁 Encerrar rotas ({db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).length})
+            </Button>
+          )}
           {db.rotas.some((r) => r.motoristaId) && (
             <Button variante="secundario" onClick={limparDirecionamentos}>🧹 Limpar</Button>
           )}
@@ -309,7 +361,7 @@ export function Rotas() {
                       <select
                         className={`${SELETOR} ${r.motoristaId ? '' : 'border-amber-300 bg-amber-50'}`}
                         value={r.motoristaId ?? ''}
-                        onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null, finalizadaEm: null })}
+                        onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null, finalizadaEm: null, resultadoFinalizacao: null })}
                         title="Direcionar motorista para esta rota"
                       >
                         <option value="">— sem motorista —</option>
@@ -321,10 +373,23 @@ export function Rotas() {
                       </select>
                       {r.motoristaId && r.finalizadaEm && (
                         <span
-                          title={`Rota finalizada pelo motorista às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                          title={
+                            r.resultadoFinalizacao === 'pendente'
+                              ? `Encerrada pela coordenação com PENDÊNCIA às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                              : `Entregue — finalizada pelo motorista às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                          }
                         >
-                          ✅
+                          {r.resultadoFinalizacao === 'pendente' ? '⚠️' : '✅'}
                         </span>
+                      )}
+                      {r.motoristaId && !r.finalizadaEm && (
+                        <button
+                          onClick={() => finalizarPelaCoordenacao(r)}
+                          className="rounded px-0.5 hover:bg-slate-200"
+                          title="Encerrar pela coordenação (fica registrada como pendente)"
+                        >
+                          🏁
+                        </button>
                       )}
                     </div>
                   </td>

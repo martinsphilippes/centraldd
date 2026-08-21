@@ -391,6 +391,7 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
         transportadora: n.transportadora || anterior?.transportadora || maisComum,
         motoristaId: anterior?.motoristaId ?? null,
         finalizadaEm: anterior?.finalizadaEm ?? null,
+        resultadoFinalizacao: anterior?.resultadoFinalizacao ?? null,
         atualizadaEm: agora,
       }
       return setDoc(doc(firestore, 'rotas', id), rota)
