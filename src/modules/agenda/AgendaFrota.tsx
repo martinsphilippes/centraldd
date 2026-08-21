@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { removerLimiteDia, salvarLimiteDia, useDB } from '../../core/db'
+import { removerLimiteDia, salvarDiaAgenda, salvarLimiteDia, useDB } from '../../core/db'
+import { useSessao } from '../../context/SessaoContext'
 import { hojeISO, formatarData, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaAgenda, Motorista } from '../../core/types'
@@ -19,12 +20,33 @@ function detalheDe(a: DiaAgenda): string {
 /** Visão do coordenador: dia a dia, quem trabalha e quem não trabalha (agenda dos motoristas). */
 export function AgendaFrota() {
   const db = useDB()
+  const { usuarioEmail } = useSessao()
   const dias = useMemo(() => Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i)), [])
   const [diaSelecionado, setDiaSelecionado] = useState(dias[0])
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
   const [editandoLimite, setEditandoLimite] = useState(false)
   const [novoLimite, setNovoLimite] = useState(40)
+  const [avisoSimulacao, setAvisoSimulacao] = useState('')
+
+  // 🧪 Só o dono vê: marca todos os motoristas FICTÍCIOS (teste-*) como
+  // disponíveis no dia selecionado, para simular a operação em um clique.
+  const souDono = usuarioEmail?.toLowerCase() === 'martinsphilippes@gmail.com'
+  const ficticios = db.motoristas.filter((m) => m.id.startsWith('teste-') && m.ativo)
+  const simularDisponiveis = () => {
+    if (
+      !confirm(
+        `Marcar os ${ficticios.length} motoristas fictícios como DISPONÍVEL em ${rotuloDia(diaSelecionado)}?`,
+      )
+    )
+      return
+    for (const m of ficticios) {
+      salvarDiaAgenda({ motoristaId: m.id, data: diaSelecionado, status: 'disponivel' })
+    }
+    setAvisoSimulacao(
+      `🧪 ${ficticios.length} fictícios marcados como disponíveis em ${rotuloDia(diaSelecionado)}.`,
+    )
+  }
 
   const limiteDoDia = db.limites.find((l) => l.data === diaSelecionado)
   // Total de disponíveis do dia SEM filtros (é o número que consome as vagas).
@@ -98,6 +120,20 @@ export function AgendaFrota() {
   const escaladosDoDia = new Set(
     db.escalas.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
   )
+  // Ciclo do dia FECHADO: escala do dia concluída com o motorista, ou (hoje)
+  // todas as rotas direcionadas a ele finalizadas/encerradas — interligado
+  // com as telas de Rotas e Escalas.
+  const concluidosDoDia = new Set<string>(
+    db.escalas
+      .filter((e) => e.data === diaSelecionado && e.status === 'concluida')
+      .flatMap((e) => e.motoristaIds),
+  )
+  if (diaSelecionado === hojeISO()) {
+    for (const m of frota) {
+      const rotasDele = db.rotas.filter((r) => r.motoristaId === m.id)
+      if (rotasDele.length > 0 && rotasDele.every((r) => r.finalizadaEm)) concluidosDoDia.add(m.id)
+    }
+  }
 
   const LinhaMotorista = ({ m, a }: { m: Motorista; a?: DiaAgenda }) => (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
@@ -110,8 +146,12 @@ export function AgendaFrota() {
           {m.cidade} • {m.equipe} • {m.veiculo}
         </p>
       </div>
-      {escaladosDoDia.has(m.id) && (
-        <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 escalado</Badge>
+      {concluidosDoDia.has(m.id) ? (
+        <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>
+      ) : (
+        escaladosDoDia.has(m.id) && (
+          <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 escalado</Badge>
+        )
       )}
       {a ? (
         <Badge className={STATUS_RESPOSTA[a.status].cor}>
@@ -150,11 +190,22 @@ export function AgendaFrota() {
           <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(diaSelecionado))}>
             🖨️ PDF do dia
           </Button>
+          {souDono && ficticios.length > 0 && (
+            <Button variante="ml" onClick={simularDisponiveis}>
+              🧪 Simular disponíveis ({ficticios.length})
+            </Button>
+          )}
           <Button variante="ml" onClick={() => exportarExcel(tabelaPeriodo())}>
             📊 Relatório do período (Excel)
           </Button>
         </div>
       </div>
+
+      {avisoSimulacao && (
+        <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+          {avisoSimulacao}
+        </p>
+      )}
 
       {/* Seletor de dias */}
       <div className="flex gap-2 overflow-x-auto pb-1">

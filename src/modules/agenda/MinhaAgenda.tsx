@@ -158,6 +158,11 @@ export function MinhaAgenda() {
             >
               <span>
                 <span className="block text-sm font-bold text-slate-800">{rotuloDia(data)}</span>
+                {marcado && diaConcluido(data) && (
+                  <span className="block text-[11px] font-semibold text-emerald-700">
+                    🏁 dia encerrado — vaga liberada
+                  </span>
+                )}
                 {limite && (
                   <span
                     className={`text-[11px] font-semibold ${
