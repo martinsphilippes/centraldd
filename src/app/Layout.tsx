@@ -35,7 +35,9 @@ export function Layout({ children }: { children: ReactNode }) {
       ? db.notificacoes.filter((n) => !n.lida && (n.motoristaId === null || n.motoristaId === motoristaId)).length
       : 0
   const minhasRotas =
-    papel === 'motorista' && motoristaId ? db.rotas.filter((r) => r.motoristaId === motoristaId).length : 0
+    papel === 'motorista' && motoristaId
+      ? db.rotas.filter((r) => r.motoristaId === motoristaId && !r.finalizadaEm).length
+      : 0
 
   return (
     <div className="min-h-screen lg:pl-60">

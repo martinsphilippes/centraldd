@@ -10,6 +10,7 @@ import {
   doc,
   onSnapshot,
   setDoc,
+  updateDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { firestore } from './firebase'
@@ -205,6 +206,22 @@ export function removerRota(id: string) {
   void deleteDoc(doc(firestore, 'rotas', id))
 }
 
+/**
+ * O MOTORISTA marca a própria rota como finalizada. Só esse campo muda —
+ * é o que as regras de segurança permitem para a conta do motorista.
+ * Finalizar libera o motorista para novas rotas e para entrar em escala.
+ */
+export function finalizarRota(id: string) {
+  updateDoc(doc(firestore, 'rotas', id), { finalizadaEm: new Date().toISOString() }).catch(() => {
+    alert('❌ Não consegui finalizar a rota. Tente de novo; se continuar, avise a coordenação.')
+  })
+}
+
+/** true = o motorista tem rota direcionada ainda NÃO finalizada (pendência). */
+export function temRotaPendente(rotas: Rota[], motoristaId: string): boolean {
+  return rotas.some((r) => r.motoristaId === motoristaId && !r.finalizadaEm)
+}
+
 export function salvarResumoDia(r: ResumoDia) {
   void setDoc(doc(firestore, 'resumos', r.id), { ...r, atualizadoEm: new Date().toISOString() })
 }
@@ -373,6 +390,7 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
         // Leitura vazia não apaga a já salva; rota nova fica com a mais comum.
         transportadora: n.transportadora || anterior?.transportadora || maisComum,
         motoristaId: anterior?.motoristaId ?? null,
+        finalizadaEm: anterior?.finalizadaEm ?? null,
         atualizadaEm: agora,
       }
       return setDoc(doc(firestore, 'rotas', id), rota)

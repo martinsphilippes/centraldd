@@ -32,6 +32,12 @@ export function ChamadaDetail() {
   // Cada chamada gera UMA escala: montada, o botão vira o atalho para ela.
   const escalaExistente = db.escalas.find((e) => e.chamadaId === chamada.id)
 
+  // Só entra na escala quem FINALIZOU as rotas: pendência segura o motorista
+  // mesmo que ele esteja disponível na chamada.
+  const comRotaPendente = new Set(
+    db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId as string),
+  )
+
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
   const respostas = db.respostas
     .filter((r) => r.chamadaId === chamada.id)
@@ -54,7 +60,13 @@ export function ChamadaDetail() {
   const indisponiveis = respostasFiltradas.filter((r) => !STATUS_DISPONIVEIS.includes(r.status))
 
   const abrirMontagem = () => {
-    setSelecionados(new Set(sugerirEscala(db, chamada).map((m) => m.id)))
+    setSelecionados(
+      new Set(
+        sugerirEscala(db, chamada)
+          .map((m) => m.id)
+          .filter((mid) => !comRotaPendente.has(mid)),
+      ),
+    )
     setModalEscala(true)
   }
 
@@ -325,9 +337,11 @@ export function ChamadaDetail() {
               const m = porId.get(r.motoristaId)
               if (!m) return null
               const ativo = selecionados.has(m.id)
+              const pendente = comRotaPendente.has(m.id)
               return (
                 <li key={r.id}>
                   <button
+                    disabled={pendente}
                     onClick={() => {
                       const novo = new Set(selecionados)
                       if (ativo) novo.delete(m.id)
@@ -335,15 +349,20 @@ export function ChamadaDetail() {
                       setSelecionados(novo)
                     }}
                     className={`flex w-full items-center gap-2 rounded-lg border p-2 text-left transition-colors ${
-                      ativo ? 'border-ml-azul bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
+                      pendente
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-60'
+                        : ativo
+                          ? 'border-ml-azul bg-blue-50'
+                          : 'border-slate-200 hover:bg-slate-50'
                     }`}
+                    title={pendente ? 'Só pode ser escalado depois de finalizar a(s) rota(s) em andamento.' : undefined}
                   >
-                    <span className="text-base">{ativo ? '☑️' : '⬜'}</span>
+                    <span className="text-base">{pendente ? '🚧' : ativo ? '☑️' : '⬜'}</span>
                     <Avatar nome={m.nome} tamanho="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{m.nome}</span>
                       <span className="text-[11px] text-slate-500">
-                        {m.cidade} • {m.veiculo}
+                        {pendente ? '🚧 rota em andamento — finalize para escalar' : `${m.cidade} • ${m.veiculo}`}
                       </span>
                     </span>
                     <StatusPill resposta={r} />

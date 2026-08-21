@@ -86,6 +86,15 @@ service cloud.firestore {
         (logado() && resource.data.motoristaId == meuMotoristaId());
     }
 
+    match /rotas/{id} {
+      allow read: if logado();
+      allow write: if ehCoordenador();
+      // O motorista finaliza a PRÓPRIA rota — e só pode mexer nesse campo.
+      allow update: if logado() &&
+        resource.data.motoristaId == meuMotoristaId() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['finalizadaEm']);
+    }
+
     match /notificacoes/{id} {
       allow read: if logado();
       allow create: if ehCoordenador();

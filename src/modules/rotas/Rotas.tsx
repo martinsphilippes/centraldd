@@ -78,8 +78,11 @@ export function Rotas() {
 
   const direcionarAutomatico = () => {
     const vagas = db.rotas.filter((r) => !r.motoristaId)
-    const jaDirecionados = new Set(db.rotas.map((r) => r.motoristaId).filter(Boolean))
-    const livres = candidatosChamada.filter((m) => !jaDirecionados.has(m.id))
+    // Rota FINALIZADA libera o motorista para uma nova; pendente segura.
+    const comPendencia = new Set(
+      db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId),
+    )
+    const livres = candidatosChamada.filter((m) => !comPendencia.has(m.id))
     const alocacoes = alocarMotoristasNasRotas(db, vagas, livres, parametrosAtuais(db))
     if (alocacoes.length === 0) {
       setAvisoAuto('⚠️ Nenhuma rota vaga com motorista disponível compatível — confira as travas nos ⚙️ Parâmetros da Programação.')
@@ -87,7 +90,7 @@ export function Rotas() {
     }
     if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os ${origemCandidatos} da chamada de ${formatarData(chamadaBase.data)}?`))
       return
-    for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id })
+    for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null })
     const sobraram = livres.length - alocacoes.length
     setAvisoAuto(
       `⚡ ${alocacoes.length} rota(s) direcionada(s) com os ${origemCandidatos} ${escalaDaChamada ? 'da escala' : 'da chamada'} de ${formatarData(chamadaBase.data)}.` +
@@ -100,7 +103,7 @@ export function Rotas() {
    * fica com um segundo motorista. A cópia nasce sem motorista direcionado.
    */
   const duplicarRota = (r: Rota) => {
-    salvarRota({ ...r, id: uid(), motoristaId: null, atualizadaEm: new Date().toISOString() })
+    salvarRota({ ...r, id: uid(), motoristaId: null, finalizadaEm: null, atualizadaEm: new Date().toISOString() })
     setAvisoAuto(`➕ Rota ${r.rotaExpedicao} duplicada — direcione o segundo motorista na nova linha.`)
   }
 
@@ -108,7 +111,7 @@ export function Rotas() {
     const direcionadas = db.rotas.filter((r) => r.motoristaId)
     if (direcionadas.length === 0) return
     if (!confirm(`Tirar o motorista de ${direcionadas.length} rota(s)? (as rotas continuam cadastradas)`)) return
-    for (const r of direcionadas) salvarRota({ ...r, motoristaId: null })
+    for (const r of direcionadas) salvarRota({ ...r, motoristaId: null, finalizadaEm: null })
     setAvisoAuto('🧹 Direcionamentos limpos.')
   }
 
@@ -302,19 +305,28 @@ export function Rotas() {
                   </td>
                   <td className={CELULA}>{r.base}</td>
                   <td className={CELULA}>
-                    <select
-                      className={`${SELETOR} ${r.motoristaId ? '' : 'border-amber-300 bg-amber-50'}`}
-                      value={r.motoristaId ?? ''}
-                      onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null })}
-                      title="Direcionar motorista para esta rota"
-                    >
-                      <option value="">— sem motorista —</option>
-                      {motoristas.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.nome}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-1">
+                      <select
+                        className={`${SELETOR} ${r.motoristaId ? '' : 'border-amber-300 bg-amber-50'}`}
+                        value={r.motoristaId ?? ''}
+                        onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null, finalizadaEm: null })}
+                        title="Direcionar motorista para esta rota"
+                      >
+                        <option value="">— sem motorista —</option>
+                        {motoristas.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nome}
+                          </option>
+                        ))}
+                      </select>
+                      {r.motoristaId && r.finalizadaEm && (
+                        <span
+                          title={`Rota finalizada pelo motorista às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                        >
+                          ✅
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className={CELULA}>
                     <select

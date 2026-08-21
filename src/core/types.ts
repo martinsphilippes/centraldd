@@ -103,6 +103,8 @@ export interface Rota {
   transportadora: string
   /** Motorista direcionado para esta rota (null = sem motorista definido). */
   motoristaId: string | null
+  /** Quando o motorista marcou a rota como finalizada (null = em andamento). */
+  finalizadaEm?: string | null
   atualizadaEm: string
 }
 
