@@ -340,7 +340,14 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
     novas.map((n) => {
       const id = (n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')
       const anterior = existentes.get(id)
-      const rota: Rota = { ...n, id, motoristaId: anterior?.motoristaId ?? null, atualizadaEm: agora }
+      const rota: Rota = {
+        ...n,
+        id,
+        // A foto costuma falhar na transportadora: leitura vazia não apaga a já salva.
+        transportadora: n.transportadora || anterior?.transportadora || '',
+        motoristaId: anterior?.motoristaId ?? null,
+        atualizadaEm: agora,
+      }
       return setDoc(doc(firestore, 'rotas', id), rota)
     }),
   )
