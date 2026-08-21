@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
-import { ImportarRotasModal } from './ImportarRotasModal'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { VEICULOS } from '../../core/constants'
 import { formatarData } from '../../core/dates'
@@ -16,7 +15,6 @@ export function Rotas() {
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
   const [transportadora, setTransportadora] = useState('')
-  const [modalImportar, setModalImportar] = useState(false)
   const [editando, setEditando] = useState<Rota | null>(null)
   const [avisoAuto, setAvisoAuto] = useState('')
 
@@ -237,8 +235,11 @@ export function Rotas() {
           <Button variante="secundario" onClick={() => exportarCSV(tabela())}>⬇️ CSV</Button>
           <Button variante="secundario" onClick={() => exportarExcel(tabela())}>⬇️ Excel</Button>
           <Button variante="secundario" onClick={() => exportarPDF(tabela())}>🖨️ PDF</Button>
-          <Button variante="secundario" onClick={novaRota}>➕ Nova rota</Button>
-          <Button variante="ml" onClick={() => setModalImportar(true)}>📥 Importar planilha</Button>
+          {/* A roteirização entra pelo planejamento; aqui só se ACRESCENTA
+              uma rota avulsa depois que a planilha do dia já foi carregada. */}
+          {db.rotas.length > 0 && (
+            <Button variante="secundario" onClick={novaRota}>➕ Acrescentar rota</Button>
+          )}
         </div>
       </div>
 
@@ -267,11 +268,18 @@ export function Rotas() {
       </div>
 
       {db.rotas.length === 0 ? (
-        <EmptyState
-          icone="🛣️"
-          titulo="Nenhuma rota cadastrada"
-          descricao="Use “Importar planilha” para trazer as rotas — cole direto do Excel ou envie o CSV."
-        />
+        <div className="space-y-3">
+          <EmptyState
+            icone="🛣️"
+            titulo="Nenhuma rota cadastrada"
+            descricao="A roteirização do dia entra pelo planejamento: na Programação, use 🛣️ Importar rotas (planilha, PDF ou fotos) junto com o resumo do dia."
+          />
+          <div className="text-center">
+            <Link to="/programacao">
+              <Button variante="ml">📆 Ir para a Programação →</Button>
+            </Link>
+          </div>
+        </div>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -397,7 +405,6 @@ export function Rotas() {
       )}
 
       {/* Importação (modal compartilhado com a Programação) */}
-      <ImportarRotasModal aberto={modalImportar} onFechar={() => setModalImportar(false)} />
 
       {/* Edição completa */}
       <Modal
