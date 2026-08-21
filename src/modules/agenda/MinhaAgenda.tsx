@@ -30,18 +30,28 @@ export function MinhaAgenda() {
   const disponiveisEm = (data: string) =>
     db.agenda.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
 
-  // Limite de dias agendados: só conta dias FUTUROS marcados como disponível.
-  // Dia trabalhado (data passou) sai da conta e libera novo agendamento.
+  // Limite de dias agendados: só conta dias marcados como DISPONÍVEL cujo
+  // ciclo ainda não fechou. Dia trabalhado (data passou) OU com a escala do
+  // dia concluída sai da conta e libera novo agendamento na hora.
+  // Indisponível, folga, atestado e férias são sempre livres.
   const maxAgendados = parametrosAtuais(db).maxDiasAgendados
+  const diaConcluido = (data: string) =>
+    db.escalas.some(
+      (e) => e.data === data && e.status === 'concluida' && e.motoristaIds.includes(motoristaId),
+    )
   const meusAgendados = db.agenda.filter(
-    (a) => a.motoristaId === motoristaId && a.data >= hojeISO() && STATUS_DISPONIVEIS.includes(a.status),
+    (a) =>
+      a.motoristaId === motoristaId &&
+      a.data >= hojeISO() &&
+      STATUS_DISPONIVEIS.includes(a.status) &&
+      !diaConcluido(a.data),
   ).length
 
   /** true se o motorista já usou todas as vagas de agendamento (e este dia não é uma delas). */
   const cotaEstourada = (data: string) => {
     if (maxAgendados <= 0) return false
     const minha = db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
-    const jaConta = !!minha && STATUS_DISPONIVEIS.includes(minha.status)
+    const jaConta = !!minha && STATUS_DISPONIVEIS.includes(minha.status) && !diaConcluido(data)
     return !jaConta && meusAgendados >= maxAgendados
   }
 
@@ -58,7 +68,7 @@ export function MinhaAgenda() {
     if (!dataSelecionada) return
     if (STATUS_DISPONIVEIS.includes(s) && cotaEstourada(dataSelecionada)) {
       setErroVaga(
-        `📌 Você já tem ${maxAgendados} dia(s) de trabalho agendado(s) — esse é o limite. Quando trabalhar um dia e a rota for concluída, uma nova vaga de agendamento é liberada automaticamente. (Marcar folga/indisponibilidade continua livre.)`,
+        `📌 Você já tem ${maxAgendados} dia(s) DISPONÍVEL agendado(s) — esse é o limite. Quando o dia for trabalhado e a escala/rota for encerrada, a vaga é liberada na hora para agendar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
       )
       return
     }
@@ -115,10 +125,10 @@ export function MinhaAgenda() {
         >
           <span className="text-lg">📌</span>
           <span className="flex-1">
-            Dias de trabalho agendados: <strong>{meusAgendados}/{maxAgendados}</strong>
+            Dias DISPONÍVEL agendados: <strong>{meusAgendados}/{maxAgendados}</strong>
             {meusAgendados >= maxAgendados
-              ? ' — limite atingido. Trabalhe um dia agendado para liberar o próximo.'
-              : ` — você ainda pode agendar ${maxAgendados - meusAgendados} dia(s).`}
+              ? ' — limite atingido. Quando a escala/rota de um dia agendado for encerrada, a vaga libera sozinha. Indisponível/folga seguem livres.'
+              : ` — você ainda pode agendar ${maxAgendados - meusAgendados} dia(s) disponível. Indisponível/folga são livres.`}
           </span>
         </div>
       )}
