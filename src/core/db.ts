@@ -145,6 +145,20 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   setDoc(doc(firestore, 'respostas', id), dados).catch(() => {
     alert('❌ Não consegui registrar sua resposta. Tente de novo; se continuar, avise a coordenação.')
   })
+  // A resposta também preenche a AGENDA daquele dia: no fluxo
+  // "programação primeiro", quem responde à chamada já fica com a data
+  // marcada — um lado alimenta o outro sem digitar duas vezes.
+  const chamada = state.chamadas.find((c) => c.id === r.chamadaId)
+  if (chamada) {
+    salvarDiaAgenda({
+      motoristaId: r.motoristaId,
+      data: chamada.data,
+      status: r.status,
+      horario: r.horario,
+      periodo: r.periodo,
+      observacao: r.observacao,
+    })
+  }
 }
 
 /** Marca a disponibilidade de uma data na agenda (1 registro por motorista/data). */

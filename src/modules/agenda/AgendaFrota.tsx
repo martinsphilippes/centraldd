@@ -94,6 +94,11 @@ export function AgendaFrota() {
     ]),
   })
 
+  // Fecha o ciclo com a esteira: quem já está na escala do dia fica marcado.
+  const escaladosDoDia = new Set(
+    db.escalas.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
+  )
+
   const LinhaMotorista = ({ m, a }: { m: Motorista; a?: DiaAgenda }) => (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
       <Avatar nome={m.nome} tamanho="sm" />
@@ -105,6 +110,9 @@ export function AgendaFrota() {
           {m.cidade} • {m.equipe} • {m.veiculo}
         </p>
       </div>
+      {escaladosDoDia.has(m.id) && (
+        <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 escalado</Badge>
+      )}
       {a ? (
         <Badge className={STATUS_RESPOSTA[a.status].cor}>
           {STATUS_RESPOSTA[a.status].emoji} {STATUS_RESPOSTA[a.status].label}

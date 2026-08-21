@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
+import { EsteiraDia } from './EsteiraDia'
 import { resumoChamada, serieDisponibilidade } from '../../core/stats'
 import { Badge, Button, Card, ProgressBar, StatCard, EmptyState } from '../../components/ui'
 import { BarChart, Legenda } from '../../components/charts'
@@ -8,6 +10,14 @@ import { BarChart, Legenda } from '../../components/charts'
 export function Dashboard() {
   const db = useDB()
   const hoje = hojeISO()
+  // A esteira abre na data da próxima chamada aberta (senão, amanhã).
+  const [dataEsteira, setDataEsteira] = useState(
+    () =>
+      db.chamadas
+        .filter((c) => c.status === 'aberta')
+        .map((c) => c.data)
+        .sort()[0] ?? hojeISO(1),
+  )
 
   const chamadasHoje = db.chamadas.filter((c) => c.data === hoje)
   const resumosHoje = chamadasHoje.map((c) => resumoChamada(db, c))
@@ -44,6 +54,8 @@ export function Dashboard() {
           <Button variante="ml">➕ Nova chamada</Button>
         </Link>
       </div>
+
+      <EsteiraDia data={dataEsteira} aoMudarData={setDataEsteira} />
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">

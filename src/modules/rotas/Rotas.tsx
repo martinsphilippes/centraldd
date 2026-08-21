@@ -67,7 +67,14 @@ export function Rotas() {
           .map((resp) => resp.motoristaId)
       : [],
   )
-  const candidatosChamada = motoristas.filter((m) => idsDisponiveis.has(m.id))
+  // A escala conduz as rotas: montada a escala da chamada, os ESCALADOS viram
+  // os candidatos do direcionamento; sem escala, valem os disponíveis.
+  const escalaDaChamada = chamadaBase
+    ? db.escalas.find((e) => e.chamadaId === chamadaBase.id)
+    : undefined
+  const idsCandidatos = escalaDaChamada ? new Set(escalaDaChamada.motoristaIds) : idsDisponiveis
+  const origemCandidatos = escalaDaChamada ? 'escalados' : 'disponíveis'
+  const candidatosChamada = motoristas.filter((m) => idsCandidatos.has(m.id))
 
   const direcionarAutomatico = () => {
     const vagas = db.rotas.filter((r) => !r.motoristaId)
@@ -78,13 +85,13 @@ export function Rotas() {
       setAvisoAuto('⚠️ Nenhuma rota vaga com motorista disponível compatível — confira as travas nos ⚙️ Parâmetros da Programação.')
       return
     }
-    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os disponíveis da chamada de ${formatarData(chamadaBase.data)}?`))
+    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os ${origemCandidatos} da chamada de ${formatarData(chamadaBase.data)}?`))
       return
     for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id })
     const sobraram = livres.length - alocacoes.length
     setAvisoAuto(
-      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os disponíveis da chamada de ${formatarData(chamadaBase.data)}.` +
-        (sobraram > 0 ? ` ${sobraram} motorista(s) disponível(is) ficaram de reserva.` : ''),
+      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os ${origemCandidatos} ${escalaDaChamada ? 'da escala' : 'da chamada'} de ${formatarData(chamadaBase.data)}.` +
+        (sobraram > 0 ? ` ${sobraram} motorista(s) ficaram de reserva.` : ''),
     )
   }
 
@@ -211,7 +218,7 @@ export function Rotas() {
         <div className="flex flex-wrap gap-2">
           {candidatosChamada.length > 0 && semMotorista > 0 && (
             <Button variante="ml" onClick={direcionarAutomatico}>
-              ⚡ Direcionar disponíveis ({candidatosChamada.length})
+              ⚡ Direcionar {origemCandidatos} ({candidatosChamada.length})
             </Button>
           )}
           {db.rotas.some((r) => r.motoristaId) && (

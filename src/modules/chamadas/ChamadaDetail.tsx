@@ -29,6 +29,9 @@ export function ChamadaDetail() {
     return <EmptyState icone="🔍" titulo="Chamada não encontrada" />
   }
 
+  // Cada chamada gera UMA escala: montada, o botão vira o atalho para ela.
+  const escalaExistente = db.escalas.find((e) => e.chamadaId === chamada.id)
+
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
   const respostas = db.respostas
     .filter((r) => r.chamadaId === chamada.id)
@@ -166,9 +169,18 @@ export function ChamadaDetail() {
               🔒 Encerrar
             </Button>
           )}
-          <Button variante="ml" onClick={abrirMontagem}>
-            📋 Montar escala
-          </Button>
+          {escalaExistente ? (
+            <Link
+              to={`/escalas/${escalaExistente.id}`}
+              className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
+            >
+              📋 Ver escala →
+            </Link>
+          ) : (
+            <Button variante="ml" onClick={abrirMontagem}>
+              📋 Montar escala
+            </Button>
+          )}
         </div>
       </div>
 

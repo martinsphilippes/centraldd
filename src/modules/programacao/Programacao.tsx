@@ -27,6 +27,7 @@ import {
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
 import { ResumoDiaCard } from './ResumoDiaCard'
+import { EsteiraDia } from '../dashboard/EsteiraDia'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard } from '../../components/ui'
 
@@ -337,6 +338,7 @@ export function Programacao() {
             />
           </div>
 
+          <EsteiraDia data={dataAtiva} aoMudarData={setDataSelecionada} />
           <ResumoDiaCard data={dataAtiva} aoMudarDia={setDataSelecionada} />
 
           {db.programacao.length === 0 ? (
