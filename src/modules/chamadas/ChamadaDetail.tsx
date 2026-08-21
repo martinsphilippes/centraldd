@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
+import { removerChamada, salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
 import { formatarData, rotuloDia } from '../../core/dates'
 import { resumoChamada, sugerirEscala } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
@@ -179,6 +179,20 @@ export function ChamadaDetail() {
               onClick={() => salvarChamada({ ...chamada, status: 'encerrada' })}
             >
               🔒 Encerrar
+            </Button>
+          )}
+          {chamada.status === 'encerrada' && (
+            <Button
+              variante="secundario"
+              onClick={() => {
+                const extras = escalaExistente ? ' A escala vinculada e as respostas também serão excluídas.' : ' As respostas também serão excluídas.'
+                if (confirm(`Excluir a chamada de ${formatarData(chamada.data)}?${extras}`)) {
+                  removerChamada(chamada.id)
+                  navigate('/chamadas')
+                }
+              }}
+            >
+              🗑️ Excluir
             </Button>
           )}
           {escalaExistente ? (

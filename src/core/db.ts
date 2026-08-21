@@ -128,6 +128,21 @@ export function salvarChamada(c: Chamada) {
   void setDoc(doc(firestore, 'chamadas', c.id), c)
 }
 
+/**
+ * Exclui a chamada E o que nasceu dela (respostas e escala vinculada),
+ * para não sobrar registro órfão. A agenda dos motoristas fica — é o
+ * histórico deles, independente da chamada.
+ */
+export function removerChamada(id: string) {
+  for (const r of state.respostas.filter((x) => x.chamadaId === id)) {
+    void deleteDoc(doc(firestore, 'respostas', r.id))
+  }
+  for (const e of state.escalas.filter((x) => x.chamadaId === id)) {
+    void deleteDoc(doc(firestore, 'escalas', e.id))
+  }
+  void deleteDoc(doc(firestore, 'chamadas', id))
+}
+
 /** Registra ou atualiza a resposta (id determinístico garante 1 por motorista/chamada). */
 export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   const id = `${r.chamadaId}_${r.motoristaId}`
