@@ -141,7 +141,10 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   if (r.horario !== undefined) dados.horario = r.horario
   if (r.periodo !== undefined) dados.periodo = r.periodo
   if (r.observacao !== undefined) dados.observacao = r.observacao
-  void setDoc(doc(firestore, 'respostas', id), dados)
+  // Falha (ex.: permissão) aparece na hora — nunca "clicar e não acontecer nada".
+  setDoc(doc(firestore, 'respostas', id), dados).catch(() => {
+    alert('❌ Não consegui registrar sua resposta. Tente de novo; se continuar, avise a coordenação.')
+  })
 }
 
 /** Marca a disponibilidade de uma data na agenda (1 registro por motorista/data). */
@@ -157,7 +160,9 @@ export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
   if (d.horario !== undefined) dados.horario = d.horario
   if (d.periodo !== undefined) dados.periodo = d.periodo
   if (d.observacao !== undefined) dados.observacao = d.observacao
-  void setDoc(doc(firestore, 'agenda', id), dados)
+  setDoc(doc(firestore, 'agenda', id), dados).catch(() => {
+    alert('❌ Não consegui salvar sua agenda. Tente de novo; se continuar, avise a coordenação.')
+  })
 }
 
 export function removerDiaAgenda(id: string) {

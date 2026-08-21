@@ -22,9 +22,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel == 'coordenador';
     }
 
-    // Motorista aprovado = tem cadastro próprio sem a marca aprovado=false.
+    // O cadastro de motorista da conta vem do PERFIL (motoristaId) — no
+    // pré-cadastro ele é o próprio uid, mas a conta pode ser ligada a
+    // qualquer cadastro existente pelo coordenador.
+    function meuMotoristaId() {
+      return get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.motoristaId;
+    }
+
+    // Motorista aprovado = o cadastro ligado à conta não tem aprovado=false.
     function motoristaAprovado() {
-      let m = get(/databases/$(database)/documents/motoristas/$(request.auth.uid)).data;
+      let m = get(/databases/$(database)/documents/motoristas/$(meuMotoristaId())).data;
       return !('aprovado' in m) || m.aprovado == true;
     }
 
@@ -67,16 +74,16 @@ service cloud.firestore {
       allow read: if logado();
       // Motorista aprovado grava apenas a própria resposta; coordenador pode tudo.
       allow write: if ehCoordenador() ||
-        (logado() && request.resource.data.motoristaId == request.auth.uid && motoristaAprovado());
+        (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
     }
 
     // Disponibilidade por data marcada pelo próprio motorista (agenda).
     match /agenda/{id} {
       allow read: if logado();
       allow create, update: if ehCoordenador() ||
-        (logado() && request.resource.data.motoristaId == request.auth.uid && motoristaAprovado());
+        (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
       allow delete: if ehCoordenador() ||
-        (logado() && resource.data.motoristaId == request.auth.uid);
+        (logado() && resource.data.motoristaId == meuMotoristaId());
     }
 
     match /notificacoes/{id} {
