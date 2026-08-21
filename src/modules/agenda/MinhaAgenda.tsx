@@ -35,10 +35,15 @@ export function MinhaAgenda() {
   // dia concluída sai da conta e libera novo agendamento na hora.
   // Indisponível, folga, atestado e férias são sempre livres.
   const maxAgendados = parametrosAtuais(db).maxDiasAgendados
+  // "Dia concluído" = escala daquele dia concluída com ele, OU (para o dia de
+  // hoje) todas as rotas direcionadas a ele já finalizadas/encerradas.
+  const minhasRotas = db.rotas.filter((r) => r.motoristaId === motoristaId)
+  const trabalhoDeHojeEncerrado = minhasRotas.length > 0 && minhasRotas.every((r) => r.finalizadaEm)
   const diaConcluido = (data: string) =>
     db.escalas.some(
       (e) => e.data === data && e.status === 'concluida' && e.motoristaIds.includes(motoristaId),
-    )
+    ) ||
+    (data === hojeISO() && trabalhoDeHojeEncerrado)
   const meusAgendados = db.agenda.filter(
     (a) =>
       a.motoristaId === motoristaId &&
