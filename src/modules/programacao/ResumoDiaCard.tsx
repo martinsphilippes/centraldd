@@ -203,6 +203,7 @@ export function ResumoDiaCard({
     })
     enviarNotificacao({
       motoristaId: null,
+      chamadaId: id,
       titulo: `Nova chamada: ${titulo}`,
       mensagem: `📅 ${formatarDataLonga(data)} • ${OPERACOES[0]} • 🚚 ${meta} motoristas necessários. Responda sua disponibilidade!`,
     })

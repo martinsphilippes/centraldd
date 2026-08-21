@@ -140,6 +140,10 @@ export function removerChamada(id: string) {
   for (const e of state.escalas.filter((x) => x.chamadaId === id)) {
     void deleteDoc(doc(firestore, 'escalas', e.id))
   }
+  // Os avisos que a chamada gerou somem da tela dos motoristas junto com ela.
+  for (const n of state.notificacoes.filter((x) => x.chamadaId === id)) {
+    void deleteDoc(doc(firestore, 'notificacoes', n.id))
+  }
   void deleteDoc(doc(firestore, 'chamadas', id))
 }
 
@@ -427,6 +431,8 @@ export function enviarNotificacao(n: Omit<Notificacao, 'id' | 'lida' | 'criadaEm
   void setDoc(doc(firestore, 'notificacoes', id), {
     ...n,
     id,
+    // Firestore não aceita undefined — sem vínculo, o campo fica null.
+    chamadaId: n.chamadaId ?? null,
     lida: false,
     criadaEm: new Date().toISOString(),
   })

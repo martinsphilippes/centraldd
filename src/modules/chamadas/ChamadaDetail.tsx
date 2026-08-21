@@ -310,6 +310,7 @@ export function ChamadaDetail() {
                   for (const m of pendentesFiltrados) {
                     enviarNotificacao({
                       motoristaId: m.id,
+                      chamadaId: chamada.id,
                       titulo: 'Responda a chamada de disponibilidade',
                       mensagem: mensagemCobranca(m, chamada),
                     })

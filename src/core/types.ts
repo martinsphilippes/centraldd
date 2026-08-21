@@ -219,6 +219,8 @@ export interface Notificacao {
   motoristaId: string | null // null = todos
   titulo: string
   mensagem: string
+  /** Chamada que originou o aviso — excluir a chamada limpa os avisos dela. */
+  chamadaId?: string | null
   lida: boolean
   criadaEm: string
 }
