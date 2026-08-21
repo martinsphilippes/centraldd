@@ -58,6 +58,10 @@ service cloud.firestore {
          request.resource.data.aprovado == false &&
          request.resource.data.ativo == false);
       allow update, delete: if ehCoordenador();
+      // O motorista ajusta as próprias preferências de cidade — e só elas.
+      allow update: if logado() && id == meuMotoristaId() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['cidadesPreferidas', 'cidadesBloqueadas']);
     }
 
     match /chamadas/{id} {

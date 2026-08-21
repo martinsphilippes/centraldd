@@ -11,6 +11,7 @@ import { ResponderChamadas } from '../modules/chamadas/ResponderChamadas'
 import { MotoristasList } from '../modules/motoristas/MotoristasList'
 import { MotoristaForm } from '../modules/motoristas/MotoristaForm'
 import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
+import { MinhasCidades } from '../modules/motoristas/MinhasCidades'
 import { EscalasList } from '../modules/escalas/EscalasList'
 import { EscalaDetail } from '../modules/escalas/EscalaDetail'
 import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
@@ -76,6 +77,7 @@ export default function App() {
           <>
             <Route path="/responder" element={<ResponderChamadas />} />
             <Route path="/minhas-rotas" element={<MinhasRotas />} />
+            <Route path="/minhas-cidades" element={<MinhasCidades />} />
             <Route path="/agenda" element={<MinhaAgenda />} />
             <Route path="/minhas-escalas" element={<MinhasEscalas />} />
             <Route path="/notificacoes" element={<Notificacoes />} />

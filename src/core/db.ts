@@ -120,6 +120,23 @@ export function salvarMotorista(m: Motorista) {
   void setDoc(doc(firestore, 'motoristas', m.id), m)
 }
 
+/**
+ * O MOTORISTA salva as próprias preferências de cidade. Só esses dois campos
+ * mudam — é o que as regras de segurança permitem para a conta dele.
+ */
+export function salvarPreferenciasCidades(
+  motoristaId: string,
+  cidadesPreferidas: string,
+  cidadesBloqueadas: string,
+) {
+  updateDoc(doc(firestore, 'motoristas', motoristaId), {
+    cidadesPreferidas,
+    cidadesBloqueadas,
+  }).catch(() => {
+    alert('❌ Não consegui salvar suas cidades. Tente de novo; se continuar, avise a coordenação.')
+  })
+}
+
 export function removerMotorista(id: string) {
   void deleteDoc(doc(firestore, 'motoristas', id))
 }
