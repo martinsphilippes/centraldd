@@ -166,9 +166,12 @@ export function ResumoDiaCard({
 
   const totalUtil = auto ? cont.utilitarios : r.transportadoras.reduce((s, t) => s + num(t.utilitarios), 0)
   const totalVuc = auto ? cont.vuc : r.transportadoras.reduce((s, t) => s + num(t.vuc), 0)
-  const totalRotas = auto
+  // Total de rotas: informado à mão manda; senão vem da programação (quando
+  // automático) ou da soma das transportadoras.
+  const totalRotasCalculado = auto
     ? cont.total
     : r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
+  const totalRotas = num(r.totalRotas) > 0 ? num(r.totalRotas) : totalRotasCalculado
   // Posições: soma das quantidades × posições do veículo, a menos que o
   // dispatcher tenha informado o total à mão (o card traz um campo só para isso).
   const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
@@ -360,6 +363,10 @@ export function ResumoDiaCard({
       (s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade),
       0,
     )
+    const totalRotasSomado = rascunho.transportadoras.reduce(
+      (s, t) => s + num(t.utilitarios) + num(t.vuc),
+      0,
+    )
     const setT = (i: number, campo: 'nome' | 'utilitarios' | 'vuc', v: string) =>
       setRascunho({
         ...rascunho,
@@ -436,19 +443,22 @@ export function ResumoDiaCard({
                   <>Ainda não há programação importada para este dia — importe a planilha do Meli, ou desmarque acima para preencher à mão.</>
                 )}
               </p>
-            ) : (
-              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">AM — por transportadora (manual)</p>
-            )}
+            ) : null}
           </div>
 
-          {rascunho.amAutomatico === false && (
           <div>
+            <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <span className="flex-1">AM — Transportadora</span>
+              <span className="w-28 text-ml-azul">Utilitários ✏️</span>
+              <span className="w-24 text-ml-azul">VUC ✏️</span>
+              <span className="w-7" />
+            </div>
             <div className="space-y-2">
               {rascunho.transportadoras.map((t, i) => (
                 <div key={i} className="flex gap-2">
                   <Input placeholder="Transportadora" value={t.nome} onChange={(e) => setT(i, 'nome', e.target.value)} />
-                  <Input placeholder="Utilitários" value={t.utilitarios} onChange={(e) => setT(i, 'utilitarios', e.target.value)} inputMode="numeric" className="w-28" />
-                  <Input placeholder="VUC" value={t.vuc} onChange={(e) => setT(i, 'vuc', e.target.value)} inputMode="numeric" className="w-24" />
+                  <Input placeholder="Utilitários" value={t.utilitarios} onChange={(e) => setT(i, 'utilitarios', e.target.value)} inputMode="numeric" className="w-28 border-ml-azul bg-blue-50/40 font-bold" />
+                  <Input placeholder="VUC" value={t.vuc} onChange={(e) => setT(i, 'vuc', e.target.value)} inputMode="numeric" className="w-24 border-ml-azul bg-blue-50/40 font-bold" />
                   <button
                     onClick={() => setRascunho({ ...rascunho, transportadoras: rascunho.transportadoras.filter((_, j) => j !== i) })}
                     className="rounded-lg px-2 text-red-600 hover:bg-red-50"
@@ -465,8 +475,37 @@ export function ResumoDiaCard({
                 ➕ Transportadora
               </Button>
             </div>
+
+            {/* Total de rotas: calculado pela soma, mas sempre editável. */}
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-ml-amarelo bg-yellow-50 px-3 py-2.5">
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-700">Total rotas</span>
+              <Input
+                value={rascunho.totalRotas ?? ''}
+                onChange={(e) => setRascunho({ ...rascunho, totalRotas: e.target.value })}
+                inputMode="numeric"
+                placeholder={String(totalRotasSomado)}
+                className="w-28 text-center text-lg font-bold"
+              />
+              <span className="text-[11px] text-slate-600">
+                {num(rascunho.totalRotas) > 0 ? (
+                  <>
+                    valor informado à mão — a soma das transportadoras daria{' '}
+                    <strong>{totalRotasSomado}</strong>.{' '}
+                    <button
+                      onClick={() => setRascunho({ ...rascunho, totalRotas: '' })}
+                      className="font-semibold text-ml-azul hover:underline"
+                    >
+                      voltar ao calculado
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    em branco = soma das transportadoras (<strong>{totalRotasSomado}</strong>).
+                  </>
+                )}
+              </span>
+            </div>
           </div>
-          )}
 
           <div>
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes</p>

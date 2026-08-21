@@ -287,18 +287,9 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
   if (transportadoras.some((t) => num(t.utilitarios) > 0 || num(t.vuc) > 0)) {
     transportadoras = transportadoras.filter((t) => num(t.utilitarios) > 0 || num(t.vuc) > 0)
   }
-  // O TOTAL ROTAS lido no modelo é a verdade: se as transportadoras
-  // reconhecidas não somarem, completa a diferença numa linha extra.
-  if (m.totalRotas) {
-    const soma = transportadoras
-      .filter((t) => t.nome !== 'OUTRAS')
-      .reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
-    const diferenca = num(m.totalRotas) - soma
-    transportadoras = transportadoras.filter((t) => t.nome !== 'OUTRAS')
-    if (diferenca > 0) {
-      transportadoras = [...transportadoras, { nome: 'OUTRAS', utilitarios: String(diferenca), vuc: '' }]
-    }
-  }
+  // O TOTAL ROTAS lido no modelo entra como total informado — sem inventar
+  // linha de transportadora para "fechar a conta".
+  transportadoras = transportadoras.filter((t) => t.nome !== 'OUTRAS')
   // MM: mescla pelo número de posições (x8 = 3/4, x16 = TRUCK…) — as linhas
   // padrão ficam, e a leitura só preenche/atualiza as quantidades que achou.
   const mm = base.mm.map((linha) => {
@@ -320,6 +311,7 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
     amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
     mm,
+    totalRotas: m.totalRotas ?? base.totalRotas,
     posicoesTotal: m.posicoesTotal ?? base.posicoesTotal,
   }
   salvarResumoDia(resultado)
