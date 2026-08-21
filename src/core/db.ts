@@ -336,6 +336,14 @@ export async function importarProgramacao(
 export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>[]) {
   const agora = new Date().toISOString()
   const existentes = new Map(state.rotas.map((r) => [r.id, r]))
+  // O OCR costuma falhar na transportadora. Rota NOVA sem leitura herda a
+  // transportadora mais comum da operação (na prática, quase tudo é uma só).
+  const contagem = new Map<string, number>()
+  for (const r of [...state.rotas, ...novas]) {
+    const t = r.transportadora.trim()
+    if (t) contagem.set(t, (contagem.get(t) ?? 0) + 1)
+  }
+  const maisComum = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
   await Promise.all(
     novas.map((n) => {
       const id = (n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')
@@ -343,8 +351,8 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
       const rota: Rota = {
         ...n,
         id,
-        // A foto costuma falhar na transportadora: leitura vazia não apaga a já salva.
-        transportadora: n.transportadora || anterior?.transportadora || '',
+        // Leitura vazia não apaga a já salva; rota nova fica com a mais comum.
+        transportadora: n.transportadora || anterior?.transportadora || maisComum,
         motoristaId: anterior?.motoristaId ?? null,
         atualizadaEm: agora,
       }
