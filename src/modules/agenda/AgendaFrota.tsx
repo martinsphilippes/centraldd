@@ -33,7 +33,13 @@ export function AgendaFrota() {
   // disponíveis no dia selecionado, para simular a operação em um clique.
   const souDono = usuarioEmail?.toLowerCase() === 'martinsphilippes@gmail.com'
   const ficticios = db.motoristas.filter((m) => m.id.startsWith('teste-') && m.ativo)
+  // A simulação segue a esteira: só faz sentido depois que o dia tem
+  // programação lançada (planilha do Meli importada ou resumo do dia).
+  const temProgramacao =
+    db.programacao.some((p) => p.data === diaSelecionado) ||
+    db.resumos.some((r) => r.id === diaSelecionado)
   const simularDisponiveis = () => {
+    if (!temProgramacao) return
     if (
       !confirm(
         `Marcar os ${ficticios.length} motoristas fictícios como DISPONÍVEL em ${rotuloDia(diaSelecionado)}?`,
@@ -191,7 +197,16 @@ export function AgendaFrota() {
             🖨️ PDF do dia
           </Button>
           {souDono && ficticios.length > 0 && (
-            <Button variante="ml" onClick={simularDisponiveis}>
+            <Button
+              variante="ml"
+              onClick={simularDisponiveis}
+              disabled={!temProgramacao}
+              title={
+                temProgramacao
+                  ? 'Marca os motoristas fictícios como disponíveis neste dia'
+                  : 'Lance a programação do dia (planilha do Meli ou resumo) para liberar a simulação'
+              }
+            >
               🧪 Simular disponíveis ({ficticios.length})
             </Button>
           )}
@@ -204,6 +219,15 @@ export function AgendaFrota() {
       {avisoSimulacao && (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
           {avisoSimulacao}
+        </p>
+      )}
+      {souDono && ficticios.length > 0 && !temProgramacao && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          🧪 A simulação de disponíveis libera depois que o dia tiver{' '}
+          <Link to="/programacao" className="font-semibold text-ml-azul hover:underline">
+            programação lançada
+          </Link>{' '}
+          (planilha do Meli ou resumo do dia) — {rotuloDia(diaSelecionado).toLowerCase()}.
         </p>
       )}
 
