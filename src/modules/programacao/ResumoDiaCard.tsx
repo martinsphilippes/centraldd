@@ -172,7 +172,14 @@ export function ResumoDiaCard({
   const totalPosicoes = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
 
   const salvar = () => {
-    salvarResumoDia(rascunho)
+    // Posições por unidade é característica do veículo: se ficou vazia ou
+    // zerada (digitação no campo errado, leitura falha), volta ao padrão.
+    const mm = rascunho.mm.map((linha) => {
+      if (num(linha.posicoesPorUnidade) > 0) return linha
+      const padrao = MM_PADRAO.find((p) => p.tipo.toUpperCase() === linha.tipo.trim().toUpperCase())
+      return padrao ? { ...linha, posicoesPorUnidade: padrao.posicoesPorUnidade } : linha
+    })
+    salvarResumoDia({ ...rascunho, mm })
     setEditando(false)
     setAvisoAplicado('')
   }
@@ -455,18 +462,44 @@ export function ResumoDiaCard({
           )}
 
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes (quantidade × posições por unidade)</p>
+            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes</p>
+            {/* Cabeçalho das colunas: sem ele é fácil digitar a quantidade
+                no campo das posições (que raramente muda). */}
+            <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <span className="w-32">Veículo</span>
+              <span className="w-24 text-ml-azul">Quantidade ✏️</span>
+              <span className="w-6" />
+              <span className="w-28">Posições/unid.</span>
+              <span>Total</span>
+            </div>
             <div className="space-y-2">
               {rascunho.mm.map((m, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <Input placeholder="Tipo" value={m.tipo} onChange={(e) => setM(i, 'tipo', e.target.value)} className="w-32" />
-                  <Input placeholder="Qtd" value={m.quantidade} onChange={(e) => setM(i, 'quantidade', e.target.value)} inputMode="numeric" className="w-20" />
-                  <span className="text-slate-400">×</span>
-                  <Input placeholder="Posições" value={m.posicoesPorUnidade} onChange={(e) => setM(i, 'posicoesPorUnidade', e.target.value)} inputMode="numeric" className="w-24" />
+                  <Input
+                    placeholder="Qtd"
+                    value={m.quantidade}
+                    onChange={(e) => setM(i, 'quantidade', e.target.value)}
+                    inputMode="numeric"
+                    className="w-24 border-ml-azul bg-blue-50/40 font-bold"
+                  />
+                  <span className="w-6 text-center text-slate-400">×</span>
+                  <Input
+                    placeholder="Pos."
+                    value={m.posicoesPorUnidade}
+                    onChange={(e) => setM(i, 'posicoesPorUnidade', e.target.value)}
+                    inputMode="numeric"
+                    className="w-28 text-slate-500"
+                    title="Posições por unidade do veículo — normalmente fixo (3/4=8, TOCO=12, TRUCK=16, CARRETA=28)"
+                  />
                   <span className="text-xs text-slate-500">= {num(m.quantidade) * num(m.posicoesPorUnidade)} posições</span>
                 </div>
               ))}
             </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              ✏️ Preencha a <strong>Quantidade</strong> (azul). As <strong>posições por unidade</strong> são fixas
+              do veículo e só mudam se a operação mudar.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2">
