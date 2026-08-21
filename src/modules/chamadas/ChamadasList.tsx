@@ -60,8 +60,8 @@ export function ChamadasList() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">⏰ Chamadas de disponibilidade</h1>
-        <Link to="/chamadas/nova">
-          <Button variante="ml">➕ Nova chamada</Button>
+        <Link to="/programacao">
+          <Button variante="ml">📢 Chamar pela Programação →</Button>
         </Link>
       </div>
 
@@ -69,7 +69,7 @@ export function ChamadasList() {
         <EmptyState
           icone="⏰"
           titulo="Nenhuma chamada criada"
-          descricao="Crie a primeira chamada para substituir a enquete do WhatsApp."
+          descricao="A chamada nasce na Programação: preencha o Resumo do Dia e toque em 📢 Chamar motoristas — a meta vem do TOTAL ROTAS."
         />
       )}
 

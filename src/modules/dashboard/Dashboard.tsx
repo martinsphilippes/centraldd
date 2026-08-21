@@ -50,8 +50,8 @@ export function Dashboard() {
           <h1 className="text-xl font-bold text-slate-900">📊 Painel da operação</h1>
           <p className="text-sm text-slate-500">{rotuloDia(hoje)}</p>
         </div>
-        <Link to="/chamadas/nova">
-          <Button variante="ml">➕ Nova chamada</Button>
+        <Link to="/programacao">
+          <Button variante="ml">📆 Programar o dia →</Button>
         </Link>
       </div>
 

@@ -6,7 +6,6 @@ import { Login } from '../modules/auth/Login'
 import { AguardandoAprovacao } from '../modules/auth/AguardandoAprovacao'
 import { Dashboard } from '../modules/dashboard/Dashboard'
 import { ChamadasList } from '../modules/chamadas/ChamadasList'
-import { ChamadaForm } from '../modules/chamadas/ChamadaForm'
 import { ChamadaDetail } from '../modules/chamadas/ChamadaDetail'
 import { ResponderChamadas } from '../modules/chamadas/ResponderChamadas'
 import { MotoristasList } from '../modules/motoristas/MotoristasList'
@@ -60,7 +59,6 @@ export default function App() {
           <>
             <Route path="/" element={<Dashboard />} />
             <Route path="/chamadas" element={<ChamadasList />} />
-            <Route path="/chamadas/nova" element={<ChamadaForm />} />
             <Route path="/chamadas/:id" element={<ChamadaDetail />} />
             <Route path="/agenda-frota" element={<AgendaFrota />} />
             <Route path="/rotas" element={<Rotas />} />

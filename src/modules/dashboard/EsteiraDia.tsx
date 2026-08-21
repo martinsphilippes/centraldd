@@ -100,8 +100,8 @@ export function EsteiraDia({
       ? `${dispChamada}/${chamada.qtdNecessaria} disponíveis${chamada.status === 'encerrada' ? ' · encerrada' : ''}`
       : 'chame os motoristas',
     feita: !!chamada && (dispChamada >= chamada.qtdNecessaria || chamada.status === 'encerrada'),
-    para: chamada ? `/chamadas/${chamada.id}` : resumoDia ? '/programacao' : '/chamadas/nova',
-    acao: chamada ? 'Ver respostas' : resumoDia ? 'Chamar pelo resumo' : 'Criar chamada',
+    para: chamada ? `/chamadas/${chamada.id}` : '/programacao',
+    acao: chamada ? 'Ver respostas' : 'Chamar pelo resumo',
   }
   const etapaEscala: Etapa = {
     icone: '📋',
