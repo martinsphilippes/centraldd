@@ -10,7 +10,8 @@ import {
   useDB,
 } from '../../core/db'
 import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
-import { OPERACOES } from '../../core/constants'
+import { OPERACOES, STATUS_DISPONIVEIS } from '../../core/constants'
+import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
@@ -193,10 +194,11 @@ export function ResumoDiaCard({
   // ---------- Chamada automática a partir do resumo ----------
   // A meta vem do próprio card (TOTAL ROTAS); a frota inteira é notificada.
   const chamadaDoDia = db.chamadas.find((c) => c.data === data)
-  const respostasDaChamada = chamadaDoDia
-    ? db.respostas.filter((resp) => resp.chamadaId === chamadaDoDia.id)
-    : []
-  const disponiveisNaChamada = respostasDaChamada.filter((resp) => resp.status === 'disponivel').length
+  // Conta também quem marcou disponibilidade na agenda daquele dia.
+  const respostasDoDia = chamadaDoDia ? respostasDaChamada(db, chamadaDoDia.id) : []
+  const disponiveisNaChamada = respostasDoDia.filter((resp) =>
+    STATUS_DISPONIVEIS.includes(resp.status),
+  ).length
 
   const chamarMotoristas = () => {
     if (chamadaDoDia) return

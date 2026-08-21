@@ -13,8 +13,30 @@ export interface ResumoChamada {
   porStatus: Record<StatusResposta, number>
 }
 
+/**
+ * Respostas que valem para a chamada: as que o motorista deu na própria
+ * chamada MAIS o que ele já tinha marcado na agenda daquele dia — os dois
+ * lados se alimentam, então quem se programou antes não precisa responder
+ * de novo (e a coordenação consegue montar a escala).
+ */
 export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
-  return db.respostas.filter((r) => r.chamadaId === chamadaId)
+  const explicitas = db.respostas.filter((r) => r.chamadaId === chamadaId)
+  const chamada = db.chamadas.find((c) => c.id === chamadaId)
+  if (!chamada) return explicitas
+  const jaResponderam = new Set(explicitas.map((r) => r.motoristaId))
+  const daAgenda: Resposta[] = db.agenda
+    .filter((a) => a.data === chamada.data && !jaResponderam.has(a.motoristaId))
+    .map((a) => ({
+      id: `agenda_${a.id}`,
+      chamadaId,
+      motoristaId: a.motoristaId,
+      status: a.status,
+      horario: a.horario,
+      periodo: a.periodo,
+      observacao: a.observacao ?? 'marcado na agenda',
+      respondidaEm: a.atualizadaEm,
+    }))
+  return [...explicitas, ...daAgenda]
 }
 
 export function resumoChamada(db: DB, chamada: Chamada): ResumoChamada {

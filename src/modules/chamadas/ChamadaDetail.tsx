@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
 import { formatarData, rotuloDia } from '../../core/dates'
-import { resumoChamada, sugerirEscala } from '../../core/stats'
+import { respostasDaChamada, resumoChamada, sugerirEscala } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
 import { mensagemCobranca, formatarTelefone } from '../../core/comunicacao'
@@ -39,9 +39,10 @@ export function ChamadaDetail() {
   )
 
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
-  const respostas = db.respostas
-    .filter((r) => r.chamadaId === chamada.id)
-    .sort((a, b) => b.respondidaEm.localeCompare(a.respondidaEm))
+  // Inclui o que o motorista marcou na agenda do dia (conta como resposta).
+  const respostas = respostasDaChamada(db, chamada.id).sort((a, b) =>
+    b.respondidaEm.localeCompare(a.respondidaEm),
+  )
 
   const cidades = [...new Set(db.motoristas.map((m) => m.cidade))].sort()
   const equipes = [...new Set(db.motoristas.map((m) => m.equipe))].sort()
