@@ -112,6 +112,8 @@ export interface ModeloResumo {
   veiculosDiv?: string
   /** TOTAL ROTAS lido do modelo — usado para conferir/completar o AM. */
   totalRotas?: string
+  /** Total de posições lido no rodapé do MM. */
+  posicoesTotal?: string
   transportadoras: { nome: string; utilitarios: string; vuc: string }[]
   mm: { tipo: string; quantidade: string; posicoesPorUnidade: string }[]
   camposDetectados: number
@@ -219,6 +221,12 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
         r.mm.push({ tipo, quantidade, posicoesPorUnidade: mPos[1] })
         r.camposDetectados++
       }
+      continue
+    }
+    // Rodapé do MM: "Posições  72" (total, editável no card).
+    if (/^POSI/i.test(primeira) && !r.posicoesTotal && numeros[0]) {
+      r.posicoesTotal = numeros[0]
+      r.camposDetectados++
       continue
     }
     // Cabeçalho da seção AM liga o modo transportadora até o TOTAL.

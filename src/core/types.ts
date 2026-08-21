@@ -209,6 +209,8 @@ export interface ResumoDia {
   amAutomatico?: boolean
   transportadoras: ResumoTransportadora[]
   mm: ResumoMM[]
+  /** Total de posições informado à mão (vazio = calculado pelas quantidades). */
+  posicoesTotal?: string
   atualizadoEm: string
 }
 

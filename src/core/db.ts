@@ -320,6 +320,7 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     // Modelo com AM por transportadora (ou total) passa a valer o manual importado.
     amAutomatico: m.transportadoras.length || m.totalRotas ? false : base.amAutomatico,
     mm,
+    posicoesTotal: m.posicoesTotal ?? base.posicoesTotal,
   }
   salvarResumoDia(resultado)
   return resultado

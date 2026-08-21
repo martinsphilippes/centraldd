@@ -39,7 +39,7 @@ function novoResumo(data: string, base: string): ResumoDia {
   }
 }
 
-const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
+const num = (s?: string) => Number(String(s ?? '').replace(/\D/g, '')) || 0
 
 function normVeic(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
@@ -169,7 +169,10 @@ export function ResumoDiaCard({
   const totalRotas = auto
     ? cont.total
     : r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
-  const totalPosicoes = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
+  // Posições: soma das quantidades × posições do veículo, a menos que o
+  // dispatcher tenha informado o total à mão (o card traz um campo só para isso).
+  const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
+  const totalPosicoes = num(r.posicoesTotal) > 0 ? num(r.posicoesTotal) : posicoesCalculadas
 
   const salvar = () => {
     // Posições por unidade é característica do veículo: se ficou vazia ou
@@ -353,6 +356,10 @@ export function ResumoDiaCard({
 
   // ---------- Modo edição ----------
   if (editando) {
+    const posicoesCalculadasRascunho = rascunho.mm.reduce(
+      (s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade),
+      0,
+    )
     const setT = (i: number, campo: 'nome' | 'utilitarios' | 'vuc', v: string) =>
       setRascunho({
         ...rascunho,
@@ -463,14 +470,9 @@ export function ResumoDiaCard({
 
           <div>
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes</p>
-            {/* Cabeçalho das colunas: sem ele é fácil digitar a quantidade
-                no campo das posições (que raramente muda). */}
             <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               <span className="w-32">Veículo</span>
               <span className="w-24 text-ml-azul">Quantidade ✏️</span>
-              <span className="w-6" />
-              <span className="w-28">Posições/unid.</span>
-              <span>Total</span>
             </div>
             <div className="space-y-2">
               {rascunho.mm.map((m, i) => (
@@ -483,23 +485,41 @@ export function ResumoDiaCard({
                     inputMode="numeric"
                     className="w-24 border-ml-azul bg-blue-50/40 font-bold"
                   />
-                  <span className="w-6 text-center text-slate-400">×</span>
-                  <Input
-                    placeholder="Pos."
-                    value={m.posicoesPorUnidade}
-                    onChange={(e) => setM(i, 'posicoesPorUnidade', e.target.value)}
-                    inputMode="numeric"
-                    className="w-28 text-slate-500"
-                    title="Posições por unidade do veículo — normalmente fixo (3/4=8, TOCO=12, TRUCK=16, CARRETA=28)"
-                  />
-                  <span className="text-xs text-slate-500">= {num(m.quantidade) * num(m.posicoesPorUnidade)} posições</span>
+                  <span className="text-xs text-slate-400">× {m.posicoesPorUnidade} posições cada</span>
                 </div>
               ))}
             </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              ✏️ Preencha a <strong>Quantidade</strong> (azul). As <strong>posições por unidade</strong> são fixas
-              do veículo e só mudam se a operação mudar.
-            </p>
+
+            {/* Uma linha só, no fim: o total de posições — calculado, mas
+                sempre editável quando o dia fugir da conta. */}
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-ml-amarelo bg-yellow-50 px-3 py-2.5">
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-700">Posições (total)</span>
+              <Input
+                value={rascunho.posicoesTotal ?? ''}
+                onChange={(e) => setRascunho({ ...rascunho, posicoesTotal: e.target.value })}
+                inputMode="numeric"
+                placeholder={String(posicoesCalculadasRascunho)}
+                className="w-28 text-center text-lg font-bold"
+              />
+              <span className="text-[11px] text-slate-600">
+                {num(rascunho.posicoesTotal) > 0 ? (
+                  <>
+                    valor informado à mão — pelas quantidades daria{' '}
+                    <strong>{posicoesCalculadasRascunho}</strong>.{' '}
+                    <button
+                      onClick={() => setRascunho({ ...rascunho, posicoesTotal: '' })}
+                      className="font-semibold text-ml-azul hover:underline"
+                    >
+                      voltar ao calculado
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    em branco = calculado pelas quantidades (<strong>{posicoesCalculadasRascunho}</strong>).
+                  </>
+                )}
+              </span>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
