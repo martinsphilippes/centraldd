@@ -16,7 +16,7 @@ import {
   type ModeloResumo,
   type ProgramacaoImportada,
 } from '../../core/planilha'
-import { extrairTextoDeImagem, extrairTextoTabularDePdf, obterUltimaMiniaturaOcr } from '../../core/pdf'
+import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import {
   aderenciaHistorica,
   PARAMETROS_PADRAO,
@@ -117,37 +117,26 @@ export function Programacao() {
   }
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
-    const arquivo = e.target.files?.[0]
-    e.target.value = '' // permite reenviar o mesmo arquivo
-    if (!arquivo) return
+    const arquivos = Array.from(e.target.files ?? [])
+    e.target.value = '' // permite reenviar os mesmos arquivos
+    if (arquivos.length === 0) return
     setErroArquivo('')
-    const nome = arquivo.name.toLowerCase()
-    const ehPdf = nome.endsWith('.pdf')
-    const ehImagem = arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
-    if (ehPdf || ehImagem) {
-      setLendoPdf(ehPdf ? '⏳ Lendo PDF…' : '🔍 Lendo imagem…')
-      void (async () => {
-        try {
-          const texto = ehPdf
-            ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoPdf)
-            : await extrairTextoDeImagem(arquivo, setLendoPdf)
-          registrarDiagnosticoOcr('programacao-meli', texto, {
-            arquivo: arquivo.name,
-            miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
-          })
-          atualizarPrevia(texto)
-        } catch (err) {
-          const detalhe = err instanceof Error ? err.message : String(err)
-          setErroArquivo(`Não consegui ler esse arquivo (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
-        } finally {
-          setLendoPdf('')
-        }
-      })()
-      return
-    }
-    const leitor = new FileReader()
-    leitor.onload = () => atualizarPrevia(String(leitor.result ?? ''))
-    leitor.readAsText(arquivo)
+    setLendoPdf('⏳ Lendo…')
+    void (async () => {
+      try {
+        const texto = await extrairTextoDeArquivos(arquivos, setLendoPdf)
+        registrarDiagnosticoOcr('programacao-meli', texto, {
+          arquivo: arquivos.map((a) => a.name).join(', '),
+          miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
+        })
+        atualizarPrevia(texto)
+      } catch (err) {
+        const detalhe = err instanceof Error ? err.message : String(err)
+        setErroArquivo(`Não consegui ler (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
+      } finally {
+        setLendoPdf('')
+      }
+    })()
   }
 
   const confirmarImportacao = async () => {
@@ -621,7 +610,7 @@ export function Programacao() {
           onChange={(e) => atualizarPrevia(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoRef} type="file" accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
+          <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
             {lendoPdf || '📄 Enviar CSV, PDF ou foto'}
           </Button>

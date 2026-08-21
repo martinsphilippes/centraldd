@@ -12,7 +12,7 @@ import {
 import { OPERACOES } from '../../core/constants'
 import { formatarData, formatarDataLonga } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
-import { extrairTextoDeImagem, extrairTextoTabularDePdf, obterUltimaMiniaturaOcr } from '../../core/pdf'
+import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input, Modal } from '../../components/ui'
 
@@ -211,19 +211,16 @@ export function ResumoDiaCard({
   }
 
   const lerArquivoModelo = (e: ChangeEvent<HTMLInputElement>) => {
-    const arquivo = e.target.files?.[0]
+    const arquivos = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!arquivo) return
+    if (arquivos.length === 0) return
     setErroModelo('')
-    const nome = arquivo.name.toLowerCase()
-    const ehPdf = nome.endsWith('.pdf')
-    const ehImagem = arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
-    // Arquivo enviado: se a leitura reconhecer o modelo, PREENCHE SOZINHO —
+    // Arquivos enviados: se a leitura reconhecer o modelo, PREENCHE SOZINHO —
     // sem depender de mais nenhum toque (o modal fecha e o card confirma).
     const aplicarDireto = (texto: string) => {
       const modelo = parsearModeloResumo(texto)
       registrarDiagnosticoOcr('resumo-modelo', texto, {
-        arquivo: arquivo.name,
+        arquivo: arquivos.map((a) => a.name).join(', '),
         camposDetectados: modelo.camposDetectados,
         miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
       })
@@ -262,25 +259,16 @@ export function ResumoDiaCard({
         )
       }
     }
-    if (ehPdf || ehImagem) {
-      setLendoModelo(ehPdf ? '⏳ Lendo PDF…' : '🔍 Lendo imagem…')
-      void (async () => {
-        try {
-          const texto = ehPdf
-            ? await extrairTextoTabularDePdf(await arquivo.arrayBuffer(), setLendoModelo)
-            : await extrairTextoDeImagem(arquivo, setLendoModelo)
-          aplicarDireto(texto)
-        } catch (err) {
-          setErroModelo(`Não consegui ler esse arquivo (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
-        } finally {
-          setLendoModelo('')
-        }
-      })()
-      return
-    }
-    const leitor = new FileReader()
-    leitor.onload = () => aplicarDireto(String(leitor.result ?? ''))
-    leitor.readAsText(arquivo)
+    setLendoModelo('⏳ Lendo…')
+    void (async () => {
+      try {
+        aplicarDireto(await extrairTextoDeArquivos(arquivos, setLendoModelo))
+      } catch (err) {
+        setErroModelo(`Não consegui ler (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
+      } finally {
+        setLendoModelo('')
+      }
+    })()
   }
 
   const aplicarModelo = () => {
@@ -637,7 +625,7 @@ export function ResumoDiaCard({
           onChange={(e) => atualizarPreviaModelo(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoModeloRef} type="file" accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivoModelo} className="hidden" />
+          <input ref={arquivoModeloRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivoModelo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoModeloRef.current?.click()} disabled={!!lendoModelo}>
             {lendoModelo || '📄 Enviar CSV, PDF ou foto'}
           </Button>

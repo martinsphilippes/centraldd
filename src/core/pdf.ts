@@ -285,6 +285,36 @@ export async function extrairTextoDeImagem(
   }
 }
 
+/** Lê UM arquivo qualquer (PDF, foto ou texto/CSV) e devolve o texto tabular. */
+export async function extrairTextoDeArquivo(
+  arquivo: File,
+  onProgresso?: (mensagem: string) => void,
+): Promise<string> {
+  const nome = arquivo.name.toLowerCase()
+  const ehPdf = nome.endsWith('.pdf')
+  const ehImagem =
+    arquivo.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|heic|heif)$/.test(nome)
+  if (ehPdf) return extrairTextoTabularDePdf(await arquivo.arrayBuffer(), onProgresso)
+  if (ehImagem) return extrairTextoDeImagem(arquivo, onProgresso)
+  return arquivo.text()
+}
+
+/**
+ * Lê VÁRIOS arquivos em sequência (fotos, PDFs e CSVs podem vir misturados)
+ * e junta tudo num texto só — planilhas longas podem chegar em várias fotos.
+ */
+export async function extrairTextoDeArquivos(
+  arquivos: File[],
+  onProgresso?: (mensagem: string) => void,
+): Promise<string> {
+  const partes: string[] = []
+  for (let i = 0; i < arquivos.length; i++) {
+    const prefixo = arquivos.length > 1 ? `📎 ${i + 1}/${arquivos.length} · ` : ''
+    partes.push(await extrairTextoDeArquivo(arquivos[i], (m) => onProgresso?.(prefixo + m)))
+  }
+  return partes.join('\n')
+}
+
 /** Lê um PDF escaneado renderizando cada página e aplicando OCR (português). */
 async function extrairComOcr(
   doc: { numPages: number; getPage: (n: number) => Promise<unknown> },
