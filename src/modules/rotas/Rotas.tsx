@@ -118,7 +118,10 @@ export function Rotas() {
     setLendoPdf('⏳ Lendo…')
     void (async () => {
       try {
-        atualizarPrevia(await extrairTextoDeArquivos(arquivos, setLendoPdf))
+        // As leituras se SOMAM: enviar outra foto acrescenta as linhas dela
+        // (no iPad a galeria costuma deixar escolher uma por vez).
+        const anterior = textoColado.trim() ? textoColado.replace(/\s+$/, '') + '\n' : ''
+        atualizarPrevia(anterior + (await extrairTextoDeArquivos(arquivos, setLendoPdf)))
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
         setErroArquivo(`Não consegui ler (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
@@ -354,13 +357,22 @@ export function Rotas() {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-            {lendoPdf || '📄 Enviar CSV, PDF ou fotos (pode mais de um)'}
+            {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar CSV, PDF ou fotos')}
           </Button>
           {previa && (
-            <span className="text-sm font-semibold text-slate-700">
-              ✅ {previa.rotas.length} rota(s) reconhecida(s)
-              {previa.ignoradas > 0 && ` • ${previa.ignoradas} linha(s) ignorada(s)`}
-            </span>
+            <>
+              <span className="text-sm font-semibold text-slate-700">
+                ✅ {previa.rotas.length} rota(s) reconhecida(s)
+                {previa.ignoradas > 0 && ` • ${previa.ignoradas} linha(s) ignorada(s)`}
+              </span>
+              <button
+                onClick={() => atualizarPrevia('')}
+                className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+                title="Descartar tudo o que foi lido e recomeçar"
+              >
+                🧹 Recomeçar
+              </button>
+            </>
           )}
         </div>
         {erroArquivo && (
