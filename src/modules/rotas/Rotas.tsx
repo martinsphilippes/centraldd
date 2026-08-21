@@ -88,6 +88,15 @@ export function Rotas() {
     )
   }
 
+  /**
+   * Duplica a rota na mesma linha (mesma rota original): parte dos pacotes
+   * fica com um segundo motorista. A cópia nasce sem motorista direcionado.
+   */
+  const duplicarRota = (r: Rota) => {
+    salvarRota({ ...r, id: uid(), motoristaId: null, atualizadaEm: new Date().toISOString() })
+    setAvisoAuto(`➕ Rota ${r.rotaExpedicao} duplicada — direcione o segundo motorista na nova linha.`)
+  }
+
   const limparDirecionamentos = () => {
     const direcionadas = db.rotas.filter((r) => r.motoristaId)
     if (direcionadas.length === 0) return
@@ -146,18 +155,18 @@ export function Rotas() {
 
   const tabela = (): Tabela => ({
     titulo: 'Rotas da operação',
-    colunas: ['Cidade', 'Rota expedição', 'Rota original', 'Base', 'Veículo', 'Km', 'DPS', 'Ocupação %', 'Transportadora', 'Motorista'],
+    colunas: ['Cidade', 'Rota expedição', 'Rota original', 'Base', 'Motorista', 'Veículo', 'Km', 'DPS', 'Ocupação %', 'Transportadora'],
     linhas: rotas.map((r) => [
       r.cidade,
       r.rotaExpedicao,
       r.rotaOriginal,
       r.base,
+      r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '—') : 'Sem motorista',
       r.veiculo,
       r.km,
       r.dps,
       r.ocupacao,
       r.transportadora,
-      r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '—') : 'Sem motorista',
     ]),
   })
 
@@ -246,12 +255,12 @@ export function Rotas() {
                 <th className="px-2 py-2.5">Rota expedição</th>
                 <th className="px-2 py-2.5">Rota original</th>
                 <th className="px-2 py-2.5">Base</th>
+                <th className="px-2 py-2.5">🚚 Motorista</th>
                 <th className="px-2 py-2.5">Veículo</th>
                 <th className="px-2 py-2.5 text-right">Km</th>
                 <th className="px-2 py-2.5 text-center">DPS</th>
                 <th className="px-2 py-2.5 text-right">Ocupação %</th>
                 <th className="px-2 py-2.5">Transportadora</th>
-                <th className="px-2 py-2.5">🚚 Motorista</th>
                 <th className="px-2 py-2.5"></th>
               </tr>
             </thead>
@@ -260,8 +269,34 @@ export function Rotas() {
                 <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className={CELULA}>{r.cidade}</td>
                   <td className={`${CELULA} font-bold text-slate-900`}>{r.rotaExpedicao}</td>
-                  <td className={`${CELULA} bg-yellow-50`}>{r.rotaOriginal}</td>
+                  <td className={`${CELULA} bg-yellow-50`}>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span>{r.rotaOriginal}</span>
+                      <button
+                        onClick={() => duplicarRota(r)}
+                        className="rounded-full border border-slate-300 bg-white px-1.5 py-0.5 font-bold text-slate-600 hover:border-ml-azul hover:text-ml-azul"
+                        title="Adicionar outra rota igual nesta linha — para dividir os pacotes com um segundo motorista"
+                      >
+                        ＋
+                      </button>
+                    </div>
+                  </td>
                   <td className={CELULA}>{r.base}</td>
+                  <td className={CELULA}>
+                    <select
+                      className={`${SELETOR} ${r.motoristaId ? '' : 'border-amber-300 bg-amber-50'}`}
+                      value={r.motoristaId ?? ''}
+                      onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null })}
+                      title="Direcionar motorista para esta rota"
+                    >
+                      <option value="">— sem motorista —</option>
+                      {motoristas.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td className={CELULA}>
                     <select
                       className={SELETOR}
@@ -287,21 +322,6 @@ export function Rotas() {
                     >
                       {r.transportadora || '—'}
                     </Badge>
-                  </td>
-                  <td className={CELULA}>
-                    <select
-                      className={`${SELETOR} ${r.motoristaId ? '' : 'border-amber-300 bg-amber-50'}`}
-                      value={r.motoristaId ?? ''}
-                      onChange={(e) => salvarRota({ ...r, motoristaId: e.target.value || null })}
-                      title="Direcionar motorista para esta rota"
-                    >
-                      <option value="">— sem motorista —</option>
-                      {motoristas.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.nome}
-                        </option>
-                      ))}
-                    </select>
                   </td>
                   <td className={`${CELULA} text-right`}>
                     <button
