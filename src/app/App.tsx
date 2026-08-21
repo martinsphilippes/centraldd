@@ -18,6 +18,7 @@ import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
 import { MinhaAgenda } from '../modules/agenda/MinhaAgenda'
 import { AgendaFrota } from '../modules/agenda/AgendaFrota'
 import { Rotas } from '../modules/rotas/Rotas'
+import { MinhasRotas } from '../modules/rotas/MinhasRotas'
 import { Programacao } from '../modules/programacao/Programacao'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
@@ -76,6 +77,7 @@ export default function App() {
         ) : (
           <>
             <Route path="/responder" element={<ResponderChamadas />} />
+            <Route path="/minhas-rotas" element={<MinhasRotas />} />
             <Route path="/agenda" element={<MinhaAgenda />} />
             <Route path="/minhas-escalas" element={<MinhasEscalas />} />
             <Route path="/notificacoes" element={<Notificacoes />} />

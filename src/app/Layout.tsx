@@ -18,6 +18,7 @@ const NAV_COORDENADOR = [
 
 const NAV_MOTORISTA = [
   { para: '/responder', rotulo: 'Responder', icone: '✋' },
+  { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️' },
   { para: '/agenda', rotulo: 'Agenda', icone: '📅' },
   { para: '/minhas-escalas', rotulo: 'Escalas', icone: '📋' },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔' },
@@ -33,6 +34,8 @@ export function Layout({ children }: { children: ReactNode }) {
     papel === 'motorista' && motoristaId
       ? db.notificacoes.filter((n) => !n.lida && (n.motoristaId === null || n.motoristaId === motoristaId)).length
       : 0
+  const minhasRotas =
+    papel === 'motorista' && motoristaId ? db.rotas.filter((r) => r.motoristaId === motoristaId).length : 0
 
   return (
     <div className="min-h-screen lg:pl-60">
@@ -62,6 +65,11 @@ export function Layout({ children }: { children: ReactNode }) {
               {item.para === '/notificacoes' && naoLidas > 0 && (
                 <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
                   {naoLidas}
+                </span>
+              )}
+              {item.para === '/minhas-rotas' && minhasRotas > 0 && (
+                <span className="ml-auto rounded-full bg-ml-amarelo px-1.5 text-[10px] font-bold text-slate-900">
+                  {minhasRotas}
                 </span>
               )}
             </NavLink>
@@ -125,6 +133,11 @@ export function Layout({ children }: { children: ReactNode }) {
             {item.para === '/notificacoes' && naoLidas > 0 && (
               <span className="absolute right-1/4 top-1 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
                 {naoLidas}
+              </span>
+            )}
+            {item.para === '/minhas-rotas' && minhasRotas > 0 && (
+              <span className="absolute right-1/4 top-1 rounded-full bg-ml-amarelo px-1.5 text-[9px] font-bold text-slate-900">
+                {minhasRotas}
               </span>
             )}
           </NavLink>
