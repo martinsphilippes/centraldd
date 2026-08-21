@@ -331,8 +331,10 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
  * que o motor de leitura enxergou lá — sem depender de print do usuário.
  */
 export function registrarDiagnosticoOcr(origem: string, texto: string, info: Record<string, unknown> = {}) {
-  void setDoc(doc(firestore, 'diagnosticos', 'ultimo-ocr'), {
-    id: 'ultimo-ocr',
+  // Um registro por ORIGEM: a leitura das rotas não apaga a do modelo.
+  const id = `ultimo-ocr-${origem}`
+  void setDoc(doc(firestore, 'diagnosticos', id), {
+    id,
     origem,
     texto: texto.slice(0, 40000),
     build: typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : '?',

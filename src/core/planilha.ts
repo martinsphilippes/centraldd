@@ -125,6 +125,24 @@ const MM_POR_POSICOES: Record<string, string> = { '8': '3/4', '12': 'TOCO', '16'
  * partir de texto colado, CSV, PDF ou foto. Reconhece pelos rótulos, então
  * a ordem das linhas não importa e linhas extras são ignoradas.
  */
+/**
+ * Conserta número em que o OCR trocou dígito por letra parecida ("5C" → 50,
+ * "1O" → 10). Só age em texto curto de célula numérica que já tem algum
+ * dígito — nunca transforma palavra em número.
+ */
+export function repararNumero(bruto: string): string {
+  const s = bruto.trim()
+  if (!/\d/.test(s)) return s
+  if (!/^[0-9OoQDIilLZzSsBbGgCcTtАЕ.,]{1,6}$/.test(s)) return s
+  const trocas: Record<string, string> = {
+    O: '0', o: '0', Q: '0', D: '0', C: '0', c: '0',
+    I: '1', i: '1', l: '1', L: '1',
+    Z: '2', z: '2', S: '5', s: '5', B: '8', b: '6', G: '6', g: '9', T: '7', t: '7',
+  }
+  const convertido = s.replace(/[^\d.,]/g, (ch) => trocas[ch] ?? '')
+  return /^\d/.test(convertido) ? convertido : s
+}
+
 export function parsearModeloResumo(texto: string): ModeloResumo {
   const r: ModeloResumo = { transportadoras: [], mm: [], camposDetectados: 0 }
   const IGNORAR = /^(PACOTES|VE.?CULOS|SPR|TOTAL|POSI|MM$|AM\b|TRANSPORTADORA|UTILIT|VUC|DATA)/i
@@ -135,7 +153,11 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
     if (!linha) continue
     const celulas = linha.split(/\t+|;/).map((c) => c.trim()).filter(Boolean)
     const primeira = celulas[0] ?? ''
-    const numeros = celulas.slice(1).filter((c) => /^[\d.,]+$/.test(c))
+    // Célula numérica com ruído de OCR ("5C") vira número antes de entrar.
+    const numeros = celulas
+      .slice(1)
+      .map((c) => repararNumero(c))
+      .filter((c) => /^[\d.,]+$/.test(c))
 
     // Data (dd/mm/aaaa em qualquer lugar da linha)
     const mData = linha.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
@@ -158,8 +180,8 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
       }
       continue
     }
-    // SPR de referência
-    if (/SPR/i.test(linha) && !r.sprReferencia) {
+    // SPR de referência (o rótulo sai torto no OCR: SPR, SER, 5PR…)
+    if ((/SPR/i.test(linha) || /REFER[EÊ]NCIA/i.test(linha)) && !r.sprReferencia) {
       const n = linha.match(/([\d.,]+)\s*$/)
       if (n) {
         r.sprReferencia = n[1]

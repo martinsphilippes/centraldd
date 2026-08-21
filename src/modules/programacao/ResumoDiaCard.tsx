@@ -248,8 +248,12 @@ export function ResumoDiaCard({
         if (faltando.length > 0) {
           setRascunho(salvo)
           setEditando(true)
+          const dica =
+            modelo.camposDetectados <= 4
+              ? ' 📸 A foto saiu pequena ou desfocada: um print da tela inteira (ou foto de perto, sem tremer) costuma resolver — reenviar por cima só acrescenta, não apaga o que já está certo.'
+              : ''
           setAvisoAplicado(
-            `⚠️ Preenchi o que a foto permitiu (${modelo.camposDetectados} campo(s)). Complete: ${faltando.join(', ')} — e toque em Salvar.`,
+            `⚠️ Preenchi o que a foto permitiu (${modelo.camposDetectados} campo(s)). Complete: ${faltando.join(', ')} — e toque em Salvar.${dica}`,
           )
         } else {
           setAvisoAplicado(
@@ -267,7 +271,9 @@ export function ResumoDiaCard({
     setLendoModelo('⏳ Lendo…')
     void (async () => {
       try {
-        aplicarDireto(await extrairTextoDeArquivos(arquivos, setLendoModelo))
+        // O card do resumo é curto e crítico: leitura minuciosa (todas as
+        // passadas de recuperação), mesmo que demore alguns segundos a mais.
+        aplicarDireto(await extrairTextoDeArquivos(arquivos, setLendoModelo, { preciso: true }))
       } catch (err) {
         setErroModelo(`Não consegui ler (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
       } finally {
