@@ -4,7 +4,7 @@ import { enviarNotificacao, importarRotas, registrarDiagnosticoOcr, removerRota,
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
-import { STATUS_DISPONIVEIS, VEICULOS } from '../../core/constants'
+import { VEICULOS } from '../../core/constants'
 import { formatarData } from '../../core/dates'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -60,21 +60,14 @@ export function Rotas() {
     .sort((a, b) =>
       a.status === b.status ? b.data.localeCompare(a.data) : a.status === 'aberta' ? -1 : 1,
     )[0]
-  const idsDisponiveis = new Set(
-    chamadaBase
-      ? db.respostas
-          .filter((resp) => resp.chamadaId === chamadaBase.id && STATUS_DISPONIVEIS.includes(resp.status))
-          .map((resp) => resp.motoristaId)
-      : [],
-  )
-  // A escala conduz as rotas: montada a escala da chamada, os ESCALADOS viram
-  // os candidatos do direcionamento; sem escala, valem os disponíveis.
+  // A ordem da esteira manda: primeiro a ESCALA da chamada é montada;
+  // só então o direcionamento entra em cena, usando os escalados.
   const escalaDaChamada = chamadaBase
     ? db.escalas.find((e) => e.chamadaId === chamadaBase.id)
     : undefined
-  const idsCandidatos = escalaDaChamada ? new Set(escalaDaChamada.motoristaIds) : idsDisponiveis
-  const origemCandidatos = escalaDaChamada ? 'escalados' : 'disponíveis'
-  const candidatosChamada = motoristas.filter((m) => idsCandidatos.has(m.id))
+  const candidatosChamada = escalaDaChamada
+    ? motoristas.filter((m) => escalaDaChamada.motoristaIds.includes(m.id))
+    : []
 
   const direcionarAutomatico = () => {
     const vagas = db.rotas.filter((r) => !r.motoristaId)
@@ -88,12 +81,12 @@ export function Rotas() {
       setAvisoAuto('⚠️ Nenhuma rota vaga com motorista disponível compatível — confira as travas nos ⚙️ Parâmetros da Programação.')
       return
     }
-    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os ${origemCandidatos} da chamada de ${formatarData(chamadaBase.data)}?`))
+    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os escalados da escala de ${formatarData(chamadaBase.data)}?`))
       return
     for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null, resultadoFinalizacao: null })
     const sobraram = livres.length - alocacoes.length
     setAvisoAuto(
-      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os ${origemCandidatos} ${escalaDaChamada ? 'da escala' : 'da chamada'} de ${formatarData(chamadaBase.data)}.` +
+      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os escalados da escala de ${formatarData(chamadaBase.data)}.` +
         (sobraram > 0 ? ` ${sobraram} motorista(s) ficaram de reserva.` : ''),
     )
   }
@@ -266,9 +259,18 @@ export function Rotas() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {candidatosChamada.length > 0 && semMotorista > 0 && (
+          {chamadaBase && !escalaDaChamada && (
+            // Sem escala ainda: a esteira manda montar a escala primeiro.
+            <Link
+              to={`/chamadas/${chamadaBase.id}`}
+              className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
+            >
+              📋 Fazer escala ({formatarData(chamadaBase.data)}) →
+            </Link>
+          )}
+          {escalaDaChamada && candidatosChamada.length > 0 && semMotorista > 0 && (
             <Button variante="ml" onClick={direcionarAutomatico}>
-              ⚡ Direcionar {origemCandidatos} ({candidatosChamada.length})
+              ⚡ Direcionar escalados ({candidatosChamada.length})
             </Button>
           )}
           {db.rotas.some((r) => r.motoristaId && !r.finalizadaEm) && (
