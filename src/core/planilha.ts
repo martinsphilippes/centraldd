@@ -236,11 +236,25 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
   const rotas: RotaImportada[] = []
   let ignoradas = 0
 
+  // Foto/OCR: às vezes o código da rota vem quebrado em duas células
+  // ("D11 AM1" → "D11" | "AM1"), empurrando base, veículo e km uma coluna
+  // para a direita. O sinal é a base curta (EMG13) na casa do veículo.
+  const SUFIXO_ROTA = /^[A-Z]{0,3}[MW][I1L]{0,2}\d{0,2}$/i
+  const BASE_CURTA = /^[A-Z]{2,5}\d{1,3}$/
+
   for (const linha of linhas) {
     const sep = detectarSeparador(linha)
     const celulas = linha.split(sep).map(limpar)
     // Cabeçalho: primeira célula "Cidade" (ou similar) → pula.
     if (/^cidade$/i.test(celulas[0] ?? '')) continue
+    if (
+      celulas.length >= COLUNAS.length &&
+      SUFIXO_ROTA.test(celulas[2] ?? '') &&
+      BASE_CURTA.test((celulas[4] ?? '').trim()) &&
+      !BASE_CURTA.test((celulas[3] ?? '').trim())
+    ) {
+      celulas.splice(1, 2, `${celulas[1]} ${celulas[2]}`)
+    }
     // Precisa de pelo menos cidade + rota expedição.
     if (celulas.length < 2 || !celulas[0] || !celulas[1]) {
       ignoradas++
