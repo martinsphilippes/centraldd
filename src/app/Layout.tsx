@@ -5,23 +5,34 @@ import { useDB } from '../core/db'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
 
-const NAV_COORDENADOR = [
-  { para: '/', rotulo: 'Dashboard', icone: '📊' },
-  { para: '/programacao', rotulo: 'Programação', icone: '📆' },
-  { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰' },
-  { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅' },
-  { para: '/rotas', rotulo: 'Rotas', icone: '🛣️' },
-  { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚' },
-  { para: '/escalas', rotulo: 'Escalas', icone: '📋' },
-  { para: '/relatorios', rotulo: 'Relatórios', icone: '📈' },
+// O menu segue a ESTEIRA da operação: partida (agenda ∥ programação),
+// depois chamada → escala → rotas, e por fim cadastro e análise.
+interface ItemNav {
+  para: string
+  rotulo: string
+  icone: string
+  grupo: string
+  /** Número da etapa na esteira (etapas de partida dividem o passo 1). */
+  passo?: number
+}
+
+const NAV_COORDENADOR: ItemNav[] = [
+  { para: '/', rotulo: 'Dashboard', icone: '📊', grupo: 'Painel' },
+  { para: '/programacao', rotulo: 'Programação', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
+  { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
+  { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia', passo: 2 },
+  { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
+  { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
+  { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
+  { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
 ]
 
-const NAV_MOTORISTA = [
-  { para: '/responder', rotulo: 'Responder', icone: '✋' },
-  { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️' },
-  { para: '/agenda', rotulo: 'Agenda', icone: '📅' },
-  { para: '/minhas-escalas', rotulo: 'Escalas', icone: '📋' },
-  { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔' },
+const NAV_MOTORISTA: ItemNav[] = [
+  { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia', passo: 1 },
+  { para: '/agenda', rotulo: 'Agenda', icone: '📅', grupo: 'Meu dia', passo: 1 },
+  { para: '/minhas-escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Meu dia', passo: 2 },
+  { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
+  { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -51,30 +62,56 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
-          {nav.map((item) => (
+          {nav.map((item, i) => (
+            <div key={item.para}>
+              {/* Cabeçalho do grupo: separa painel, fluxo do dia e cadastros. */}
+              {item.grupo !== nav[i - 1]?.grupo && (
+                <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  {item.grupo}
+                </p>
+              )}
             <NavLink
-              key={item.para}
               to={item.para}
               end={item.para === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive ? 'bg-ml-amarelo text-slate-900' : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
-              <span>{item.icone}</span>
-              {item.rotulo}
-              {item.para === '/notificacoes' && naoLidas > 0 && (
-                <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
-                  {naoLidas}
-                </span>
-              )}
-              {item.para === '/minhas-rotas' && minhasRotas > 0 && (
-                <span className="ml-auto rounded-full bg-ml-amarelo px-1.5 text-[10px] font-bold text-slate-900">
-                  {minhasRotas}
-                </span>
+              {({ isActive }) => (
+                <>
+                  {item.passo ? (
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                        isActive ? 'bg-slate-900/15 text-slate-900' : 'bg-white/15 text-slate-200'
+                      }`}
+                    >
+                      {item.passo}
+                    </span>
+                  ) : (
+                    <span className="w-5 shrink-0" />
+                  )}
+                  <span>{item.icone}</span>
+                  {item.rotulo}
+                  {item.para === '/notificacoes' && naoLidas > 0 && (
+                    <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                      {naoLidas}
+                    </span>
+                  )}
+                  {item.para === '/minhas-rotas' && minhasRotas > 0 && (
+                    <span
+                      className={`ml-auto rounded-full px-1.5 text-[10px] font-bold ${
+                        isActive ? 'bg-slate-900 text-white' : 'bg-ml-amarelo text-slate-900'
+                      }`}
+                    >
+                      {minhasRotas}
+                    </span>
+                  )}
+                </>
               )}
             </NavLink>
+            </div>
           ))}
         </nav>
         <div className="border-t border-white/10 p-3 text-[10px] text-slate-400">
