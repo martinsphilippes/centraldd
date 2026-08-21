@@ -266,5 +266,37 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     })
     rotas.push(rota)
   }
-  return { rotas, ignoradas }
+  // A mesma rota lida duas vezes (passadas de OCR, fotos com sobreposição)
+  // vira UMA linha: a leitura extra só preenche as células que faltavam.
+  const porChave = new Map<string, RotaImportada>()
+  const ordem: string[] = []
+  for (const rota of rotas) {
+    const chave = rota.rotaExpedicao.toUpperCase().replace(/\s+/g, ' ').trim()
+    const existente = porChave.get(chave)
+    if (existente) {
+      for (const c of COLUNAS) if (!existente[c] && rota[c]) existente[c] = rota[c]
+    } else {
+      porChave.set(chave, rota)
+      ordem.push(chave)
+    }
+  }
+  const finais = ordem.map((c) => porChave.get(c)!)
+  // Ruído de OCR no nome da transportadora ("RodaCuop") converge para a
+  // grafia mais comum entre as linhas parecidas da própria leitura.
+  const chaveTransp = (s: string) => s.toUpperCase().replace(/[^A-ZÀ-Ú]/g, '').slice(0, 4)
+  const grafias = new Map<string, Map<string, number>>()
+  for (const r of finais) {
+    const t = r.transportadora.trim()
+    if (!t) continue
+    const g = grafias.get(chaveTransp(t)) ?? new Map<string, number>()
+    g.set(t, (g.get(t) ?? 0) + 1)
+    grafias.set(chaveTransp(t), g)
+  }
+  for (const r of finais) {
+    const t = r.transportadora.trim()
+    if (!t) continue
+    const g = grafias.get(chaveTransp(t))!
+    r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
+  }
+  return { rotas: finais, ignoradas }
 }

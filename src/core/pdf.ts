@@ -94,6 +94,96 @@ export function ocrTsvParaTexto(tsv: string): string {
   return linhas.join('\n')
 }
 
+interface PalavraOcr {
+  left: number
+  top: number
+  width: number
+  height: number
+  conf: number
+  texto: string
+}
+
+function tsvParaPalavras(tsv: string): PalavraOcr[] {
+  const palavras: PalavraOcr[] = []
+  for (const linha of tsv.split('\n')) {
+    const c = linha.split('\t')
+    if (c.length < 12 || c[0] !== '5') continue
+    const texto = c[11].trim().replace(/^[|]+|[|]+$/g, '')
+    if (!texto || /^[|=\\[\]—–_]+$/.test(texto)) continue
+    palavras.push({ left: +c[6], top: +c[7], width: +c[8], height: +c[9], conf: +c[10], texto })
+  }
+  return palavras
+}
+
+/**
+ * Encaixa as palavras da passada extra na ESTRUTURA DE LINHAS da 1ª passada:
+ * cada extra entra na linha de altura mais próxima (sem sobrepor o que já foi
+ * lido); o que não couber em linha nenhuma vira linha própria. A leitura da
+ * 1ª passada permanece intacta — a extra só ACRESCENTA.
+ */
+function mesclarNaEstrutura(tsv1: string, extras: PalavraOcr[]): string {
+  interface Linha {
+    cy: number
+    palavras: PalavraOcr[]
+  }
+  const linhas: Linha[] = []
+  const porChave = new Map<string, Linha>()
+  for (const linha of tsv1.split('\n')) {
+    const c = linha.split('\t')
+    if (c.length < 12 || c[0] !== '5') continue
+    const texto = c[11].trim().replace(/^[|]+|[|]+$/g, '')
+    if (!texto || /^[|=\\[\]—–_]+$/.test(texto)) continue
+    const chave = `${c[1]}-${c[2]}-${c[3]}-${c[4]}`
+    let l = porChave.get(chave)
+    if (!l) {
+      l = { cy: 0, palavras: [] }
+      porChave.set(chave, l)
+      linhas.push(l)
+    }
+    l.palavras.push({ left: +c[6], top: +c[7], width: +c[8], height: +c[9], conf: +c[10], texto })
+  }
+  for (const l of linhas) {
+    l.cy = l.palavras.reduce((s, p) => s + p.top + p.height / 2, 0) / l.palavras.length
+  }
+  for (const p of extras) {
+    const cy = p.top + p.height / 2
+    let melhor: Linha | null = null
+    let distancia = Infinity
+    for (const l of linhas) {
+      const d = Math.abs(l.cy - cy)
+      if (d < distancia) {
+        melhor = l
+        distancia = d
+      }
+    }
+    if (melhor && distancia < Math.max(p.height, 14) * 0.7) {
+      // Não cobre o que a 1ª passada já leu naquela posição.
+      const sobrepoe = melhor.palavras.some((q) => {
+        const x0 = Math.max(q.left, p.left)
+        const x1 = Math.min(q.left + q.width, p.left + p.width)
+        return x1 - x0 > Math.min(q.width, p.width) * 0.4
+      })
+      if (!sobrepoe) melhor.palavras.push(p)
+    } else {
+      linhas.push({ cy, palavras: [p] })
+    }
+  }
+  return linhas
+    .sort((a, b) => a.cy - b.cy)
+    .map((l) => {
+      const ps = l.palavras.sort((a, b) => a.left - b.left)
+      let texto = ''
+      let fim: number | null = null
+      for (const p of ps) {
+        if (fim !== null) texto += p.left - fim > p.height * 0.9 ? '\t' : ' '
+        texto += p.texto
+        fim = p.left + p.width
+      }
+      return texto
+    })
+    .join('\n')
+}
+
 const ETAPAS_OCR: Record<string, string> = {
   'loading tesseract core': 'carregando o motor',
   'initializing tesseract': 'iniciando o motor',
@@ -168,6 +258,85 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
   contexto.drawImage(fonte, 0, 0, canvas.width, canvas.height)
   if ('close' in fonte) (fonte as ImageBitmap).close()
   return canvas
+}
+
+/**
+ * Fração de pixels com cor saturada ESCURA (selos/pílulas com texto claro,
+ * como a coluna de transportadora da planilha). Amostrada para ser barata.
+ */
+function fracaoTextoInvertido(canvas: HTMLCanvasElement): number {
+  const contexto = canvas.getContext('2d')
+  if (!contexto) return 0
+  const d = contexto.getImageData(0, 0, canvas.width, canvas.height).data
+  let coloridos = 0
+  let total = 0
+  for (let i = 0; i < d.length; i += 16) {
+    const r = d[i], g = d[i + 1], b = d[i + 2]
+    const sat = Math.max(r, g, b) - Math.min(r, g, b)
+    const luz = r * 0.299 + g * 0.587 + b * 0.114
+    if (sat > 60 && luz < 150) coloridos++
+    total++
+  }
+  return total ? coloridos / total : 0
+}
+
+/**
+ * Realça texto INVERTIDO (claro sobre fundo colorido escuro): o fundo, a borda
+ * e o serrilhado coloridos viram branco e as letras claras de dentro viram
+ * pretas — o OCR normal descarta esses selos como se fossem desenho.
+ * Devolve um canvas NOVO; o original fica intacto para as outras passadas.
+ */
+function realcarTextoInvertido(canvas: HTMLCanvasElement): HTMLCanvasElement | null {
+  const origem = canvas.getContext('2d')
+  if (!origem) return null
+  const W = canvas.width
+  const H = canvas.height
+  const im = origem.getImageData(0, 0, W, H)
+  const d = im.data
+  const sat = new Float32Array(W * H)
+  const cinza = new Float32Array(W * H)
+  for (let i = 0, px = 0; i < d.length; i += 4, px++) {
+    const r = d[i], g = d[i + 1], b = d[i + 2]
+    sat[px] = Math.max(r, g, b) - Math.min(r, g, b)
+    cinza[px] = r * 0.299 + g * 0.587 + b * 0.114
+  }
+  // Imagem integral da saturação → média local rápida (janela 9x9).
+  const integ = new Float64Array((W + 1) * (H + 1))
+  for (let y = 0; y < H; y++) {
+    let soma = 0
+    for (let x = 0; x < W; x++) {
+      soma += sat[y * W + x]
+      integ[(y + 1) * (W + 1) + (x + 1)] = integ[y * (W + 1) + (x + 1)] + soma
+    }
+  }
+  const R = 4
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.max(0, y - R), y1 = Math.min(H - 1, y + R)
+    for (let x = 0; x < W; x++) {
+      const px = y * W + x
+      const i = px * 4
+      let valor: number
+      if (sat[px] > 50) {
+        valor = 255 // pixel colorido (fundo/borda do selo) some
+      } else {
+        const x0 = Math.max(0, x - R), x1 = Math.min(W - 1, x + R)
+        const n = (y1 - y0 + 1) * (x1 - x0 + 1)
+        const somaLocal =
+          integ[(y1 + 1) * (W + 1) + (x1 + 1)] - integ[y0 * (W + 1) + (x1 + 1)] -
+          integ[(y1 + 1) * (W + 1) + x0] + integ[y0 * (W + 1) + x0]
+        // Sem cor mas cercado de cor = letra dentro do selo → vira preta.
+        valor = somaLocal / n > 45 ? (cinza[px] > 160 ? 0 : 255) : cinza[px]
+      }
+      d[i] = d[i + 1] = d[i + 2] = valor
+    }
+  }
+  const novo = document.createElement('canvas')
+  novo.width = W
+  novo.height = H
+  const destino = novo.getContext('2d')
+  if (!destino) return null
+  destino.putImageData(im, 0, 0)
+  return novo
 }
 
 /**
@@ -265,6 +434,22 @@ export async function extrairTextoDeImagem(
       ])
     const resultado = await comTempoLimite(worker.recognize(canvas, {}, { tsv: true, text: false }))
     let texto = ocrTsvParaTexto(resultado.data.tsv ?? '')
+    // Selos coloridos com texto claro (ex.: coluna de transportadora)? O OCR
+    // normal os descarta como desenho — passada extra com o realce invertido,
+    // mesclando pela posição: só entra palavra onde a 1ª leitura não leu nada.
+    if (fracaoTextoInvertido(canvas) > 0.01) {
+      onProgresso?.('🔍 Lendo os campos coloridos (passada extra)…')
+      const canvasSelos = realcarTextoInvertido(canvas)
+      if (canvasSelos) {
+        const segunda = await comTempoLimite(worker.recognize(canvasSelos, {}, { tsv: true, text: false }))
+        const extras = tsvParaPalavras(segunda.data.tsv ?? '').filter(
+          (p) => p.conf > 45 && p.texto.length >= 3,
+        )
+        if (extras.length > 0) {
+          texto = mesclarNaEstrutura(resultado.data.tsv ?? '', extras)
+        }
+      }
+    }
     // Poucos números reconhecidos? Foto muito escura/apagada — 2ª passada
     // com contraste reforçado (mesmo modo de leitura, que é o que funciona).
     // Conta só números SOLTOS (célula numérica): dígitos grudados em letra

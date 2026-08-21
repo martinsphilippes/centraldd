@@ -1,8 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { importarRotas, removerRota, salvarRota, uid, useDB } from '../../core/db'
+import { importarRotas, registrarDiagnosticoOcr, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
-import { extrairTextoDeArquivos } from '../../core/pdf'
+import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { STATUS_DISPONIVEIS, VEICULOS } from '../../core/constants'
 import { formatarData } from '../../core/dates'
@@ -120,8 +120,13 @@ export function Rotas() {
       try {
         // As leituras se SOMAM: enviar outra foto acrescenta as linhas dela
         // (no iPad a galeria costuma deixar escolher uma por vez).
+        const texto = await extrairTextoDeArquivos(arquivos, setLendoPdf)
+        registrarDiagnosticoOcr('rotas', texto, {
+          arquivo: arquivos.map((a) => a.name).join(', '),
+          miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
+        })
         const anterior = textoColado.trim() ? textoColado.replace(/\s+$/, '') + '\n' : ''
-        atualizarPrevia(anterior + (await extrairTextoDeArquivos(arquivos, setLendoPdf)))
+        atualizarPrevia(anterior + texto)
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
         setErroArquivo(`Não consegui ler (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
