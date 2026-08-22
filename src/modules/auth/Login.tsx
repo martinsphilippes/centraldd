@@ -33,7 +33,7 @@ export function Login() {
   const [enviando, setEnviando] = useState(false)
 
   // Pré-cadastro
-  const [funcao, setFuncao] = useState<'motorista' | 'dispatcher'>('motorista')
+  const [funcao, setFuncao] = useState<'motorista' | 'coordenador'>('motorista')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
@@ -158,20 +158,20 @@ export function Login() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFuncao('dispatcher')}
+                    onClick={() => setFuncao('coordenador')}
                     className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
-                      funcao === 'dispatcher'
+                      funcao === 'coordenador'
                         ? 'border-ml-azul bg-blue-50 text-ml-azul'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    🧑‍💼 Dispatcher
+                    🧑‍💼 Coordenador
                   </button>
                 </div>
-                {funcao === 'dispatcher' && (
+                {funcao === 'coordenador' && (
                   <p className="mt-1.5 rounded-lg bg-yellow-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-                    Ao ser aprovado pela coordenação, seu acesso será de <strong>coordenador</strong> — painel
-                    completo da operação.
+                    Cadastro de coordenador é aprovado <strong>somente pelo dono da operação</strong>.
+                    Aprovado, você recebe o painel completo (programação, chamadas, escalas e rotas).
                   </p>
                 )}
               </div>

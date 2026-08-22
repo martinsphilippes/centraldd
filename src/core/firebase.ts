@@ -72,7 +72,7 @@ export interface DadosPreCadastro {
   email: string
   senha: string
   /** 'dispatcher' = ao ser aprovado, vira coordenador com acesso total. */
-  funcao: 'motorista' | 'dispatcher'
+  funcao: 'motorista' | 'dispatcher' | 'coordenador'
 }
 
 /**

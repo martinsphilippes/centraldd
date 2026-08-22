@@ -17,6 +17,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Dono da operação: único que decide quem vira COORDENADOR.
+    function ehDono() {
+      return logado() && request.auth.token.email == 'martinsphilippes@gmail.com';
+    }
+
     function ehCoordenador() {
       return logado() &&
         get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel == 'coordenador';
@@ -40,13 +45,19 @@ service cloud.firestore {
       // Coordenador cria perfis; o e-mail do administrador cria o próprio perfil de
       // coordenador; e qualquer conta pode criar o PRÓPRIO perfil de motorista
       // (pré-cadastro — o acesso real só vem com a aprovação do cadastro).
-      allow create: if ehCoordenador() ||
-        (logado() && request.auth.uid == uid &&
-         request.auth.token.email == 'martinsphilippes@gmail.com') ||
+      // Perfil de COORDENADOR: só o dono cria/muda. Coordenador comum mexe
+      // apenas em perfil de motorista; e qualquer conta cria o próprio
+      // perfil de motorista no pré-cadastro.
+      allow create: if ehDono() ||
+        (ehCoordenador() && request.resource.data.papel == 'motorista') ||
         (logado() && request.auth.uid == uid &&
          request.resource.data.papel == 'motorista' &&
          request.resource.data.motoristaId == uid);
-      allow update, delete: if ehCoordenador();
+      allow update: if ehDono() ||
+        (ehCoordenador() && request.resource.data.papel == 'motorista' &&
+         resource.data.papel == 'motorista');
+      allow delete: if ehDono() ||
+        (ehCoordenador() && resource.data.papel == 'motorista');
     }
 
     match /motoristas/{id} {

@@ -1,14 +1,22 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerMotorista, salvarMotorista, useDB } from '../../core/db'
+import { useSessao } from '../../context/SessaoContext'
+import { EMAILS_COORDENADOR } from '../../core/firebase-config'
 import { promoverParaCoordenador, removerPerfil } from '../../core/firebase'
 import { formatarTelefone } from '../../core/comunicacao'
 import type { Motorista } from '../../core/types'
 import { Avatar, Badge, Button, Card, EmptyState, Input, Select } from '../../components/ui'
 import { ContactButtons } from '../../components/ContactButtons'
 
+/** 'dispatcher' é o nome antigo do pedido de coordenador. */
+const pedeCoordenador = (funcao?: string) => funcao === 'coordenador' || funcao === 'dispatcher'
+
 export function MotoristasList() {
   const db = useDB()
+  const { usuarioEmail } = useSessao()
+  // Só o DONO da operação decide quem vira coordenador.
+  const souDono = EMAILS_COORDENADOR.includes((usuarioEmail ?? '').toLowerCase())
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
@@ -28,8 +36,14 @@ export function MotoristasList() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
 
   const aprovar = (m: Motorista) => {
-    if (m.funcao === 'dispatcher') {
-      // Dispatcher aprovado vira COORDENADOR: painel completo, e a tela dele troca na hora.
+    if (pedeCoordenador(m.funcao)) {
+      if (!souDono) {
+        alert(
+          'Somente o dono da operação aprova cadastro de COORDENADOR. Peça a ele para liberar este acesso.',
+        )
+        return
+      }
+      // Aprovado, vira COORDENADOR: painel completo, e a tela dele troca na hora.
       if (
         !confirm(
           `Aprovar ${m.nome} como COORDENADOR?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
@@ -73,7 +87,8 @@ export function MotoristasList() {
             ⏳ Pré-cadastros aguardando aprovação ({pendentes.length})
           </h2>
           <p className="mb-3 text-xs text-slate-600">
-            Motoristas que se cadastraram sozinhos pelo app. Eles só acessam o sistema depois que você aprovar.
+            Quem se cadastrou sozinho pelo app. Ninguém acessa o sistema antes da aprovação.
+            {!souDono && ' Pedidos de COORDENADOR só o dono da operação aprova.'}
           </p>
           <ul className="space-y-2">
             {pendentes.map((m) => (
@@ -83,21 +98,27 @@ export function MotoristasList() {
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
                       {m.nome}
-                      {m.funcao === 'dispatcher' && (
-                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑‍💼 Dispatcher</Badge>
+                      {pedeCoordenador(m.funcao) && (
+                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑‍💼 Quer ser coordenador</Badge>
                       )}
                     </p>
                     <p className="text-[11px] text-slate-500">
                       📱 {formatarTelefone(m.telefone)} • 📍 {m.cidade}
-                      {m.funcao === 'dispatcher'
+                      {pedeCoordenador(m.funcao)
                         ? ' • ao aprovar, vira COORDENADOR com painel completo'
                         : `${m.equipe ? ` • 👥 ${m.equipe}` : ''} • 🚐 ${m.veiculo} • ${m.operacao}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variante="ml" onClick={() => aprovar(m)}>
-                      {m.funcao === 'dispatcher' ? '✅ Aprovar como coordenador' : '✅ Aprovar'}
-                    </Button>
+                    {pedeCoordenador(m.funcao) && !souDono ? (
+                      <Badge className="border-slate-300 bg-slate-100 text-slate-600">
+                        🔒 Aguardando o dono da operação
+                      </Badge>
+                    ) : (
+                      <Button variante="ml" onClick={() => aprovar(m)}>
+                        {pedeCoordenador(m.funcao) ? '✅ Aprovar como coordenador' : '✅ Aprovar'}
+                      </Button>
+                    )}
                     <Button variante="perigo" onClick={() => recusar(m)}>
                       ✕ Recusar
                     </Button>

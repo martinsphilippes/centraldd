@@ -24,8 +24,11 @@ export interface Motorista {
   ativo: boolean
   /** false = pré-cadastro aguardando aprovação do coordenador (ausente = aprovado). */
   aprovado?: boolean
-  /** Papel solicitado no pré-cadastro: dispatcher vira coordenador ao ser aprovado. */
-  funcao?: 'motorista' | 'dispatcher'
+  /**
+   * Papel solicitado no pré-cadastro. 'coordenador' (antes 'dispatcher') só é
+   * aprovado pelo DONO da operação; 'motorista' qualquer coordenador aprova.
+   */
+  funcao?: 'motorista' | 'dispatcher' | 'coordenador'
   /** Cidades onde este motorista NÃO pode rodar (separadas por vírgula). */
   cidadesBloqueadas?: string
   /** Cidades onde este motorista rende melhor (separadas por vírgula). */
