@@ -24,8 +24,15 @@ export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
   const chamada = db.chamadas.find((c) => c.id === chamadaId)
   if (!chamada) return explicitas
   const jaResponderam = new Set(explicitas.map((r) => r.motoristaId))
+  // Só entra quem está ativo e aprovado — cadastro inativo não vira número.
+  const elegiveis = new Set(
+    db.motoristas.filter((m) => m.ativo && m.aprovado !== false).map((m) => m.id),
+  )
   const daAgenda: Resposta[] = db.agenda
-    .filter((a) => a.data === chamada.data && !jaResponderam.has(a.motoristaId))
+    .filter(
+      (a) =>
+        a.data === chamada.data && !jaResponderam.has(a.motoristaId) && elegiveis.has(a.motoristaId),
+    )
     .map((a) => ({
       id: `agenda_${a.id}`,
       chamadaId,
@@ -37,6 +44,11 @@ export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
       respondidaEm: a.atualizadaEm,
     }))
   return [...explicitas, ...daAgenda]
+}
+
+/** true = a "resposta" não foi dada na chamada; veio da agenda do motorista. */
+export function veioDaAgenda(r: Resposta): boolean {
+  return r.id.startsWith('agenda_')
 }
 
 export function resumoChamada(db: DB, chamada: Chamada): ResumoChamada {

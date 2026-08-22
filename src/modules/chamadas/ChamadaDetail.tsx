@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
 import { formatarData, rotuloDia } from '../../core/dates'
-import { respostasDaChamada, resumoChamada, sugerirEscala } from '../../core/stats'
+import { respostasDaChamada, resumoChamada, sugerirEscala, veioDaAgenda } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
 import { mensagemCobranca, formatarTelefone } from '../../core/comunicacao'
@@ -138,12 +138,18 @@ export function ChamadaDetail() {
           </p>
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {r ? (
-          <StatusPill resposta={r} />
+          <>
+            <StatusPill resposta={r} />
+            {veioDaAgenda(r) && (
+              <Badge className="border-sky-200 bg-sky-50 text-sky-700">📅 pela agenda</Badge>
+            )}
+          </>
         ) : (
           <Badge className="border-slate-200 bg-slate-100 text-slate-500">⏳ Sem resposta</Badge>
         )}
+        <span className="ml-auto" />
         <ContactButtons motorista={m} mensagem={r ? undefined : mensagemCobranca(m, chamada)} compacto />
       </div>
       {r?.observacao && <p className="mt-1 text-[11px] italic text-slate-500">“{r.observacao}”</p>}
@@ -218,6 +224,29 @@ export function ChamadaDetail() {
         <StatCard icone="❌" valor={resumo.indisponiveis} rotulo="Indisponíveis" />
         <StatCard icone="⏳" valor={resumo.pendentes.length} rotulo="Pendentes" />
       </div>
+
+      {/* De onde vem cada número — o painel nunca mostra disponível sem lastro. */}
+      <p className="-mt-2 text-xs text-slate-500">
+        {(() => {
+          const daAgenda = respostas.filter(veioDaAgenda).length
+          const naChamada = respostas.length - daAgenda
+          if (respostas.length === 0)
+            return '⏳ Ninguém respondeu ainda e ninguém marcou este dia na agenda — todos constam como pendentes.'
+          return (
+            <>
+              📊 <strong>{naChamada}</strong> responderam à chamada
+              {daAgenda > 0 && (
+                <>
+                  {' '}
+                  • <strong>{daAgenda}</strong> vieram da agenda que o motorista já tinha marcado para{' '}
+                  {formatarData(chamada.data)} (marcados com 📅 na lista)
+                </>
+              )}
+              .
+            </>
+          )
+        })()}
+      </p>
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-6">
