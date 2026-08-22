@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { useSessao } from '../../context/SessaoContext'
 import { salvarPreferenciasCidades, useDB } from '../../core/db'
+import { normalizarTexto } from '../../core/texto'
 import { Card, EmptyState } from '../../components/ui'
 
 type Preferencia = 'prefiro' | 'posso' | 'nunca'
@@ -23,7 +24,7 @@ function lista(texto?: string): string[] {
     .filter(Boolean)
 }
 
-const chave = (c: string) => c.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim()
+const chave = normalizarTexto
 
 export function MinhasCidades() {
   const { motoristaId } = useSessao()

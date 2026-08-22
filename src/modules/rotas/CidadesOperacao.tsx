@@ -5,9 +5,10 @@
 import { useState } from 'react'
 import { removerCidadeOperacao, salvarCidadeOperacao, useDB } from '../../core/db'
 import { cidadesDoTexto } from '../../core/planilha'
+import { normalizarTexto } from '../../core/texto'
 import { Badge, Button, Card, EmptyState, Input } from '../../components/ui'
 
-const chave = (c: string) => c.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim()
+const chave = normalizarTexto
 
 export function CidadesOperacao() {
   const db = useDB()

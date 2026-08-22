@@ -5,6 +5,7 @@
 import type { DB, Motorista, ParametrosAlocacao, ProgramacaoItem, Rota } from './types'
 import { cidadesDoTexto } from './planilha'
 import { STATUS_DISPONIVEIS } from './constants'
+import { algumaCidadeBate, normalizarTexto } from './texto'
 import { hojeISO } from './dates'
 
 export const PARAMETROS_PADRAO: ParametrosAlocacao = {
@@ -37,11 +38,7 @@ export function parametrosAtuais(db: DB): ParametrosAlocacao {
 }
 
 function norm(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .trim()
+  return normalizarTexto(s)
 }
 
 function listaDeTexto(texto?: string): string[] {
@@ -140,7 +137,7 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
 
       // ---- Travas (excluem o candidato) ----
       const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
-      if (cidades.some((c) => bloqueadas.some((b) => c.includes(b) || b.includes(c)))) continue
+      if (algumaCidadeBate(cidades, bloqueadas)) continue
       if (p.exigirDisponibilidadeAgenda && !disponiveisHoje.has(m.id)) continue
       if (marcaramHoje.has(m.id) && !disponiveisHoje.has(m.id)) continue // marcou indisponível/folga/férias
       if (p.exigirVeiculoCompativel) {
@@ -171,7 +168,7 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
       // mais direta sobre onde ele rende melhor.
       const preferidas = listaDeTexto(m.cidadesPreferidas)
-      const preferida = cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))
+      const preferida = algumaCidadeBate(cidades, preferidas)
       if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
@@ -290,20 +287,20 @@ export function alocarMotoristasNasRotas(
     for (const m of candidatos) {
       const motivos: string[] = []
       const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
-      if (cidades.some((c) => bloqueadas.some((b) => c.includes(b) || b.includes(c)))) continue
+      if (algumaCidadeBate(cidades, bloqueadas)) continue
       const aceitos = equivalencias.get(norm(rota.veiculo))
       const veiculoCompativel = !aceitos || aceitos.size === 0 || aceitos.has(norm(m.veiculo)) || norm(rota.veiculo) === norm(m.veiculo)
       if (p.exigirVeiculoCompativel && !veiculoCompativel) continue
 
       let pontos = 0
-      if (cidades.some((c) => c.includes(norm(m.cidade)) || norm(m.cidade).includes(c))) {
+      if (algumaCidadeBate(cidades, [m.cidade])) {
         pontos += 4
         motivos.push('🏠 mora na cidade da rota')
       }
       // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
       // mais direta sobre onde ele rende melhor.
       const preferidas = listaDeTexto(m.cidadesPreferidas)
-      const preferida = cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))
+      const preferida = algumaCidadeBate(cidades, preferidas)
       if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
