@@ -13,7 +13,7 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoExperienciaCidade: 6,
   pesoExperienciaRota: 4,
   pesoRespeitarPlanoMeli: 5,
-  pesoCidadesPreferidas: 3,
+  pesoCidadesPreferidas: 6,
   pesoRodizio: 5,
   janelaRodizioDias: 7,
   maxVezesSeguidasMesmaCidade: 0,
@@ -168,8 +168,11 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
         pontos += p.pesoRespeitarPlanoMeli
         motivos.push('📋 era o plano do Meli')
       }
+      // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
+      // mais direta sobre onde ele rende melhor.
       const preferidas = listaDeTexto(m.cidadesPreferidas)
-      if (cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))) {
+      const preferida = cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))
+      if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
       }
@@ -235,6 +238,8 @@ export interface AlocacaoRota {
   rota: Rota
   motorista: Motorista
   motivos: string[]
+  /** true = a cidade da rota está entre as que o motorista marcou "Prefiro". */
+  preferida: boolean
 }
 
 /**
@@ -276,6 +281,7 @@ export function alocarMotoristasNasRotas(
     motorista: Motorista
     pontos: number
     motivos: string[]
+    preferida: boolean
   }
   const pares: Par[] = []
   for (const rota of rotas) {
@@ -294,8 +300,11 @@ export function alocarMotoristasNasRotas(
         pontos += 4
         motivos.push('🏠 mora na cidade da rota')
       }
+      // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
+      // mais direta sobre onde ele rende melhor.
       const preferidas = listaDeTexto(m.cidadesPreferidas)
-      if (cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))) {
+      const preferida = cidades.some((c) => preferidas.some((f) => c.includes(f) || f.includes(c)))
+      if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
       }
@@ -310,7 +319,7 @@ export function alocarMotoristasNasRotas(
         pontos += 2
         motivos.push('🚐 veículo compatível')
       }
-      pares.push({ rota, motorista: m, pontos, motivos })
+      pares.push({ rota, motorista: m, pontos, motivos, preferida })
     }
   }
 
@@ -323,7 +332,7 @@ export function alocarMotoristasNasRotas(
     if (rotaPreenchida.has(par.rota.id) || motoristaUsado.has(par.motorista.id)) continue
     rotaPreenchida.add(par.rota.id)
     motoristaUsado.add(par.motorista.id)
-    resultado.push({ rota: par.rota, motorista: par.motorista, motivos: par.motivos })
+    resultado.push({ rota: par.rota, motorista: par.motorista, motivos: par.motivos, preferida: par.preferida })
   }
   return resultado
 }

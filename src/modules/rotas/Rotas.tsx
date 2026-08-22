@@ -76,9 +76,13 @@ export function Rotas() {
       return
     for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null, resultadoFinalizacao: null })
     const sobraram = livres.length - alocacoes.length
+    const emPreferida = alocacoes.filter((a) => a.preferida).length
+    const semMotoristaAinda = vagas.length - alocacoes.length
     setAvisoAuto(
-      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os escalados da escala de ${formatarData(chamadaBase.data)}.` +
-        (sobraram > 0 ? ` ${sobraram} motorista(s) ficaram de reserva.` : ''),
+      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os escalados da escala de ${formatarData(chamadaBase.data)}` +
+        ` • ⭐ ${emPreferida} em cidade que o motorista prefere` +
+        (semMotoristaAinda > 0 ? ` • ${semMotoristaAinda} rota(s) seguem sem motorista (ninguém elegível)` : '') +
+        (sobraram > 0 ? ` • ${sobraram} motorista(s) de reserva` : ''),
     )
   }
 
