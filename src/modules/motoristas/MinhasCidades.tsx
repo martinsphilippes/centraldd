@@ -5,8 +5,7 @@
 import { useState } from 'react'
 import { useSessao } from '../../context/SessaoContext'
 import { salvarPreferenciasCidades, useDB } from '../../core/db'
-import { cidadesDoTexto } from '../../core/planilha'
-import { Button, Card, EmptyState, Input } from '../../components/ui'
+import { Card, EmptyState } from '../../components/ui'
 
 type Preferencia = 'prefiro' | 'posso' | 'nunca'
 
@@ -29,7 +28,6 @@ const chave = (c: string) => c.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperC
 export function MinhasCidades() {
   const { motoristaId } = useSessao()
   const db = useDB()
-  const [nova, setNova] = useState('')
   const [aviso, setAviso] = useState('')
 
   const eu = db.motoristas.find((m) => m.id === motoristaId)
@@ -38,21 +36,11 @@ export function MinhasCidades() {
   const preferidas = lista(eu.cidadesPreferidas)
   const bloqueadas = lista(eu.cidadesBloqueadas)
 
-  // Cidades da operação: das rotas carregadas, da programação e do que o
-  // próprio motorista já marcou (para nada sumir da lista).
-  const daOperacao = [
-    ...db.rotas.flatMap((r) => cidadesDoTexto(r.cidade)),
-    ...db.programacao.flatMap((p) => cidadesDoTexto(p.cidade)),
-    eu.cidade,
-    ...preferidas,
-    ...bloqueadas,
-  ]
-    .map((c) => c.trim())
-    .filter(Boolean)
-
-  const cidades = [...new Map(daOperacao.map((c) => [chave(c), c])).values()].sort((a, b) =>
-    a.localeCompare(b, 'pt-BR'),
-  )
+  // A lista vem do coordenador (tela Cidades da operação) — o motorista só
+  // qualifica o que a operação atende, não inventa cidade.
+  const cidades = db.cidades
+    .map((c) => c.nome)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
   const preferenciaDe = (cidade: string): Preferencia => {
     if (bloqueadas.some((c) => chave(c) === chave(cidade))) return 'nunca'
@@ -72,13 +60,6 @@ export function MinhasCidades() {
           ? `🚫 ${cidade} marcada como cidade que você não faz.`
           : `👍 ${cidade} voltou para "posso fazer".`,
     )
-  }
-
-  const acrescentar = () => {
-    const cidade = nova.trim()
-    if (!cidade) return
-    if (!cidades.some((c) => chave(c) === chave(cidade))) definir(cidade, 'prefiro')
-    setNova('')
   }
 
   return (
@@ -107,8 +88,8 @@ export function MinhasCidades() {
         {cidades.length === 0 ? (
           <EmptyState
             icone="📍"
-            titulo="Nenhuma cidade na operação ainda"
-            descricao="Assim que a coordenação carregar as rotas, as cidades aparecem aqui. Você também pode acrescentar abaixo."
+            titulo="Nenhuma cidade cadastrada ainda"
+            descricao="Assim que a coordenação cadastrar as cidades da operação, elas aparecem aqui para você marcar onde prefere entregar."
           />
         ) : (
           <ul className="space-y-2">
@@ -144,20 +125,6 @@ export function MinhasCidades() {
           </ul>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="Acrescentar cidade que você prefere…"
-            value={nova}
-            onChange={(e) => setNova(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') acrescentar()
-            }}
-            className="min-w-48 flex-1"
-          />
-          <Button variante="ml" onClick={acrescentar} disabled={!nova.trim()}>
-            ➕ Acrescentar
-          </Button>
-        </div>
       </Card>
 
       <p className="text-center text-[11px] text-slate-400">

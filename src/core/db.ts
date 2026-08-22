@@ -17,6 +17,7 @@ import { firestore } from './firebase'
 import type {
   DB,
   Chamada,
+  CidadeOperacao,
   DiaAgenda,
   Escala,
   Motorista,
@@ -39,6 +40,7 @@ const VAZIO: DB = {
   programacao: [],
   resumos: [],
   config: [],
+  cidades: [],
   notificacoes: [],
 }
 
@@ -83,6 +85,7 @@ export function iniciarSincronizacao() {
     'programacao',
     'resumos',
     'config',
+    'cidades',
     'notificacoes',
   ]
   const chegaram = new Set<string>()
@@ -360,6 +363,24 @@ export function registrarDiagnosticoOcr(origem: string, texto: string, info: Rec
     ...info,
     registradoEm: new Date().toISOString(),
   }).catch(() => {})
+}
+
+/** Cidades atendidas pela operação — mantidas pelo coordenador. */
+export function salvarCidadeOperacao(nome: string) {
+  const limpo = nome.trim()
+  if (!limpo) return
+  const id = limpo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  const cidade: CidadeOperacao = { id, nome: limpo, criadaEm: new Date().toISOString() }
+  void setDoc(doc(firestore, 'cidades', id), cidade)
+}
+
+export function removerCidadeOperacao(id: string) {
+  void deleteDoc(doc(firestore, 'cidades', id))
 }
 
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {

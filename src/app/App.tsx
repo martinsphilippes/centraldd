@@ -19,6 +19,7 @@ import { MinhaAgenda } from '../modules/agenda/MinhaAgenda'
 import { AgendaFrota } from '../modules/agenda/AgendaFrota'
 import { Rotas } from '../modules/rotas/Rotas'
 import { MinhasRotas } from '../modules/rotas/MinhasRotas'
+import { CidadesOperacao } from '../modules/rotas/CidadesOperacao'
 import { Programacao } from '../modules/programacao/Programacao'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/chamadas/:id" element={<ChamadaDetail />} />
             <Route path="/agenda-frota" element={<AgendaFrota />} />
             <Route path="/rotas" element={<Rotas />} />
+            <Route path="/cidades" element={<CidadesOperacao />} />
             <Route path="/programacao" element={<Programacao />} />
             <Route path="/motoristas" element={<MotoristasList />} />
             <Route path="/motoristas/novo" element={<MotoristaForm />} />

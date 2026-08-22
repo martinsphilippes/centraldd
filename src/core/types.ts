@@ -224,6 +224,13 @@ export interface LimiteDia {
   atualizadoEm: string
 }
 
+/** Cidade que a operação atende — a lista é mantida pelo coordenador. */
+export interface CidadeOperacao {
+  id: string
+  nome: string
+  criadaEm: string
+}
+
 export interface Notificacao {
   id: string
   motoristaId: string | null // null = todos
@@ -246,6 +253,7 @@ export interface DB {
   programacao: ProgramacaoItem[]
   resumos: ResumoDia[]
   config: ParametrosAlocacao[]
+  cidades: CidadeOperacao[]
   notificacoes: Notificacao[]
 }
 

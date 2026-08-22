@@ -24,6 +24,7 @@ const NAV_COORDENADOR: ItemNav[] = [
   { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
+  { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
 ]
 
