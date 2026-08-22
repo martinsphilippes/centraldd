@@ -117,13 +117,15 @@ service cloud.firestore {
       allow delete: if ehCoordenador();
     }
 
-    // Regra geral (vale para limites e para QUALQUER coleção nova do sistema):
+    // Regra geral (vale para limites, cidades e QUALQUER coleção nova):
     // todo usuário logado lê; apenas o coordenador escreve.
-    // Coleções com escrita do motorista (respostas, agenda, pré-cadastro)
+    // ATENÇÃO: 'perfis' fica de fora — é ela que define quem é coordenador,
+    // e liberar aqui anularia a regra específica (só o dono promove).
+    // Coleções com escrita do motorista (respostas, agenda, rotas, cadastro)
     // têm as permissões extras específicas definidas acima.
     match /{colecao}/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador();
+      allow write: if ehCoordenador() && colecao != 'perfis';
     }
   }
 }
