@@ -72,6 +72,10 @@ export function EsteiraDia({
   const totalRotas = db.rotas.length
   const direcionadas = db.rotas.filter((r) => r.motoristaId).length
 
+  // A roteirização do dia entra ANTES da chamada: é ela que diz quantas
+  // rotas existem e alimenta o direcionamento lá na frente.
+  const rotasCarregadas = totalRotas > 0
+
   const agenda: Etapa = {
     icone: '📅',
     titulo: 'Agenda',
@@ -91,17 +95,28 @@ export function EsteiraDia({
     para: '/programacao',
     acao: itensProg > 0 || resumoDia ? 'Ver programação' : 'Programar',
   }
-  const partiu = agenda.feita || programacao.feita
+  const carregarRotas: Etapa = {
+    icone: '🛣️',
+    titulo: 'Rotas do dia',
+    resumo: rotasCarregadas ? `${totalRotas} rota(s) carregada(s)` : 'importe a roteirização',
+    feita: rotasCarregadas,
+    para: rotasCarregadas ? '/rotas' : '/programacao',
+    acao: rotasCarregadas ? 'Ver rotas' : 'Importar rotas',
+  }
+  // Só faz sentido chamar a frota depois que o dia tem rota e alguma partida.
+  const partiu = (agenda.feita || programacao.feita) && rotasCarregadas
 
   const etapaChamada: Etapa = {
     icone: '📢',
     titulo: 'Chamada',
     resumo: chamada
       ? `${dispChamada}/${chamada.qtdNecessaria} disponíveis${chamada.status === 'encerrada' ? ' · encerrada' : ''}`
-      : 'chame os motoristas',
+      : rotasCarregadas
+        ? 'chame os motoristas'
+        : 'carregue as rotas antes',
     feita: !!chamada && (dispChamada >= chamada.qtdNecessaria || chamada.status === 'encerrada'),
     para: chamada ? `/chamadas/${chamada.id}` : '/programacao',
-    acao: chamada ? 'Ver respostas' : 'Chamar pelo resumo',
+    acao: chamada ? 'Ver respostas' : rotasCarregadas ? 'Chamar pelo resumo' : 'Importar rotas',
   }
   const etapaEscala: Etapa = {
     icone: '📋',
@@ -115,20 +130,20 @@ export function EsteiraDia({
     para: escala ? `/escalas/${escala.id}` : chamada ? `/chamadas/${chamada.id}` : '/escalas',
     acao: escala ? 'Ver escala' : 'Montar escala',
   }
-  const etapaRotas: Etapa = {
-    icone: '🛣️',
-    titulo: 'Rotas',
-    resumo:
-      totalRotas > 0 ? `${direcionadas}/${totalRotas} direcionadas` : 'importe as rotas da operação',
-    feita: totalRotas > 0 && direcionadas === totalRotas,
+  const etapaDirecionamento: Etapa = {
+    icone: '⚡',
+    titulo: 'Direcionamento',
+    resumo: rotasCarregadas ? `${direcionadas}/${totalRotas} direcionadas` : 'depende das rotas',
+    feita: rotasCarregadas && direcionadas === totalRotas,
     para: '/rotas',
-    acao: totalRotas > 0 ? 'Direcionar' : 'Importar rotas',
+    acao: 'Direcionar',
   }
 
   // A etapa "atual" é a primeira ainda não concluída na ordem da esteira.
   const atualChamada = partiu && !etapaChamada.feita
   const atualEscala = partiu && etapaChamada.feita && !etapaEscala.feita
-  const atualRotas = partiu && etapaChamada.feita && etapaEscala.feita && !etapaRotas.feita
+  const atualDirecionamento =
+    partiu && etapaChamada.feita && etapaEscala.feita && !etapaDirecionamento.feita
 
   return (
     <Card className="p-4">
@@ -149,17 +164,18 @@ export function EsteiraDia({
           </p>
           <CartaoEtapa etapa={agenda} atual={!partiu} />
           <CartaoEtapa etapa={programacao} atual={!partiu} />
+          <CartaoEtapa etapa={carregarRotas} atual={!rotasCarregadas} />
         </div>
         <Seta />
         <CartaoEtapa etapa={etapaChamada} atual={atualChamada} />
         <Seta />
         <CartaoEtapa etapa={etapaEscala} atual={atualEscala} />
         <Seta />
-        <CartaoEtapa etapa={etapaRotas} atual={atualRotas} />
+        <CartaoEtapa etapa={etapaDirecionamento} atual={atualDirecionamento} />
       </div>
       <p className="mt-2 text-center text-[11px] text-slate-400">
-        Cada etapa alimenta a próxima: o resumo define a meta da chamada, a resposta preenche a
-        agenda, a escala conduz o direcionamento das rotas — {formatarData(data)}.
+        A partida precisa das rotas carregadas: o resumo define a meta da chamada, a resposta
+        preenche a agenda e a escala conduz o direcionamento — {formatarData(data)}.
       </p>
     </Card>
   )
