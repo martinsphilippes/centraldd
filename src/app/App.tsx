@@ -46,11 +46,20 @@ export default function App() {
   if (statusAuth === 'deslogado') return <Login />
 
   // Motorista com pré-cadastro ainda não aprovado: segura o acesso.
+  // Segurança do acesso: o motorista só entra no app com cadastro ENCONTRADO,
+  // APROVADO e ATIVO. Sem cadastro (ou com ele desativado/pendente) fica na
+  // tela de espera — nunca cai no app por omissão de dado.
   if (papel === 'motorista') {
     if (!carregado) return <TelaCarregando />
     const meuCadastro = db.motoristas.find((m) => m.id === motoristaId)
-    if (meuCadastro && meuCadastro.aprovado === false) {
+    if (!meuCadastro) {
+      return <AguardandoAprovacao nome="" semCadastro />
+    }
+    if (meuCadastro.aprovado === false) {
       return <AguardandoAprovacao nome={meuCadastro.nome} funcao={meuCadastro.funcao} />
+    }
+    if (meuCadastro.ativo === false) {
+      return <AguardandoAprovacao nome={meuCadastro.nome} funcao={meuCadastro.funcao} desativado />
     }
   }
 
