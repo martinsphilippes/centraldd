@@ -81,6 +81,30 @@ export interface DadosPreCadastro {
  * secundária (autenticada como o novo usuário, como as regras exigem) — e por
  * fim entra na conta. O acesso real só é liberado quando o coordenador aprovar.
  */
+/**
+ * Lê as opções de cadastro (veículos/operações) ANTES do login — a tela de
+ * cadastro precisa delas. A coleção 'tipos' é de leitura pública nas regras;
+ * qualquer falha devolve lista vazia e a tela usa os padrões.
+ */
+export async function carregarTiposPublicos(): Promise<{ veiculos: string[]; operacoes: string[] }> {
+  try {
+    const { getDocs, collection } = await import('firebase/firestore')
+    const snap = await getDocs(collection(firestore, 'tipos'))
+    const veiculos: string[] = []
+    const operacoes: string[] = []
+    snap.forEach((d) => {
+      const t = d.data() as { categoria?: string; nome?: string }
+      if (!t.nome) return
+      if (t.categoria === 'veiculo') veiculos.push(t.nome)
+      if (t.categoria === 'operacao') operacoes.push(t.nome)
+    })
+    const ordenar = (a: string, b: string) => a.localeCompare(b, 'pt-BR')
+    return { veiculos: veiculos.sort(ordenar), operacoes: operacoes.sort(ordenar) }
+  } catch {
+    return { veiculos: [], operacoes: [] }
+  }
+}
+
 export async function cadastrarPreCadastro(dados: DadosPreCadastro): Promise<void> {
   const secundario = initializeApp(firebaseConfig, `pre-cadastro-${Date.now()}`)
   try {

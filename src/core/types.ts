@@ -240,6 +240,17 @@ export interface ModeloAprendido {
   atualizadoEm: string
 }
 
+/**
+ * Opção de cadastro mantida pelo coordenador (veículos e operações). É o que
+ * aparece nas listas do formulário de cadastro e do cadastro de motorista.
+ */
+export interface TipoOperacional {
+  id: string
+  categoria: 'veiculo' | 'operacao'
+  nome: string
+  criadoEm: string
+}
+
 /** Cidade que a operação atende — a lista é mantida pelo coordenador. */
 export interface CidadeOperacao {
   id: string
@@ -270,6 +281,7 @@ export interface DB {
   resumos: ResumoDia[]
   config: ParametrosAlocacao[]
   cidades: CidadeOperacao[]
+  tipos: TipoOperacional[]
   modelos: ModeloAprendido[]
   notificacoes: Notificacao[]
 }

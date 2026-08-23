@@ -20,6 +20,7 @@ import type {
   Chamada,
   CidadeOperacao,
   ModeloAprendido,
+  TipoOperacional,
   DiaAgenda,
   Escala,
   Motorista,
@@ -43,6 +44,7 @@ const VAZIO: DB = {
   resumos: [],
   config: [],
   cidades: [],
+  tipos: [],
   modelos: [],
   notificacoes: [],
 }
@@ -89,6 +91,7 @@ export function iniciarSincronizacao() {
     'resumos',
     'config',
     'cidades',
+    'tipos',
     'modelos',
     'notificacoes',
   ]
@@ -398,6 +401,19 @@ export function salvarCidadeOperacao(nome: string) {
     .replace(/^-|-$/g, '')
   const cidade: CidadeOperacao = { id, nome: limpo, criadaEm: new Date().toISOString() }
   void setDoc(doc(firestore, 'cidades', id), cidade)
+}
+
+/** Opções de cadastro (veículos e operações) mantidas pelo coordenador. */
+export function salvarTipoOperacional(categoria: 'veiculo' | 'operacao', nome: string) {
+  const limpo = nome.trim()
+  if (!limpo) return
+  const id = `${categoria}-${normalizarTexto(limpo).replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+  const tipo: TipoOperacional = { id, categoria, nome: limpo, criadoEm: new Date().toISOString() }
+  void setDoc(doc(firestore, 'tipos', id), tipo)
+}
+
+export function removerTipoOperacional(id: string) {
+  void deleteDoc(doc(firestore, 'tipos', id))
 }
 
 export function removerCidadeOperacao(id: string) {

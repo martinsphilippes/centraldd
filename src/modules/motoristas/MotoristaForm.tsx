@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getDB, salvarMotorista, uid } from '../../core/db'
+import { getDB, salvarMotorista, uid, useDB } from '../../core/db'
 import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
@@ -15,6 +15,7 @@ const ERROS_CONTA: Record<string, string> = {
 export function MotoristaForm() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const db = useDB()
   const existente = id ? getDB().motoristas.find((m) => m.id === id) : undefined
 
   const [nome, setNome] = useState(existente?.nome ?? '')
@@ -23,6 +24,13 @@ export function MotoristaForm() {
   const [equipe, setEquipe] = useState(existente?.equipe ?? '')
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
   const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
+  // Opções cadastradas pelo coordenador (Tipos) + o valor atual do motorista.
+  const doSistema = (categoria: 'veiculo' | 'operacao', padrao: string[]): string[] => {
+    const lista = db.tipos.filter((t) => t.categoria === categoria).map((t) => t.nome)
+    return lista.length > 0 ? lista.sort((a, b) => a.localeCompare(b, 'pt-BR')) : padrao
+  }
+  const veiculosOpcoes = [...new Set([...doSistema('veiculo', VEICULOS), veiculo].filter(Boolean))]
+  const operacoesOpcoes = [...new Set([...doSistema('operacao', OPERACOES), operacao].filter(Boolean))]
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
   const [cidadesBloqueadas, setCidadesBloqueadas] = useState(existente?.cidadesBloqueadas ?? '')
   const [cidadesPreferidas, setCidadesPreferidas] = useState(existente?.cidadesPreferidas ?? '')
@@ -102,14 +110,14 @@ export function MotoristaForm() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="📦 Operação padrão">
               <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
-                {OPERACOES.map((o) => (
+                {operacoesOpcoes.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </Select>
             </Field>
             <Field label="🚐 Veículo">
               <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
-                {VEICULOS.map((v) => (
+                {veiculosOpcoes.map((v) => (
                   <option key={v}>{v}</option>
                 ))}
               </Select>

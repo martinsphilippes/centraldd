@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useSessao } from '../../context/SessaoContext'
 import { configPendente } from '../../core/firebase-config'
-import { cadastrarPreCadastro } from '../../core/firebase'
+import { cadastrarPreCadastro, carregarTiposPublicos } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
@@ -38,8 +38,25 @@ export function Login() {
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
+  // As opções vêm do que o coordenador cadastrou (tela Tipos); os padrões
+  // só valem enquanto a lista da operação estiver vazia.
+  const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
+  const [operacoesOpcoes, setOperacoesOpcoes] = useState<string[]>(OPERACOES)
   const [operacao, setOperacao] = useState(OPERACOES[0])
   const [veiculo, setVeiculo] = useState(VEICULOS[0])
+
+  useEffect(() => {
+    void carregarTiposPublicos().then(({ veiculos, operacoes }) => {
+      if (veiculos.length > 0) {
+        setVeiculosOpcoes(veiculos)
+        setVeiculo(veiculos[0])
+      }
+      if (operacoes.length > 0) {
+        setOperacoesOpcoes(operacoes)
+        setOperacao(operacoes[0])
+      }
+    })
+  }, [])
 
   const mensagemErro = erro || erroSessao
 
@@ -201,14 +218,14 @@ export function Login() {
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="📦 Operação">
                     <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
-                      {OPERACOES.map((o) => (
+                      {operacoesOpcoes.map((o) => (
                         <option key={o}>{o}</option>
                       ))}
                     </Select>
                   </Field>
                   <Field label="🚐 Veículo">
                     <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
-                      {VEICULOS.map((v) => (
+                      {veiculosOpcoes.map((v) => (
                         <option key={v}>{v}</option>
                       ))}
                     </Select>

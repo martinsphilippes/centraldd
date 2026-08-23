@@ -110,6 +110,13 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['finalizadaEm']);
     }
 
+    // Opções de cadastro (veículos/operações): leitura PÚBLICA porque a tela
+    // de cadastro roda antes do login; só o coordenador escreve.
+    match /tipos/{id} {
+      allow read: if true;
+      allow write: if ehCoordenador();
+    }
+
     match /notificacoes/{id} {
       allow read: if logado();
       allow create: if ehCoordenador();
