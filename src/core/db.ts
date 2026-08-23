@@ -14,10 +14,12 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { firestore } from './firebase'
+import { normalizarTexto, parecidoCom } from './texto'
 import type {
   DB,
   Chamada,
   CidadeOperacao,
+  ModeloAprendido,
   DiaAgenda,
   Escala,
   Motorista,
@@ -41,6 +43,7 @@ const VAZIO: DB = {
   resumos: [],
   config: [],
   cidades: [],
+  modelos: [],
   notificacoes: [],
 }
 
@@ -86,6 +89,7 @@ export function iniciarSincronizacao() {
     'resumos',
     'config',
     'cidades',
+    'modelos',
     'notificacoes',
   ]
   const chegaram = new Set<string>()
@@ -278,6 +282,23 @@ export function salvarResumoDia(r: ResumoDia) {
  */
 export function aplicarModeloResumo(dataDia: string, m: import('./planilha').ModeloResumo): ResumoDia {
   const existente = state.resumos.find((r) => r.id === dataDia)
+  // Estrutura já aprendida desta base (corrigida à mão nas importações
+  // anteriores): transportadoras e posições por veículo entram prontas.
+  const baseLida = m.base ?? existente?.base ?? ''
+  const aprendido = state.modelos.find((x) => parecidoCom(x.base, baseLida))
+  const esqueletoTransportadoras =
+    aprendido && aprendido.transportadoras.length
+      ? aprendido.transportadoras.map((nome) => ({ nome, utilitarios: '', vuc: '' }))
+      : [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }]
+  const esqueletoMM =
+    aprendido && aprendido.mm.length
+      ? aprendido.mm.map((x) => ({ tipo: x.tipo, quantidade: '', posicoesPorUnidade: x.posicoesPorUnidade }))
+      : [
+          { tipo: '3/4', quantidade: '', posicoesPorUnidade: '8' },
+          { tipo: 'TOCO', quantidade: '', posicoesPorUnidade: '12' },
+          { tipo: 'TRUCK', quantidade: '', posicoesPorUnidade: '16' },
+          { tipo: 'CARRETA', quantidade: '', posicoesPorUnidade: '28' },
+        ]
   const base: ResumoDia = existente ?? {
     id: dataDia,
     data: dataDia,
@@ -286,23 +307,18 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
     pacotes: '',
     veiculosDiv: '',
     amAutomatico: true,
-    transportadoras: [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }],
-    mm: [
-      { tipo: '3/4', quantidade: '', posicoesPorUnidade: '8' },
-      { tipo: 'TOCO', quantidade: '', posicoesPorUnidade: '12' },
-      { tipo: 'TRUCK', quantidade: '', posicoesPorUnidade: '16' },
-      { tipo: 'CARRETA', quantidade: '', posicoesPorUnidade: '28' },
-    ],
+    transportadoras: esqueletoTransportadoras,
+    mm: esqueletoMM,
     atualizadoEm: '',
   }
   const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
   // A leitura só ACRESCENTA ou refina — nunca apaga o que o card já tinha.
   // Uma foto ruim que leu metade das linhas não pode destruir a outra metade.
   // Nomes com ruído de OCR ("RODACEEP" = RODACOOP) casam pelo começo do nome.
-  const chaveNome = (s: string) => s.toUpperCase().replace(/[^A-ZÀ-Ú]/g, '').slice(0, 5)
   let transportadoras = base.transportadoras.map((t) => ({ ...t }))
   for (const lida of m.transportadoras) {
-    const igual = transportadoras.find((t) => chaveNome(t.nome) === chaveNome(lida.nome))
+    // "ORODAÇEEP" casa com "RODACOOP" aprendido — o OCR erra letras, não a linha.
+    const igual = transportadoras.find((t) => parecidoCom(t.nome, lida.nome))
     if (igual) {
       if (lida.utilitarios) igual.utilitarios = lida.utilitarios
       if (lida.vuc) igual.vuc = lida.vuc
@@ -320,11 +336,16 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
   // MM: mescla pelo número de posições (x8 = 3/4, x16 = TRUCK…) — as linhas
   // padrão ficam, e a leitura só preenche/atualiza as quantidades que achou.
   const mm = base.mm.map((linha) => {
-    const lida = m.mm.find((n) => n.posicoesPorUnidade === linha.posicoesPorUnidade)
+    const lida = m.mm.find(
+      (n) => n.posicoesPorUnidade === linha.posicoesPorUnidade || parecidoCom(n.tipo, linha.tipo),
+    )
     return lida?.quantidade ? { ...linha, quantidade: lida.quantidade } : linha
   })
   for (const lida of m.mm) {
-    if (!mm.some((linha) => linha.posicoesPorUnidade === lida.posicoesPorUnidade)) mm.push({ ...lida })
+    const conhecida = mm.some(
+      (linha) => linha.posicoesPorUnidade === lida.posicoesPorUnidade || parecidoCom(linha.tipo, lida.tipo),
+    )
+    if (!conhecida && lida.tipo && lida.tipo !== 'MM') mm.push({ ...lida })
   }
   const resultado: ResumoDia = {
     ...base,
@@ -381,6 +402,28 @@ export function salvarCidadeOperacao(nome: string) {
 
 export function removerCidadeOperacao(id: string) {
   void deleteDoc(doc(firestore, 'cidades', id))
+}
+
+/**
+ * APRENDE com o resumo que o coordenador salvou: guarda a estrutura do
+ * modelo daquela base (transportadoras e posições por veículo) para a
+ * próxima leitura já nascer certa. Números do dia não são guardados.
+ */
+export function aprenderComResumo(r: ResumoDia) {
+  const base = normalizarTexto(r.base)
+  if (!base || base === normalizarTexto('BASE - CIDADE')) return
+  const id = base.replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const modelo: ModeloAprendido = {
+    id,
+    base: r.base.trim(),
+    transportadoras: r.transportadoras.map((t) => t.nome.trim()).filter(Boolean),
+    mm: r.mm
+      .filter((m) => m.tipo.trim() && Number(m.posicoesPorUnidade) > 0)
+      .map((m) => ({ tipo: m.tipo.trim(), posicoesPorUnidade: m.posicoesPorUnidade.trim() })),
+    atualizadoEm: new Date().toISOString(),
+  }
+  if (modelo.transportadoras.length === 0 && modelo.mm.length === 0) return
+  void setDoc(doc(firestore, 'modelos', id), modelo)
 }
 
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {

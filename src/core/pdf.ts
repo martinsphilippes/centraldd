@@ -292,6 +292,7 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
     }
   }
   if (!largura || !altura) throw new Error('imagem vazia ou em formato não suportado pelo aparelho')
+  ultimaDimensao = { largura, altura }
   // Normaliza o tamanho para o OCR: fotos gigantes (12MP) são reduzidas
   // (evita travar aparelhos fracos) e prints/fotos pequenas são ampliadas —
   // um card de 350px só fica legível com muita ampliação. Teto de pixels
@@ -495,9 +496,15 @@ function reforcarContraste(canvas: HTMLCanvasElement): HTMLCanvasElement | null 
 // Cópia reduzida da última imagem lida — vai junto no diagnóstico para dar
 // para reproduzir exatamente a leitura que aconteceu no aparelho do usuário.
 let ultimaMiniatura = ''
+let ultimaDimensao = { largura: 0, altura: 0 }
 
 export function obterUltimaMiniaturaOcr(): string {
   return ultimaMiniatura
+}
+
+/** Tamanho ORIGINAL da última imagem lida — serve para avisar foto pequena. */
+export function obterUltimaDimensaoOcr(): { largura: number; altura: number } {
+  return ultimaDimensao
 }
 
 function gerarMiniatura(canvas: HTMLCanvasElement): string {

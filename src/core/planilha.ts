@@ -209,10 +209,10 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
     const mPos = linhaMM.match(/x\s*(\d+)\s*posi/i)
     if (mPos) {
       const quantidade = numeros.find((n) => n !== mPos[1]) ?? ''
-      // O xN denuncia o veículo (x8 = 3/4, x12 = TOCO…) — mais confiável que o
-      // nome, que o OCR costuma estropiar ("S/N" no lugar de "3/4").
+      // O nome lido vale quando é legível; o mapa por posições só entra como
+      // socorro (cada base tem seu layout — há modelos com x6 e x10).
       const nomeLegivel = !/^x\s*\d/i.test(primeira) && (primeira.length >= 3 || primeira === '3/4')
-      const tipo = MM_POR_POSICOES[mPos[1]] ?? (nomeLegivel ? primeira : 'MM')
+      const tipo = nomeLegivel ? primeira : (MM_POR_POSICOES[mPos[1]] ?? 'MM')
       // Não duplica entre passadas de OCR: completa a quantidade se faltava.
       const existente = r.mm.find((m) => m.posicoesPorUnidade === mPos[1])
       if (existente) {

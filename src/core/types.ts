@@ -227,6 +227,19 @@ export interface LimiteDia {
   atualizadoEm: string
 }
 
+/**
+ * Estrutura do modelo do resumo APRENDIDA com as correções manuais de cada
+ * base: quais transportadoras existem e quantas posições cada veículo do MM
+ * tem. Guarda só a ESTRUTURA — números do dia nunca são reaproveitados.
+ */
+export interface ModeloAprendido {
+  id: string
+  base: string
+  transportadoras: string[]
+  mm: { tipo: string; posicoesPorUnidade: string }[]
+  atualizadoEm: string
+}
+
 /** Cidade que a operação atende — a lista é mantida pelo coordenador. */
 export interface CidadeOperacao {
   id: string
@@ -257,6 +270,7 @@ export interface DB {
   resumos: ResumoDia[]
   config: ParametrosAlocacao[]
   cidades: CidadeOperacao[]
+  modelos: ModeloAprendido[]
   notificacoes: Notificacao[]
 }
 

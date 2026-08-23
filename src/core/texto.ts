@@ -35,3 +35,36 @@ export function mesmaCidade(a: string, b: string): boolean {
 export function algumaCidadeBate(cidadesRota: string[], listaDoMotorista: string[]): boolean {
   return cidadesRota.some((c) => listaDoMotorista.some((f) => mesmaCidade(c, f)))
 }
+
+/** Distância de edição simples (Levenshtein) entre dois textos curtos. */
+function distancia(a: string, b: string): number {
+  const linha = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = linha[0]
+    linha[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const temp = linha[j]
+      linha[j] = Math.min(
+        linha[j] + 1,
+        linha[j - 1] + 1,
+        anterior + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+      anterior = temp
+    }
+  }
+  return linha[b.length]
+}
+
+/**
+ * Mesmo nome apesar do ruído do OCR ("ORODAÇEEP" ≈ "RODACOOP")? Compara sem
+ * acento/pontuação e tolera até ~30% de letras trocadas.
+ */
+export function parecidoCom(a: string, b: string): boolean {
+  const x = normalizarTexto(a).replace(/\s/g, '')
+  const y = normalizarTexto(b).replace(/\s/g, '')
+  if (!x || !y) return false
+  if (x === y) return true
+  if (x.length >= 4 && (x.startsWith(y) || y.startsWith(x))) return true
+  const limite = Math.floor(Math.max(x.length, y.length) * 0.3)
+  return limite >= 1 && distancia(x, y) <= limite
+}

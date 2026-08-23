@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   aplicarModeloResumo,
+  aprenderComResumo,
   enviarNotificacao,
   registrarDiagnosticoOcr,
   salvarChamada,
@@ -14,7 +15,7 @@ import { OPERACOES, STATUS_DISPONIVEIS } from '../../core/constants'
 import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
-import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
+import { extrairTextoDeArquivos, obterUltimaDimensaoOcr, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input, Modal } from '../../components/ui'
 
@@ -186,7 +187,11 @@ export function ResumoDiaCard({
       const padrao = MM_PADRAO.find((p) => p.tipo.toUpperCase() === linha.tipo.trim().toUpperCase())
       return padrao ? { ...linha, posicoesPorUnidade: padrao.posicoesPorUnidade } : linha
     })
-    salvarResumoDia({ ...rascunho, mm })
+    const salvo = { ...rascunho, mm }
+    salvarResumoDia(salvo)
+    // Ensina o sistema: a estrutura conferida à mão vale para as próximas
+    // leituras desta base (transportadoras e posições por veículo).
+    aprenderComResumo(salvo)
     setEditando(false)
     setAvisoAplicado('')
   }
@@ -263,9 +268,12 @@ export function ResumoDiaCard({
         if (faltando.length > 0) {
           setRascunho(salvo)
           setEditando(true)
-          const dica =
-            modelo.camposDetectados <= 4
-              ? ' 📸 A foto saiu pequena ou desfocada: um print da tela inteira (ou foto de perto, sem tremer) costuma resolver — reenviar por cima só acrescenta, não apaga o que já está certo.'
+          const { largura, altura } = obterUltimaDimensaoOcr()
+          const pequenaDemais = largura > 0 && largura < 700
+          const dica = pequenaDemais
+            ? ` 📸 A imagem enviada tem só ${largura}×${altura} pixels — pequena demais para o leitor enxergar os números (eles ficam com ~6 px). Envie um PRINT da tela inteira, ou a foto original sem reduzir, que a leitura melhora muito.`
+            : modelo.camposDetectados <= 4
+              ? ' 📸 A foto saiu desfocada: um print da tela (ou foto de perto, sem tremer) costuma resolver — reenviar por cima só acrescenta, não apaga o que já está certo.'
               : ''
           setAvisoAplicado(
             `⚠️ Preenchi o que a foto permitiu (${modelo.camposDetectados} campo(s)). Complete: ${faltando.join(', ')} — e toque em Salvar.${dica}`,
