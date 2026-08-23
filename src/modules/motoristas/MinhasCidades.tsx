@@ -45,18 +45,23 @@ export function MinhasCidades() {
 
   const preferenciaDe = (cidade: string): Preferencia => {
     if (bloqueadas.some((c) => chave(c) === chave(cidade))) return 'nunca'
-    if (preferidas.some((c) => chave(c) === chave(cidade))) return 'prefiro'
+    // Só a primeira vale como preferida (cadastros antigos podiam ter várias).
+    if (preferidas[0] && chave(preferidas[0]) === chave(cidade)) return 'prefiro'
     return 'posso'
   }
 
   const definir = (cidade: string, valor: Preferencia) => {
     const semCidade = (arr: string[]) => arr.filter((c) => chave(c) !== chave(cidade))
-    const novasPreferidas = valor === 'prefiro' ? [...semCidade(preferidas), cidade] : semCidade(preferidas)
+    const anterior = preferidas[0]
+    // ⭐ Prefiro é UMA só: escolher outra troca a estrela de lugar.
+    const novasPreferidas = valor === 'prefiro' ? [cidade] : semCidade(preferidas)
     const novasBloqueadas = valor === 'nunca' ? [...semCidade(bloqueadas), cidade] : semCidade(bloqueadas)
     salvarPreferenciasCidades(eu.id, novasPreferidas.join(', '), novasBloqueadas.join(', '))
     setAviso(
       valor === 'prefiro'
-        ? `⭐ ${cidade} marcada como preferida.`
+        ? `⭐ ${cidade} é a sua cidade preferida${
+            anterior && chave(anterior) !== chave(cidade) ? ` (antes era ${anterior})` : ''
+          }.`
         : valor === 'nunca'
           ? `🚫 ${cidade} marcada como cidade que você não faz.`
           : `👍 ${cidade} voltou para "posso fazer".`,
@@ -80,11 +85,21 @@ export function MinhasCidades() {
       )}
 
       <Card className="p-4">
-        <div className="mb-3 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold text-slate-500">
-          <span>⭐ Prefiro — priorizam você</span>
-          <span>👍 Posso — normal</span>
-          <span>🚫 Nunca — não te mandam</span>
+        <div className="mb-2 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold text-slate-500">
+          <span>⭐ Prefiro — só uma cidade</span>
+          <span>👍 Posso — quantas quiser</span>
+          <span>🚫 Nunca — quantas quiser</span>
         </div>
+        <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          {preferidas.length > 0 ? (
+            <>
+              ⭐ Sua cidade preferida hoje é <strong>{preferidas[0]}</strong>. Marcar outra como
+              “Prefiro” <strong>troca</strong> — só vale uma.
+            </>
+          ) : (
+            <>⭐ Escolha <strong>uma</strong> cidade preferida. As demais podem ficar como “Posso” ou “Nunca”.</>
+          )}
+        </p>
 
         {cidades.length === 0 ? (
           <EmptyState
