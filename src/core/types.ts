@@ -282,8 +282,17 @@ export interface DB {
   config: ParametrosAlocacao[]
   cidades: CidadeOperacao[]
   tipos: TipoOperacional[]
+  perfis: Perfil[]
   modelos: ModeloAprendido[]
   notificacoes: Notificacao[]
 }
 
 export type Papel = 'coordenador' | 'motorista'
+
+/** Conta com acesso ao app: define o papel e o cadastro vinculado. */
+export interface Perfil {
+  id: string
+  papel: Papel
+  motoristaId?: string | null
+  email?: string
+}

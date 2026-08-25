@@ -45,6 +45,7 @@ const VAZIO: DB = {
   config: [],
   cidades: [],
   tipos: [],
+  perfis: [],
   modelos: [],
   notificacoes: [],
 }
@@ -92,6 +93,7 @@ export function iniciarSincronizacao() {
     'config',
     'cidades',
     'tipos',
+    'perfis',
     'modelos',
     'notificacoes',
   ]

@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useSessao } from '../context/SessaoContext'
 import { useDB } from '../core/db'
+import { EMAILS_COORDENADOR } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
 
@@ -14,6 +15,8 @@ interface ItemNav {
   grupo: string
   /** Número da etapa na esteira (etapas de partida dividem o passo 1). */
   passo?: number
+  /** true = item exclusivo do DONO da operação. */
+  soDono?: boolean
 }
 
 const NAV_COORDENADOR: ItemNav[] = [
@@ -24,6 +27,7 @@ const NAV_COORDENADOR: ItemNav[] = [
   { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
+  { para: '/coordenadores', rotulo: 'Coordenadores', icone: '🧑‍💼', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
   { para: '/tipos', rotulo: 'Opções', icone: '🏷️', grupo: 'Cadastro e análise' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
@@ -41,7 +45,10 @@ const NAV_MOTORISTA: ItemNav[] = [
 export function Layout({ children }: { children: ReactNode }) {
   const { papel, motoristaId, usuarioEmail, sair } = useSessao()
   const db = useDB()
-  const nav = papel === 'coordenador' ? NAV_COORDENADOR : NAV_MOTORISTA
+  const souDono = EMAILS_COORDENADOR.includes((usuarioEmail ?? '').toLowerCase())
+  const nav = (papel === 'coordenador' ? NAV_COORDENADOR : NAV_MOTORISTA).filter(
+    (item) => !item.soDono || souDono,
+  )
   const motorista = db.motoristas.find((m) => m.id === motoristaId)
   const nomeExibicao = papel === 'coordenador' ? 'Coordenação' : (motorista?.nome ?? usuarioEmail ?? '')
   const naoLidas =

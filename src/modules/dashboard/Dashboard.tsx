@@ -61,6 +61,11 @@ export function Dashboard() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard icone="📦" valor={entregasHoje} rotulo="Vagas de rota hoje" destaque />
         <StatCard icone="🚚" valor={db.motoristas.filter((m) => m.ativo).length} rotulo="Motoristas cadastrados" />
+        <StatCard
+          icone="🧑‍💼"
+          valor={db.perfis.filter((p) => p.papel === 'coordenador').length}
+          rotulo="Coordenadores cadastrados"
+        />
         <StatCard icone="✅" valor={disponiveisHoje} rotulo="Disponíveis hoje" />
         <StatCard icone="❌" valor={indisponiveisHoje} rotulo="Indisponíveis hoje" />
         <StatCard icone="⏳" valor={pendentesHoje} rotulo="Pendentes de resposta" />
