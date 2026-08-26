@@ -347,6 +347,10 @@ export function salvarResumoDia(r: ResumoDia) {
  * Preenche o Resumo do Dia a partir de um modelo lido (colado/CSV/PDF/foto).
  * Campos não reconhecidos preservam o que já estava no card.
  */
+export function removerResumoDia(id: string) {
+  void deleteDoc(doc(firestore, 'resumos', id))
+}
+
 export function aplicarModeloResumo(dataDia: string, m: import('./planilha').ModeloResumo): ResumoDia {
   const existente = state.resumos.find((r) => r.id === dataDia)
   // Estrutura já aprendida desta base (corrigida à mão nas importações

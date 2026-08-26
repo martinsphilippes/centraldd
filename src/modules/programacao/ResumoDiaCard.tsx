@@ -5,6 +5,7 @@ import {
   aprenderComResumo,
   enviarNotificacao,
   registrarDiagnosticoOcr,
+  removerResumoDia,
   salvarChamada,
   salvarResumoDia,
   uid,
@@ -13,7 +14,7 @@ import {
 import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { OPERACOES, STATUS_DISPONIVEIS } from '../../core/constants'
 import { respostasDaChamada } from '../../core/stats'
-import { formatarData, formatarDataLonga } from '../../core/dates'
+import { formatarData, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaDimensaoOcr, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
@@ -179,6 +180,12 @@ export function ResumoDiaCard({
   const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
   const totalPosicoes = num(r.posicoesTotal) > 0 ? num(r.posicoesTotal) : posicoesCalculadas
 
+  /** O dia é editável no formulário; o id do resumo é a própria data. */
+  const mudarDia = (novoDia: string) => {
+    if (!novoDia) return
+    setRascunho({ ...rascunho, id: novoDia, data: novoDia })
+  }
+
   const salvar = () => {
     // Posições por unidade é característica do veículo: se ficou vazia ou
     // zerada (digitação no campo errado, leitura falha), volta ao padrão.
@@ -187,13 +194,28 @@ export function ResumoDiaCard({
       const padrao = MM_PADRAO.find((p) => p.tipo.toUpperCase() === linha.tipo.trim().toUpperCase())
       return padrao ? { ...linha, posicoesPorUnidade: padrao.posicoesPorUnidade } : linha
     })
-    const salvo = { ...rascunho, mm }
+    const salvo = { ...rascunho, id: rascunho.data, mm }
+    const mudouDeDia = salvo.data !== data
+    // Trocar o dia MOVE o resumo. Se o destino já tem um, confirma antes de
+    // substituir — é o único jeito de perder trabalho sem querer aqui.
+    if (mudouDeDia) {
+      const noDestino = db.resumos.find((x) => x.id === salvo.data)
+      if (
+        noDestino &&
+        !confirm(
+          `Já existe um resumo para ${formatarData(salvo.data)}.\n\nSubstituir pelo que está na tela?`,
+        )
+      )
+        return
+    }
     salvarResumoDia(salvo)
+    if (mudouDeDia && existente) removerResumoDia(data)
     // Ensina o sistema: a estrutura conferida à mão vale para as próximas
     // leituras desta base (transportadoras e posições por veículo).
     aprenderComResumo(salvo)
     setEditando(false)
     setAvisoAplicado('')
+    if (mudouDeDia) aoMudarDia?.(salvo.data)
   }
 
   // ---------- Chamada automática a partir do resumo ----------
@@ -386,9 +408,34 @@ export function ResumoDiaCard({
       setRascunho({ ...rascunho, mm: rascunho.mm.map((m, j) => (j === i ? { ...m, [campo]: v } : m)) })
     return (
       <Card className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">✏️ Editar resumo — {formatarData(rascunho.data)}</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-bold text-slate-900">✏️ Editar resumo</h2>
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+            📅 Dia
+            <Input
+              type="date"
+              value={rascunho.data}
+              onChange={(e) => mudarDia(e.target.value)}
+              style={{ width: 'auto' }}
+            />
+          </label>
         </div>
+        <p
+          className={`mb-3 rounded-lg px-3 py-2 text-sm ${
+            rascunho.data > hojeISO()
+              ? 'border border-sky-200 bg-sky-50 font-semibold text-sky-800'
+              : 'bg-slate-50 text-slate-600'
+          }`}
+        >
+          {rascunho.data > hojeISO() ? '🔮 Planejamento antecipado: ' : '📅 '}
+          <strong>{rotuloDia(rascunho.data)}</strong>
+          {rascunho.data !== data && (
+            <>
+              {' '}— ao salvar, o resumo {existente ? 'passa deste dia para' : 'é criado em'}{' '}
+              <strong>{formatarData(rascunho.data)}</strong> e o card salta para lá.
+            </>
+          )}
+        </p>
         {avisoAplicado && (
           <p className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
             {avisoAplicado}
@@ -593,7 +640,15 @@ export function ResumoDiaCard({
   return (
     <Card className="overflow-hidden p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold text-slate-900">📋 Resumo do dia</h2>
+        <h2 className="flex flex-wrap items-center gap-2 font-bold text-slate-900">
+          📋 Resumo do dia
+          <span className="text-sm font-semibold text-slate-500">{rotuloDia(data)}</span>
+          {data > hojeISO() && (
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800">
+              🔮 planejamento antecipado
+            </span>
+          )}
+        </h2>
         <div className="flex flex-wrap gap-2">
           <Button variante="secundario" onClick={imprimir}>🖨️ Imprimir / PDF</Button>
           <Button variante="secundario" onClick={() => { setErroModelo(''); setModalModelo(true) }}>
