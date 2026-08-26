@@ -23,8 +23,8 @@ export function MotoristaDetail() {
   const historico = db.respostas
     .filter((r) => r.motoristaId === motorista.id)
     .sort((a, b) => b.respondidaEm.localeCompare(a.respondidaEm))
-  const escalas = db.escalas.filter((e) => e.motoristaIds.includes(motorista.id))
-  const agendaFutura = db.agenda
+  const planejamento = db.planejamento.filter((e) => e.motoristaIds.includes(motorista.id))
+  const disponibilidadeFutura = db.disponibilidade
     .filter((a) => a.motoristaId === motorista.id && a.data >= hojeISO())
     .sort((a, b) => a.data.localeCompare(b.data))
 
@@ -70,15 +70,15 @@ export function MotoristaDetail() {
         <StatCard icone="💬" valor={`${Math.round((estat?.taxaResposta ?? 0) * 100)}%`} rotulo="Taxa de resposta" />
         <StatCard icone="✅" valor={`${Math.round((estat?.taxaDisponibilidade ?? 0) * 100)}%`} rotulo="Disponibilidade" />
         <StatCard icone="🗓️" valor={estat?.respondidas ?? 0} rotulo="Chamadas respondidas" />
-        <StatCard icone="📋" valor={escalas.length} rotulo="Escalas participadas" />
+        <StatCard icone="📋" valor={planejamento.length} rotulo="Escalas participadas" />
       </div>
 
-      {agendaFutura.length > 0 && (
+      {disponibilidadeFutura.length > 0 && (
         <Card className="p-4">
-          <h2 className="mb-1 font-bold text-slate-900">📅 Agenda marcada pelo motorista</h2>
+          <h2 className="mb-1 font-bold text-slate-900">📅 Disponibilidade marcada pelo motorista</h2>
           <p className="mb-3 text-xs text-slate-500">Disponibilidade que ele mesmo marcou para os próximos dias.</p>
           <ul className="flex flex-wrap gap-2">
-            {agendaFutura.map((a) => {
+            {disponibilidadeFutura.map((a) => {
               const info = STATUS_RESPOSTA[a.status]
               let detalhe = ''
               if (a.status === 'apos_horario' && a.horario) detalhe = ` após ${a.horario}`
@@ -124,14 +124,14 @@ export function MotoristaDetail() {
 
         <Card className="p-4">
           <h2 className="mb-3 font-bold text-slate-900">📋 Escalas</h2>
-          {escalas.length === 0 ? (
-            <EmptyState icone="📋" titulo="Nenhuma escala até agora" />
+          {planejamento.length === 0 ? (
+            <EmptyState icone="📋" titulo="Nenhuma planejamento até agora" />
           ) : (
             <ul className="space-y-2">
-              {escalas.map((e) => (
+              {planejamento.map((e) => (
                 <li key={e.id}>
                   <Link
-                    to={`/escalas/${e.id}`}
+                    to={`/planejamento/${e.id}`}
                     className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5 hover:border-ml-azul"
                   >
                     <div>

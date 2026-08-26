@@ -187,7 +187,7 @@ export function Login() {
                 {funcao === 'dispatcher' && (
                   <p className="mt-1.5 rounded-lg bg-yellow-50 px-2.5 py-1.5 text-[11px] text-slate-600">
                     Cadastro de dispatcher é aprovado <strong>somente pelo dono da operação</strong>.
-                    Aprovado, você recebe o painel completo (programação, chamadas, escalas e rotas).
+                    Aprovado, você recebe o painel completo (programação, chamadas, planejamento e rotas).
                   </p>
                 )}
               </div>

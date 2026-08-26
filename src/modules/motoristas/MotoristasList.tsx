@@ -45,7 +45,7 @@ export function MotoristasList() {
       // Aprovado, vira DISPATCHER: painel completo, e a tela dele troca na hora.
       if (
         !confirm(
-          `Aprovar ${m.nome} como DISPATCHER?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
+          `Aprovar ${m.nome} como DISPATCHER?\nEle terá acesso total ao painel: programação, rotas, planejamento, parâmetros e aprovações.`,
         )
       )
         return
@@ -56,7 +56,7 @@ export function MotoristasList() {
     enviarNotificacao({
       motoristaId: m.id,
       titulo: 'Cadastro aprovado! 🎉',
-      mensagem: `Bem-vindo(a) à operação, ${m.nome.split(' ')[0]}! Seu acesso foi liberado — responda as chamadas e marque sua agenda de disponibilidade.`,
+      mensagem: `Bem-vindo(a) à operação, ${m.nome.split(' ')[0]}! Seu acesso foi liberado — responda as chamadas e marque sua disponibilidade de disponibilidade.`,
     })
   }
 

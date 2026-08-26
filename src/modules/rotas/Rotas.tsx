@@ -51,13 +51,13 @@ export function Rotas() {
     .sort((a, b) =>
       a.status === b.status ? b.data.localeCompare(a.data) : a.status === 'aberta' ? -1 : 1,
     )[0]
-  // A ordem da esteira manda: primeiro a ESCALA da chamada é montada;
-  // só então o direcionamento entra em cena, usando os escalados.
-  const escalaDaChamada = chamadaBase
-    ? db.escalas.find((e) => e.chamadaId === chamadaBase.id)
+  // A ordem da esteira manda: primeiro o PLANEJAMENTO da chamada é montado;
+  // só então o direcionamento entra em cena, usando quem está no planejamento.
+  const planejamentoDaChamada = chamadaBase
+    ? db.planejamento.find((e) => e.chamadaId === chamadaBase.id)
     : undefined
-  const candidatosChamada = escalaDaChamada
-    ? motoristas.filter((m) => escalaDaChamada.motoristaIds.includes(m.id))
+  const candidatosChamada = planejamentoDaChamada
+    ? motoristas.filter((m) => planejamentoDaChamada.motoristaIds.includes(m.id))
     : []
 
   const direcionarAutomatico = () => {
@@ -72,14 +72,14 @@ export function Rotas() {
       setAvisoAuto('⚠️ Nenhuma rota vaga com motorista disponível compatível — confira as travas nos ⚙️ Parâmetros da Programação.')
       return
     }
-    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com os escalados da escala de ${formatarData(chamadaBase.data)}?`))
+    if (!confirm(`Direcionar automaticamente ${alocacoes.length} rota(s) com quem está no planejamento do planejamento de ${formatarData(chamadaBase.data)}?`))
       return
     for (const a of alocacoes) salvarRota({ ...a.rota, motoristaId: a.motorista.id, finalizadaEm: null, resultadoFinalizacao: null })
     const sobraram = livres.length - alocacoes.length
     const emPreferida = alocacoes.filter((a) => a.preferida).length
     const semMotoristaAinda = vagas.length - alocacoes.length
     setAvisoAuto(
-      `⚡ ${alocacoes.length} rota(s) direcionada(s) com os escalados da escala de ${formatarData(chamadaBase.data)}` +
+      `⚡ ${alocacoes.length} rota(s) direcionada(s) com quem está no planejamento do planejamento de ${formatarData(chamadaBase.data)}` +
         ` • ⭐ ${emPreferida} em cidade que o motorista prefere` +
         (semMotoristaAinda > 0 ? ` • ${semMotoristaAinda} rota(s) seguem sem motorista (ninguém elegível)` : '') +
         (sobraram > 0 ? ` • ${sobraram} motorista(s) de reserva` : ''),
@@ -223,18 +223,18 @@ export function Rotas() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {chamadaBase && !escalaDaChamada && (
-            // Sem escala ainda: a esteira manda montar a escala primeiro.
+          {chamadaBase && !planejamentoDaChamada && (
+            // Sem planejamento ainda: a esteira manda montar a planejamento primeiro.
             <Link
               to={`/chamadas/${chamadaBase.id}`}
               className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
             >
-              📋 Fazer escala ({formatarData(chamadaBase.data)}) →
+              📋 Fazer planejamento ({formatarData(chamadaBase.data)}) →
             </Link>
           )}
-          {escalaDaChamada && candidatosChamada.length > 0 && semMotorista > 0 && (
+          {planejamentoDaChamada && candidatosChamada.length > 0 && semMotorista > 0 && (
             <Button variante="ml" onClick={direcionarAutomatico}>
-              ⚡ Direcionar escalados ({candidatosChamada.length})
+              ⚡ Direcionar quem está no planejamento ({candidatosChamada.length})
             </Button>
           )}
           {db.rotas.length > 0 && (

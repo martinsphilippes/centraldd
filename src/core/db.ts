@@ -21,8 +21,8 @@ import type {
   CidadeOperacao,
   ModeloAprendido,
   TipoOperacional,
-  DiaAgenda,
-  Escala,
+  DiaDisponibilidade,
+  Planejamento,
   Motorista,
   Notificacao,
   ParametrosAlocacao,
@@ -36,8 +36,8 @@ const VAZIO: DB = {
   motoristas: [],
   chamadas: [],
   respostas: [],
-  escalas: [],
-  agenda: [],
+  planejamento: [],
+  disponibilidade: [],
   limites: [],
   rotas: [],
   programacao: [],
@@ -77,15 +77,63 @@ export function useDBCarregado(): boolean {
   return useSyncExternalStore(subscribe, () => carregado)
 }
 
+/**
+ * Coleções renomeadas. Os documentos gravados com o nome antigo continuam
+ * sendo lidos (e são copiados para o nome novo assim que um Dispatcher abre
+ * o app), então a troca de nome não perde nem esconde nada.
+ * Quando o Firestore não tiver mais documentos nos nomes antigos, este bloco
+ * e os dois listeners extras podem sair.
+ */
+const RENOMEADAS: { nova: 'disponibilidade' | 'planejamento'; antiga: string }[] = [
+  { nova: 'disponibilidade', antiga: 'agenda' },
+  { nova: 'planejamento', antiga: 'escalas' },
+]
+
+type Linha = { id: string } & Record<string, unknown>
+/** Documentos vindos do nome atual da coleção. */
+const atuais: Partial<Record<keyof DB, Linha[]>> = {}
+/** Documentos vindos do nome antigo (só das coleções renomeadas). */
+const antigos: Partial<Record<keyof DB, Linha[]>> = {}
+
+/** Junta os dois nomes numa lista só — em id repetido, o novo manda. */
+function mesclar(nome: keyof DB) {
+  const novos = atuais[nome] ?? []
+  const restantes = (antigos[nome] ?? []).filter((a) => !novos.some((n) => n.id === a.id))
+  state = { ...state, [nome]: [...novos, ...restantes] }
+}
+
+/** Cópias em andamento — cada delete redispara o snapshot antigo. */
+const copiando = new Set<string>()
+
+/** Copia para o nome novo o que só existe no antigo. Silencioso: sem permissão, não faz nada. */
+async function copiarParaNomeNovo(nova: keyof DB, antiga: string) {
+  if (copiando.has(antiga)) return
+  const jaTem = new Set((atuais[nova] ?? []).map((d) => d.id))
+  const pendentes = (antigos[nova] ?? []).filter((d) => !jaTem.has(d.id))
+  if (pendentes.length === 0) return
+  copiando.add(antiga)
+  try {
+    for (const linha of pendentes) {
+      const { id, ...dados } = linha
+      await setDoc(doc(firestore, nova, id), dados)
+      await deleteDoc(doc(firestore, antiga, id))
+    }
+  } catch {
+    // Sem permissão de escrita: fica só a leitura do nome antigo, nada se perde.
+  } finally {
+    copiando.delete(antiga)
+  }
+}
+
 /** Liga os listeners de tempo real (chamado após o login). */
-export function iniciarSincronizacao() {
+export function iniciarSincronizacao(migrar = false) {
   if (unsubs.length > 0) return
   const colecoes: (keyof DB)[] = [
     'motoristas',
     'chamadas',
     'respostas',
-    'escalas',
-    'agenda',
+    'planejamento',
+    'disponibilidade',
     'limites',
     'rotas',
     'programacao',
@@ -101,12 +149,23 @@ export function iniciarSincronizacao() {
   for (const nome of colecoes) {
     unsubs.push(
       onSnapshot(collection(firestore, nome), (snap) => {
-        state = {
-          ...state,
-          [nome]: snap.docs.map((d) => ({ ...d.data(), id: d.id })),
-        }
+        atuais[nome] = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
+        mesclar(nome)
         chegaram.add(nome)
         if (chegaram.size === colecoes.length) carregado = true
+        emit()
+      }),
+    )
+  }
+
+  // Coleções renomeadas: continua ouvindo o nome antigo para nada sumir da
+  // tela enquanto os documentos não foram copiados.
+  for (const { nova, antiga } of RENOMEADAS) {
+    unsubs.push(
+      onSnapshot(collection(firestore, antiga), (snap) => {
+        antigos[nova] = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
+        mesclar(nova)
+        if (migrar) void copiarParaNomeNovo(nova, antiga)
         emit()
       }),
     )
@@ -117,6 +176,8 @@ export function iniciarSincronizacao() {
 export function pararSincronizacao() {
   for (const u of unsubs) u()
   unsubs.length = 0
+  for (const k of Object.keys(atuais) as (keyof DB)[]) delete atuais[k]
+  for (const k of Object.keys(antigos) as (keyof DB)[]) delete antigos[k]
   state = VAZIO
   carregado = false
   emit()
@@ -159,16 +220,16 @@ export function salvarChamada(c: Chamada) {
 }
 
 /**
- * Exclui a chamada E o que nasceu dela (respostas e escala vinculada),
- * para não sobrar registro órfão. A agenda dos motoristas fica — é o
+ * Exclui a chamada E o que nasceu dela (respostas e planejamento vinculada),
+ * para não sobrar registro órfão. A disponibilidade dos motoristas fica — é o
  * histórico deles, independente da chamada.
  */
 export function removerChamada(id: string) {
   for (const r of state.respostas.filter((x) => x.chamadaId === id)) {
     void deleteDoc(doc(firestore, 'respostas', r.id))
   }
-  for (const e of state.escalas.filter((x) => x.chamadaId === id)) {
-    void deleteDoc(doc(firestore, 'escalas', e.id))
+  for (const e of state.planejamento.filter((x) => x.chamadaId === id)) {
+    void deleteDoc(doc(firestore, 'planejamento', e.id))
   }
   // Os avisos que a chamada gerou somem da tela dos motoristas junto com ela.
   for (const n of state.notificacoes.filter((x) => x.chamadaId === id)) {
@@ -195,12 +256,12 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   setDoc(doc(firestore, 'respostas', id), dados).catch(() => {
     alert('❌ Não consegui registrar sua resposta. Tente de novo; se continuar, avise o Dispatcher.')
   })
-  // A resposta também preenche a AGENDA daquele dia: no fluxo
+  // A resposta também preenche a DISPONIBILIDADE daquele dia: no fluxo
   // "programação primeiro", quem responde à chamada já fica com a data
   // marcada — um lado alimenta o outro sem digitar duas vezes.
   const chamada = state.chamadas.find((c) => c.id === r.chamadaId)
   if (chamada) {
-    salvarDiaAgenda({
+    salvarDiaDisponibilidade({
       motoristaId: r.motoristaId,
       data: chamada.data,
       status: r.status,
@@ -211,8 +272,8 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   }
 }
 
-/** Marca a disponibilidade de uma data na agenda (1 registro por motorista/data). */
-export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
+/** Marca a disponibilidade de uma data na disponibilidade (1 registro por motorista/data). */
+export function salvarDiaDisponibilidade(d: Omit<DiaDisponibilidade, 'id' | 'atualizadaEm'>) {
   const id = `${d.motoristaId}_${d.data}`
   const dados: Record<string, unknown> = {
     id,
@@ -224,13 +285,13 @@ export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
   if (d.horario !== undefined) dados.horario = d.horario
   if (d.periodo !== undefined) dados.periodo = d.periodo
   if (d.observacao !== undefined) dados.observacao = d.observacao
-  setDoc(doc(firestore, 'agenda', id), dados).catch(() => {
-    alert('❌ Não consegui salvar sua agenda. Tente de novo; se continuar, avise o Dispatcher.')
+  setDoc(doc(firestore, 'disponibilidade', id), dados).catch(() => {
+    alert('❌ Não consegui salvar sua disponibilidade. Tente de novo; se continuar, avise o Dispatcher.')
   })
 }
 
-export function removerDiaAgenda(id: string) {
-  void deleteDoc(doc(firestore, 'agenda', id))
+export function removerDiaDisponibilidade(id: string) {
+  void deleteDoc(doc(firestore, 'disponibilidade', id))
 }
 
 /** Define o limite de disponíveis de uma data (id do doc = a própria data). */
@@ -258,7 +319,7 @@ export function removerRota(id: string) {
 /**
  * O MOTORISTA marca a própria rota como finalizada. Só esse campo muda —
  * é o que as regras de segurança permitem para a conta do motorista.
- * Finalizar libera o motorista para novas rotas e para entrar em escala.
+ * Finalizar libera o motorista para novas rotas e para entrar em planejamento.
  */
 export function finalizarRota(id: string) {
   updateDoc(doc(firestore, 'rotas', id), { finalizadaEm: new Date().toISOString() }).catch(() => {
@@ -521,12 +582,12 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
   )
 }
 
-export function salvarEscala(e: Escala) {
-  void setDoc(doc(firestore, 'escalas', e.id), e)
+export function salvarPlanejamento(e: Planejamento) {
+  void setDoc(doc(firestore, 'planejamento', e.id), e)
 }
 
-export function removerEscala(id: string) {
-  void deleteDoc(doc(firestore, 'escalas', id))
+export function removerPlanejamento(id: string) {
+  void deleteDoc(doc(firestore, 'planejamento', id))
 }
 
 export function enviarNotificacao(n: Omit<Notificacao, 'id' | 'lida' | 'criadaEm'>) {

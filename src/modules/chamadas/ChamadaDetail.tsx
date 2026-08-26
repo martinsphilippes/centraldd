@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { removerChamada, salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
+import { removerChamada, salvarChamada, salvarPlanejamento, uid, useDB, enviarNotificacao } from '../../core/db'
 import { formatarData, formatarQuando, rotuloDia } from '../../core/dates'
-import { respostasDaChamada, resumoChamada, sugerirEscala, veioDaAgenda } from '../../core/stats'
+import { respostasDaChamada, resumoChamada, sugerirPlanejamento, veioDaDisponibilidade } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
 import { mensagemCobranca, formatarTelefone } from '../../core/comunicacao'
@@ -19,7 +19,7 @@ export function ChamadaDetail() {
   const db = useDB()
   const navigate = useNavigate()
   const [filtro, setFiltro] = useState<Filtro>({ cidade: '', equipe: '', status: '' })
-  const [modalEscala, setModalEscala] = useState(false)
+  const [modalPlanejamento, setModalPlanejamento] = useState(false)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
 
   const chamada = db.chamadas.find((c) => c.id === id)
@@ -29,17 +29,17 @@ export function ChamadaDetail() {
     return <EmptyState icone="🔍" titulo="Chamada não encontrada" />
   }
 
-  // Cada chamada gera UMA escala: montada, o botão vira o atalho para ela.
-  const escalaExistente = db.escalas.find((e) => e.chamadaId === chamada.id)
+  // Cada chamada gera UMA planejamento: montada, o botão vira o atalho para ela.
+  const planejamentoExistente = db.planejamento.find((e) => e.chamadaId === chamada.id)
 
-  // Só entra na escala quem FINALIZOU as rotas: pendência segura o motorista
+  // Só entra na planejamento quem FINALIZOU as rotas: pendência segura o motorista
   // mesmo que ele esteja disponível na chamada.
   const comRotaPendente = new Set(
     db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId as string),
   )
 
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
-  // Inclui o que o motorista marcou na agenda do dia (conta como resposta).
+  // Inclui o que o motorista marcou na disponibilidade do dia (conta como resposta).
   const respostas = respostasDaChamada(db, chamada.id).sort((a, b) =>
     b.respondidaEm.localeCompare(a.respondidaEm),
   )
@@ -63,27 +63,27 @@ export function ChamadaDetail() {
   const abrirMontagem = () => {
     setSelecionados(
       new Set(
-        sugerirEscala(db, chamada)
+        sugerirPlanejamento(db, chamada)
           .map((m) => m.id)
           .filter((mid) => !comRotaPendente.has(mid)),
       ),
     )
-    setModalEscala(true)
+    setModalPlanejamento(true)
   }
 
-  const criarEscala = () => {
-    const idEscala = uid()
-    salvarEscala({
-      id: idEscala,
+  const criarPlanejamento = () => {
+    const idPlanejamento = uid()
+    salvarPlanejamento({
+      id: idPlanejamento,
       chamadaId: chamada.id,
-      nome: `Escala ${chamada.titulo.replace('Disponibilidade para ', '')} ${formatarData(chamada.data)}`,
+      nome: `Planejamento ${chamada.titulo.replace('Disponibilidade para ', '')} ${formatarData(chamada.data)}`,
       data: chamada.data,
       motoristaIds: [...selecionados],
       status: 'rascunho',
       criadaEm: new Date().toISOString(),
     })
-    setModalEscala(false)
-    navigate(`/escalas/${idEscala}`)
+    setModalPlanejamento(false)
+    navigate(`/planejamento/${idPlanejamento}`)
   }
 
   const tabelaExport = (): Tabela => ({
@@ -142,8 +142,8 @@ export function ChamadaDetail() {
         {r ? (
           <>
             <StatusPill resposta={r} />
-            {veioDaAgenda(r) && (
-              <Badge className="border-sky-200 bg-sky-50 text-sky-700">📅 pela agenda</Badge>
+            {veioDaDisponibilidade(r) && (
+              <Badge className="border-sky-200 bg-sky-50 text-sky-700">📅 pela disponibilidade</Badge>
             )}
           </>
         ) : (
@@ -154,7 +154,7 @@ export function ChamadaDetail() {
       </div>
       {r && (
         <p className="mt-1 text-[11px] text-slate-500">
-          {veioDaAgenda(r) ? '📅 marcou na agenda em ' : '✋ respondeu em '}
+          {veioDaDisponibilidade(r) ? '📅 marcou na disponibilidade em ' : '✋ respondeu em '}
           <strong>{formatarQuando(r.respondidaEm)}</strong>
         </p>
       )}
@@ -198,7 +198,7 @@ export function ChamadaDetail() {
             <Button
               variante="secundario"
               onClick={() => {
-                const extras = escalaExistente ? ' A escala vinculada e as respostas também serão excluídas.' : ' As respostas também serão excluídas.'
+                const extras = planejamentoExistente ? ' A planejamento vinculada e as respostas também serão excluídas.' : ' As respostas também serão excluídas.'
                 if (confirm(`Excluir a chamada de ${formatarData(chamada.data)}?${extras}`)) {
                   removerChamada(chamada.id)
                   navigate('/chamadas')
@@ -208,16 +208,16 @@ export function ChamadaDetail() {
               🗑️ Excluir
             </Button>
           )}
-          {escalaExistente ? (
+          {planejamentoExistente ? (
             <Link
-              to={`/escalas/${escalaExistente.id}`}
+              to={`/planejamento/${planejamentoExistente.id}`}
               className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
             >
-              📋 Ver escala →
+              📋 Ver planejamento →
             </Link>
           ) : (
             <Button variante="ml" onClick={abrirMontagem}>
-              📋 Montar escala
+              📋 Montar planejamento
             </Button>
           )}
         </div>
@@ -234,17 +234,17 @@ export function ChamadaDetail() {
       {/* De onde vem cada número — o painel nunca mostra disponível sem lastro. */}
       <p className="-mt-2 text-xs text-slate-500">
         {(() => {
-          const daAgenda = respostas.filter(veioDaAgenda).length
-          const naChamada = respostas.length - daAgenda
+          const daDisponibilidade = respostas.filter(veioDaDisponibilidade).length
+          const naChamada = respostas.length - daDisponibilidade
           if (respostas.length === 0)
-            return '⏳ Ninguém respondeu ainda e ninguém marcou este dia na agenda — todos constam como pendentes.'
+            return '⏳ Ninguém respondeu ainda e ninguém marcou este dia na disponibilidade — todos constam como pendentes.'
           return (
             <>
               📊 <strong>{naChamada}</strong> responderam à chamada
-              {daAgenda > 0 && (
+              {daDisponibilidade > 0 && (
                 <>
                   {' '}
-                  • <strong>{daAgenda}</strong> vieram da agenda que o motorista já tinha marcado para{' '}
+                  • <strong>{daDisponibilidade}</strong> vieram da disponibilidade que o motorista já tinha marcado para{' '}
                   {formatarData(chamada.data)} (marcados com 📅 na lista)
                 </>
               )}
@@ -370,8 +370,8 @@ export function ChamadaDetail() {
         </Card>
       </div>
 
-      {/* Modal de montagem de escala */}
-      <Modal aberto={modalEscala} titulo="📋 Montar escala" onFechar={() => setModalEscala(false)}>
+      {/* Modal de montagem de planejamento */}
+      <Modal aberto={modalPlanejamento} titulo="📋 Montar planejamento" onFechar={() => setModalPlanejamento(false)}>
         <p className="mb-3 text-sm text-slate-500">
           Sugestão automática: disponíveis primeiro, ordenados pelo melhor histórico. Ajuste como quiser.
         </p>
@@ -406,14 +406,14 @@ export function ChamadaDetail() {
                           ? 'border-ml-azul bg-blue-50'
                           : 'border-slate-200 hover:bg-slate-50'
                     }`}
-                    title={pendente ? 'Só pode ser escalado depois de finalizar a(s) rota(s) em andamento.' : undefined}
+                    title={pendente ? 'Só entra no planejamento depois de finalizar a(s) rota(s) em andamento.' : undefined}
                   >
                     <span className="text-base">{pendente ? '🚧' : ativo ? '☑️' : '⬜'}</span>
                     <Avatar nome={m.nome} tamanho="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{m.nome}</span>
                       <span className="text-[11px] text-slate-500">
-                        {pendente ? '🚧 rota em andamento — finalize para escalar' : `${m.cidade} • ${m.veiculo}`}
+                        {pendente ? '🚧 rota em andamento — finalize para entrar' : `${m.cidade} • ${m.veiculo}`}
                       </span>
                     </span>
                     <StatusPill resposta={r} />
@@ -423,11 +423,11 @@ export function ChamadaDetail() {
             })}
         </ul>
         <div className="mt-4 flex justify-end gap-2">
-          <Button variante="secundario" onClick={() => setModalEscala(false)}>
+          <Button variante="secundario" onClick={() => setModalPlanejamento(false)}>
             Cancelar
           </Button>
-          <Button variante="ml" onClick={criarEscala} disabled={selecionados.size === 0}>
-            📋 Criar escala com {selecionados.size}
+          <Button variante="ml" onClick={criarPlanejamento} disabled={selecionados.size === 0}>
+            📋 Criar planejamento com {selecionados.size}
           </Button>
         </div>
       </Modal>

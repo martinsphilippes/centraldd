@@ -19,13 +19,13 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoRodizio: 5,
   janelaRodizioDias: 7,
   maxVezesSeguidasMesmaCidade: 0,
-  exigirDisponibilidadeAgenda: false,
-  bonusDisponivelAgenda: 3,
+  exigirDisponibilidadeMarcada: false,
+  bonusDisponivelMarcado: 3,
   exigirVeiculoCompativel: false,
   equivalenciasVeiculo: 'VUC = HR, Van\nUTILITARIO = Fiorino, Van, HR\nVEÍCULO DE PASSEIO = Carro passeio',
   autoAplicarAcimaDe: 0,
-  maxDiasAgendados: 2,
-  horarioCorteAgenda: '',
+  maxDiasDisponiveis: 2,
+  horarioCorteDisponibilidade: '',
   diasAntecedenciaCorte: 1,
   limiteAutomatico: true,
   limiteFolgaPercentual: 10,
@@ -33,11 +33,27 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   atualizadoEm: '',
 }
 
+/** Campos renomeados: valor salvo com o nome antigo → nome atual. */
+const CAMPOS_RENOMEADOS: Record<string, keyof ParametrosAlocacao> = {
+  exigirDisponibilidadeAgenda: 'exigirDisponibilidadeMarcada',
+  bonusDisponivelAgenda: 'bonusDisponivelMarcado',
+  horarioCorteAgenda: 'horarioCorteDisponibilidade',
+  maxDiasAgendados: 'maxDiasDisponiveis',
+}
+
 export function parametrosAtuais(db: DB): ParametrosAlocacao {
   const salvo = db.config.find((c) => c.id === 'alocacao')
+  if (!salvo) return PARAMETROS_PADRAO
+  // Aproveita o que foi salvo com o nome antigo do campo, para a renomeação
+  // não jogar fora a parametrização que o Dispatcher já tinha feito.
+  const bruto = salvo as unknown as Record<string, unknown>
+  const recuperados: Record<string, unknown> = {}
+  for (const [antigo, atual] of Object.entries(CAMPOS_RENOMEADOS)) {
+    if (bruto[atual] === undefined && bruto[antigo] !== undefined) recuperados[atual] = bruto[antigo]
+  }
   // Mescla com o padrão: configurações salvas antes de um campo novo existir
   // ganham o valor padrão desse campo automaticamente.
-  return salvo ? { ...PARAMETROS_PADRAO, ...salvo } : PARAMETROS_PADRAO
+  return { ...PARAMETROS_PADRAO, ...salvo, ...recuperados }
 }
 
 function norm(s: string): string {
@@ -104,11 +120,11 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
   }
 
   const disponiveisHoje = new Set(
-    db.agenda
+    db.disponibilidade
       .filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status))
       .map((a) => a.motoristaId),
   )
-  const marcaramHoje = new Set(db.agenda.filter((a) => a.data === data).map((a) => a.motoristaId))
+  const marcaramHoje = new Set(db.disponibilidade.filter((a) => a.data === data).map((a) => a.motoristaId))
 
   /** Foi à cidade nos últimos N dias de trabalho SEGUIDOS? (trava de rodízio) */
   const estourouSequencia = (motoristaId: string, cidades: string[]): boolean => {
@@ -141,7 +157,7 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       // ---- Travas (excluem o candidato) ----
       const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
       if (algumaCidadeBate(cidades, bloqueadas)) continue
-      if (p.exigirDisponibilidadeAgenda && !disponiveisHoje.has(m.id)) continue
+      if (p.exigirDisponibilidadeMarcada && !disponiveisHoje.has(m.id)) continue
       if (marcaramHoje.has(m.id) && !disponiveisHoje.has(m.id)) continue // marcou indisponível/folga/férias
       if (p.exigirVeiculoCompativel) {
         const aceitos = equivalencias.get(norm(item.veiculo))
@@ -187,8 +203,8 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
         alertas.push(`🔁 foi ${repeticao}x nos últimos ${p.janelaRodizioDias} dias`)
       }
       if (disponiveisHoje.has(m.id)) {
-        pontos += p.exigirDisponibilidadeAgenda ? 0 : p.bonusDisponivelAgenda
-        motivos.push('✅ disponível na agenda')
+        pontos += p.exigirDisponibilidadeMarcada ? 0 : p.bonusDisponivelMarcado
+        motivos.push('✅ disponível na disponibilidade')
       }
 
       pares.push({ item, motorista: m, pontos, confianca: 0, motivos, alertas })

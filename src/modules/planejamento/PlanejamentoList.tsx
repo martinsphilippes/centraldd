@@ -10,38 +10,38 @@ const BADGE_STATUS = {
   concluida: { texto: '✔️ Concluída', cls: 'border-slate-200 bg-slate-100 text-slate-600' },
 } as const
 
-export function EscalasList() {
+export function PlanejamentoList() {
   const db = useDB()
-  const escalas = [...db.escalas].sort((a, b) => b.data.localeCompare(a.data))
-  // Chamada mais próxima ainda sem escala — o próximo passo da esteira.
+  const planejamento = [...db.planejamento].sort((a, b) => b.data.localeCompare(a.data))
+  // Chamada mais próxima ainda sem planejamento — o próximo passo da esteira.
   const chamadaAberta = db.chamadas
-    .filter((c) => c.status === 'aberta' && !db.escalas.some((e) => e.chamadaId === c.id))
+    .filter((c) => c.status === 'aberta' && !db.planejamento.some((e) => e.chamadaId === c.id))
     .sort((a, b) => a.data.localeCompare(b.data))[0]
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">📋 Escalas</h1>
-        <p className="text-sm text-slate-500">Monte escalas a partir do painel de uma chamada.</p>
+        <h1 className="text-xl font-bold text-slate-900">📋 Planejamento</h1>
+        <p className="text-sm text-slate-500">Monte planejamento a partir do painel de uma chamada.</p>
       </div>
-      {escalas.length === 0 ? (
-        // A escala nasce da chamada: se já existe chamada aberta, leva direto
+      {planejamento.length === 0 ? (
+        // A planejamento nasce da chamada: se já existe chamada aberta, leva direto
         // a ela; senão, o caminho é a Programação (resumo → 📢 chamar).
         <div className="space-y-3">
           <EmptyState
             icone="📋"
-            titulo="Nenhuma escala criada"
+            titulo="Nenhuma planejamento criada"
             descricao={
               chamadaAberta
-                ? `A escala sai da chamada de ${formatarData(chamadaAberta.data)}: abra a chamada e toque em 📋 Montar escala.`
-                : 'A escala vem depois da chamada: na Programação, preencha o resumo do dia e toque em 📢 Chamar motoristas.'
+                ? `A planejamento sai da chamada de ${formatarData(chamadaAberta.data)}: abra a chamada e toque em 📋 Montar planejamento.`
+                : 'A planejamento vem depois da chamada: na Programação, preencha o resumo do dia e toque em 📢 Chamar motoristas.'
             }
           />
           <div className="text-center">
             <Link to={chamadaAberta ? `/chamadas/${chamadaAberta.id}` : '/programacao'}>
               <Button variante="ml">
                 {chamadaAberta
-                  ? `📋 Montar escala de ${formatarData(chamadaAberta.data)} →`
+                  ? `📋 Montar planejamento de ${formatarData(chamadaAberta.data)} →`
                   : '📆 Ir para a Programação →'}
               </Button>
             </Link>
@@ -49,10 +49,10 @@ export function EscalasList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {escalas.map((e) => {
+          {planejamento.map((e) => {
             const badge = BADGE_STATUS[e.status]
             return (
-              <Link key={e.id} to={`/escalas/${e.id}`}>
+              <Link key={e.id} to={`/planejamento/${e.id}`}>
                 <Card className="flex items-center justify-between p-4 transition-colors hover:border-ml-azul">
                   <div>
                     <span className="font-bold text-slate-900">{e.nome}</span>

@@ -4,7 +4,8 @@ rules_version = '2';
 // Cole este conteúdo em: Console do Firebase → Firestore Database → Regras → Publicar.
 //
 // Modelo de acesso:
-//  - Dispatcher: lê e escreve tudo (chamadas, motoristas, escalas, agenda, notificações).
+//  - Dispatcher: lê e escreve tudo (chamadas, motoristas, planejamento,
+//    disponibilidade, notificações).
 //  - Motorista APROVADO: lê os dados da operação e só escreve a PRÓPRIA resposta/agenda.
 //  - Pré-cadastro: qualquer conta pode criar o próprio cadastro (aprovado=false) e
 //    o próprio perfil de motorista; só ganha acesso após aprovação do dispatcher.
@@ -83,6 +84,12 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
+    match /planejamento/{id} {
+      allow read: if logado();
+      allow write: if ehDispatcher();
+    }
+
+    // Nome antigo de 'planejamento'. Some quando os documentos forem copiados.
     match /escalas/{id} {
       allow read: if logado();
       allow write: if ehDispatcher();
@@ -95,7 +102,16 @@ service cloud.firestore {
         (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
     }
 
-    // Disponibilidade por data marcada pelo próprio motorista (agenda).
+    // Disponibilidade por data marcada pelo próprio motorista.
+    match /disponibilidade/{id} {
+      allow read: if logado();
+      allow create, update: if ehDispatcher() ||
+        (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
+      allow delete: if ehDispatcher() ||
+        (logado() && resource.data.motoristaId == meuMotoristaId());
+    }
+
+    // Nome antigo de 'disponibilidade'. Some quando os documentos forem copiados.
     match /agenda/{id} {
       allow read: if logado();
       allow create, update: if ehDispatcher() ||

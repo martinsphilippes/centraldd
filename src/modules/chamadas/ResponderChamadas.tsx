@@ -39,10 +39,10 @@ export function ResponderChamadas() {
   const minhaResposta = (c: Chamada) =>
     db.respostas.find((r) => r.chamadaId === c.id && r.motoristaId === motorista.id)
 
-  // Depois que o circuito anda (escala montada / chamada encerrada), a
+  // Depois que o circuito anda (planejamento montada / chamada encerrada), a
   // resposta fica CONCLUÍDA — só o Dispatcher pode mudar dali em diante.
   const respostaTravada = (c: Chamada) =>
-    c.status !== 'aberta' || db.escalas.some((e) => e.chamadaId === c.id)
+    c.status !== 'aberta' || db.planejamento.some((e) => e.chamadaId === c.id)
 
   const responder = (c: Chamada, status: StatusResposta) => {
     if (respostaTravada(c)) return

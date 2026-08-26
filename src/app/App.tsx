@@ -13,11 +13,11 @@ import { MotoristaForm } from '../modules/motoristas/MotoristaForm'
 import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
 import { MinhasCidades } from '../modules/motoristas/MinhasCidades'
 import { DispatchersList } from '../modules/motoristas/DispatchersList'
-import { EscalasList } from '../modules/escalas/EscalasList'
-import { EscalaDetail } from '../modules/escalas/EscalaDetail'
-import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
-import { MinhaAgenda } from '../modules/agenda/MinhaAgenda'
-import { AgendaFrota } from '../modules/agenda/AgendaFrota'
+import { PlanejamentoList } from '../modules/planejamento/PlanejamentoList'
+import { PlanejamentoDetail } from '../modules/planejamento/PlanejamentoDetail'
+import { MeuPlanejamento } from '../modules/planejamento/MeuPlanejamento'
+import { MinhaDisponibilidade } from '../modules/disponibilidade/MinhaDisponibilidade'
+import { DisponibilidadeFrota } from '../modules/disponibilidade/DisponibilidadeFrota'
 import { Rotas } from '../modules/rotas/Rotas'
 import { MinhasRotas } from '../modules/rotas/MinhasRotas'
 import { CidadesOperacao } from '../modules/rotas/CidadesOperacao'
@@ -73,7 +73,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/chamadas" element={<ChamadasList />} />
             <Route path="/chamadas/:id" element={<ChamadaDetail />} />
-            <Route path="/agenda-frota" element={<AgendaFrota />} />
+            <Route path="/disponibilidade" element={<DisponibilidadeFrota />} />
             <Route path="/rotas" element={<Rotas />} />
             <Route path="/cidades" element={<CidadesOperacao />} />
             <Route path="/tipos" element={<TiposOperacao />} />
@@ -83,8 +83,8 @@ export default function App() {
             <Route path="/motoristas/novo" element={<MotoristaForm />} />
             <Route path="/motoristas/:id" element={<MotoristaDetail />} />
             <Route path="/motoristas/:id/editar" element={<MotoristaForm />} />
-            <Route path="/escalas" element={<EscalasList />} />
-            <Route path="/escalas/:id" element={<EscalaDetail />} />
+            <Route path="/planejamento" element={<PlanejamentoList />} />
+            <Route path="/planejamento/:id" element={<PlanejamentoDetail />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
@@ -93,8 +93,8 @@ export default function App() {
             <Route path="/responder" element={<ResponderChamadas />} />
             <Route path="/minhas-rotas" element={<MinhasRotas />} />
             <Route path="/minhas-cidades" element={<MinhasCidades />} />
-            <Route path="/agenda" element={<MinhaAgenda />} />
-            <Route path="/minhas-escalas" element={<MinhasEscalas />} />
+            <Route path="/minha-disponibilidade" element={<MinhaDisponibilidade />} />
+            <Route path="/meu-planejamento" element={<MeuPlanejamento />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
             <Route path="*" element={<Navigate to="/responder" replace />} />
           </>

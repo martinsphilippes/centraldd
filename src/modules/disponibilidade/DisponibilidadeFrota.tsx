@@ -1,26 +1,26 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { removerLimiteDia, salvarDiaAgenda, salvarLimiteDia, useDB } from '../../core/db'
+import { removerLimiteDia, salvarDiaDisponibilidade, salvarLimiteDia, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { calcularLimiteDoDia } from '../../core/limites'
 import { parametrosAtuais } from '../../core/alocacao'
 import { hojeISO, formatarData, formatarQuando, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
-import type { DiaAgenda, Motorista } from '../../core/types'
+import type { DiaDisponibilidade, Motorista } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Avatar, Badge, Button, Card, EmptyState, ProgressBar, Select, StatCard } from '../../components/ui'
 
 const DIAS_VISIVEIS = 14
 
-function detalheDe(a: DiaAgenda): string {
+function detalheDe(a: DiaDisponibilidade): string {
   if (a.status === 'apos_horario' && a.horario) return `após ${a.horario}`
   if (a.status === 'meio_periodo' && a.periodo) return a.periodo === 'manha' ? 'manhã' : 'tarde'
   return a.observacao ?? ''
 }
 
-/** Visão do dispatcher: dia a dia, quem trabalha e quem não trabalha (agenda dos motoristas). */
-export function AgendaFrota() {
+/** Visão do dispatcher: dia a dia, quem trabalha e quem não trabalha (disponibilidade dos motoristas). */
+export function DisponibilidadeFrota() {
   const db = useDB()
   const { usuarioEmail } = useSessao()
   const dias = useMemo(() => Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i)), [])
@@ -49,7 +49,7 @@ export function AgendaFrota() {
     )
       return
     for (const m of ficticios) {
-      salvarDiaAgenda({ motoristaId: m.id, data: diaSelecionado, status: 'disponivel' })
+      salvarDiaDisponibilidade({ motoristaId: m.id, data: diaSelecionado, status: 'disponivel' })
     }
     setAvisoSimulacao(
       `🧪 ${ficticios.length} fictícios marcados como disponíveis em ${rotuloDia(diaSelecionado)}.`,
@@ -60,7 +60,7 @@ export function AgendaFrota() {
   const limiteCalc = calcularLimiteDoDia(db, diaSelecionado, parametrosAtuais(db))
   const limiteDoDia = limiteCalc.limite !== null ? { maxDisponiveis: limiteCalc.limite } : null
   // Total de disponíveis do dia SEM filtros (é o número que consome as vagas).
-  const disponiveisTotais = db.agenda.filter(
+  const disponiveisTotais = db.disponibilidade.filter(
     (a) => a.data === diaSelecionado && STATUS_DISPONIVEIS.includes(a.status),
   ).length
 
@@ -74,7 +74,7 @@ export function AgendaFrota() {
   const equipes = [...new Set(db.motoristas.map((m) => m.equipe))].filter(Boolean).sort()
 
   const marcacaoDe = (m: Motorista, data: string) =>
-    db.agenda.find((a) => a.motoristaId === m.id && a.data === data)
+    db.disponibilidade.find((a) => a.motoristaId === m.id && a.data === data)
 
   const doDia = frota.map((m) => ({ motorista: m, marcacao: marcacaoDe(m, diaSelecionado) }))
   const trabalham = doDia.filter((x) => x.marcacao && STATUS_DISPONIVEIS.includes(x.marcacao.status))
@@ -94,7 +94,7 @@ export function AgendaFrota() {
   }
 
   const tabelaDia = (): Tabela => ({
-    titulo: `Agenda da frota ${formatarData(diaSelecionado)}`,
+    titulo: `Disponibilidade da frota ${formatarData(diaSelecionado)}`,
     colunas: ['Motorista', 'Telefone', 'Cidade', 'Equipe', 'Veículo', 'Vai trabalhar?', 'Status', 'Detalhe'],
     linhas: [...trabalham, ...naoTrabalham, ...semMarcacao].map(({ motorista: m, marcacao }) => [
       m.nome,
@@ -109,7 +109,7 @@ export function AgendaFrota() {
   })
 
   const tabelaPeriodo = (): Tabela => ({
-    titulo: `Agenda da frota ${formatarData(dias[0])} a ${formatarData(dias[dias.length - 1])}`,
+    titulo: `Disponibilidade da frota ${formatarData(dias[0])} a ${formatarData(dias[dias.length - 1])}`,
     colunas: [
       'Motorista',
       ...dias.map((d) => parseISODate(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
@@ -126,15 +126,15 @@ export function AgendaFrota() {
     ]),
   })
 
-  // Fecha o ciclo com a esteira: quem já está na escala do dia fica marcado.
-  const escaladosDoDia = new Set(
-    db.escalas.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
+  // Fecha o ciclo com a esteira: quem já está na planejamento do dia fica marcado.
+  const doPlanejamentoDoDia = new Set(
+    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
   )
-  // Ciclo do dia FECHADO: escala do dia concluída com o motorista, ou (hoje)
+  // Ciclo do dia FECHADO: planejamento do dia concluída com o motorista, ou (hoje)
   // todas as rotas direcionadas a ele finalizadas/encerradas — interligado
   // com as telas de Rotas e Escalas.
   const concluidosDoDia = new Set<string>(
-    db.escalas
+    db.planejamento
       .filter((e) => e.data === diaSelecionado && e.status === 'concluida')
       .flatMap((e) => e.motoristaIds),
   )
@@ -145,7 +145,7 @@ export function AgendaFrota() {
     }
   }
 
-  const LinhaMotorista = ({ m, a }: { m: Motorista; a?: DiaAgenda }) => (
+  const LinhaMotorista = ({ m, a }: { m: Motorista; a?: DiaDisponibilidade }) => (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
       <Avatar nome={m.nome} tamanho="sm" />
       <div className="min-w-0 flex-1">
@@ -164,8 +164,8 @@ export function AgendaFrota() {
       {concluidosDoDia.has(m.id) ? (
         <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>
       ) : (
-        escaladosDoDia.has(m.id) && (
-          <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 escalado</Badge>
+        doPlanejamentoDoDia.has(m.id) && (
+          <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 no planejamento</Badge>
         )
       )}
       {a ? (
@@ -177,7 +177,7 @@ export function AgendaFrota() {
         <a
           href={linkWhatsApp(
             m,
-            `Olá, ${m.nome.split(' ')[0]}! 🚚 Marque sua disponibilidade para ${rotuloDia(diaSelecionado).toLowerCase()} na Agenda do app MLDisponibilidade, por favor. 🙏`,
+            `Olá, ${m.nome.split(' ')[0]}! 🚚 Marque sua disponibilidade para ${rotuloDia(diaSelecionado).toLowerCase()} na tela Disponibilidade do app MLDisponibilidade, por favor. 🙏`,
           )}
           target="_blank"
           rel="noreferrer"
@@ -194,9 +194,9 @@ export function AgendaFrota() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">📅 Agenda da frota</h1>
+          <h1 className="text-xl font-bold text-slate-900">📅 Disponibilidade da frota</h1>
           <p className="text-sm text-slate-500">
-            O que cada motorista marcou na própria agenda — dia a dia, em tempo real.
+            O que cada motorista marcou na própria disponibilidade — dia a dia, em tempo real.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -432,7 +432,7 @@ export function AgendaFrota() {
         <Card className="p-4">
           <h2 className="mb-3 font-bold text-slate-600">❔ Não informaram ({semMarcacao.length})</h2>
           {semMarcacao.length === 0 ? (
-            <EmptyState icone="✅" titulo="Todos marcaram a agenda!" />
+            <EmptyState icone="✅" titulo="Todos marcaram a disponibilidade!" />
           ) : (
             <ul className="space-y-2">
               {semMarcacao.map(({ motorista }) => (

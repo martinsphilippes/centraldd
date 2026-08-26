@@ -790,9 +790,9 @@ export function Programacao() {
                 <Input type="number" min={1} max={60} value={paramsEdit.janelaRodizioDias}
                   onChange={(e) => setParamsEdit({ ...paramsEdit, janelaRodizioDias: Number(e.target.value) })} />
               </Field>
-              <Field label="✅ Bônus disponível na agenda">
-                <Input type="number" min={0} max={10} value={paramsEdit.bonusDisponivelAgenda}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, bonusDisponivelAgenda: Number(e.target.value) })} />
+              <Field label="✅ Bônus disponível na disponibilidade">
+                <Input type="number" min={0} max={10} value={paramsEdit.bonusDisponivelMarcado}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, bonusDisponivelMarcado: Number(e.target.value) })} />
               </Field>
               <Field label="📆 Janela do histórico (dias, 0=tudo)">
                 <Input type="number" min={0} max={365} value={paramsEdit.janelaHistoricoDias}
@@ -803,9 +803,9 @@ export function Programacao() {
             <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Travas (excluem o motorista)</p>
               <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirDisponibilidadeAgenda}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirDisponibilidadeAgenda: e.target.checked })} />
-                Só sugerir quem marcou <strong>disponível</strong> na agenda do dia
+                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirDisponibilidadeMarcada}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirDisponibilidadeMarcada: e.target.checked })} />
+                Só sugerir quem marcou <strong>disponível</strong> na disponibilidade do dia
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirVeiculoCompativel}
@@ -816,14 +816,14 @@ export function Programacao() {
                 <Input type="number" min={0} max={30} value={paramsEdit.maxVezesSeguidasMesmaCidade}
                   onChange={(e) => setParamsEdit({ ...paramsEdit, maxVezesSeguidasMesmaCidade: Number(e.target.value) })} />
               </Field>
-              <Field label="📌 Máximo de dias futuros que o motorista pode deixar agendados na agenda (0 = sem limite)">
-                <Input type="number" min={0} max={14} value={paramsEdit.maxDiasAgendados}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxDiasAgendados: Number(e.target.value) })} />
+              <Field label="📌 Máximo de dias futuros que o motorista pode deixar marcados como disponível (0 = sem limite)">
+                <Input type="number" min={0} max={14} value={paramsEdit.maxDiasDisponiveis}
+                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxDiasDisponiveis: Number(e.target.value) })} />
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="🔒 Horário de corte da disponibilidade (vazio = sem corte)">
-                  <Input type="time" value={paramsEdit.horarioCorteAgenda}
-                    onChange={(e) => setParamsEdit({ ...paramsEdit, horarioCorteAgenda: e.target.value })} />
+                  <Input type="time" value={paramsEdit.horarioCorteDisponibilidade}
+                    onChange={(e) => setParamsEdit({ ...paramsEdit, horarioCorteDisponibilidade: e.target.value })} />
                 </Field>
                 <Field label="📆 Quantos dias antes o corte acontece">
                   <Input type="number" min={0} max={7} value={paramsEdit.diasAntecedenciaCorte}
@@ -831,10 +831,10 @@ export function Programacao() {
                 </Field>
               </div>
               <p className="text-[11px] text-slate-500">
-                🔒 {paramsEdit.horarioCorteAgenda.trim() ? (
+                🔒 {paramsEdit.horarioCorteDisponibilidade.trim() ? (
                   <>
                     Para entrar num dia, o motorista tem até as{' '}
-                    <strong>{paramsEdit.horarioCorteAgenda}</strong>{' '}
+                    <strong>{paramsEdit.horarioCorteDisponibilidade}</strong>{' '}
                     <strong>
                       {paramsEdit.diasAntecedenciaCorte === 0
                         ? 'do próprio dia'
@@ -844,7 +844,7 @@ export function Programacao() {
                     </strong>
                     . Passado o prazo, ele não consegue mais se declarar disponível — mas continua
                     podendo avisar indisponibilidade, folga, atestado ou férias a qualquer hora, e
-                    você segue livre para ajustar a agenda dele por aqui.
+                    você segue livre para ajustar a disponibilidade dele por aqui.
                   </>
                 ) : (
                   <>
@@ -855,8 +855,8 @@ export function Programacao() {
                 )}
               </p>
               <p className="text-[11px] text-slate-500">
-                📌 Com o limite em 2: o motorista agenda até 2 dias; quando trabalha um (a data passa),
-                libera vaga para agendar o próximo — reduz o risco de escala furada.
+                📌 Com o limite em 2: o motorista disponibilidade até 2 dias; quando trabalha um (a data passa),
+                libera vaga para marcar o próximo — reduz o risco de planejamento furado.
                 <br />💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
                 Cidades bloqueadas/preferidas de cada um ficam no cadastro do motorista.
               </p>
@@ -903,7 +903,7 @@ export function Programacao() {
               </div>
               <p className="mt-1.5 text-[11px] text-slate-600">
                 Limite = <strong>rotas planejadas + reserva</strong>. Ex.: 55 rotas com 10% e +0 fixo → 61
-                disponíveis no máximo. A reserva cobre furo de última hora sem estourar a escala. Na Agenda
+                disponíveis no máximo. A reserva cobre furo de última hora sem estourar o planejamento. Na Disponibilidade
                 dá para sobrescrever o limite de um dia específico à mão.
               </p>
             </div>

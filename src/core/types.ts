@@ -68,20 +68,20 @@ export interface Resposta {
   respondidaEm: string
 }
 
-export type StatusEscala = 'rascunho' | 'publicada' | 'concluida'
+export type StatusPlanejamento = 'rascunho' | 'publicada' | 'concluida'
 
-export interface Escala {
+export interface Planejamento {
   id: string
   chamadaId: string
   nome: string
   data: string
   motoristaIds: string[]
-  status: StatusEscala
+  status: StatusPlanejamento
   criadaEm: string
 }
 
 /** Disponibilidade marcada pelo próprio motorista para uma data específica. */
-export interface DiaAgenda {
+export interface DiaDisponibilidade {
   id: string // `${motoristaId}_${data}`
   motoristaId: string
   data: string // YYYY-MM-DD
@@ -167,10 +167,10 @@ export interface ParametrosAlocacao {
   janelaRodizioDias: number
   /** Trava: depois de N dias seguidos na mesma cidade, o motorista é excluído dela (0 = desligado). */
   maxVezesSeguidasMesmaCidade: number
-  /** Só sugere quem marcou disponibilidade na agenda do dia. */
-  exigirDisponibilidadeAgenda: boolean
+  /** Só sugere quem marcou disponibilidade na disponibilidade do dia. */
+  exigirDisponibilidadeMarcada: boolean
   /** Bônus para quem marcou disponibilidade (quando não é obrigatório). */
-  bonusDisponivelAgenda: number
+  bonusDisponivelMarcado: number
   /** Só sugere motorista com veículo compatível com o da rota. */
   exigirVeiculoCompativel: boolean
   /** Equivalências "veículo da rota = veículos do cadastro", uma por linha. Ex.: VUC = HR, Van */
@@ -178,12 +178,12 @@ export interface ParametrosAlocacao {
   /** Auto-alocação: aplica sozinho as sugestões com confiança ≥ este % (0 = desligado). */
   autoAplicarAcimaDe: number
   /**
-   * Máximo de dias FUTUROS que o motorista pode deixar agendados como disponível
-   * na agenda (0 = sem limite). Trabalhou um dia → a data passa → libera vaga.
+   * Máximo de dias FUTUROS que o motorista pode deixar marcados como disponível
+   * na disponibilidade (0 = sem limite). Trabalhou um dia → a data passa → libera vaga.
    */
-  maxDiasAgendados: number
+  maxDiasDisponiveis: number
   /** Horário limite para declarar disponibilidade ('' = sem corte). Ex.: '21:00'. */
-  horarioCorteAgenda: string
+  horarioCorteDisponibilidade: string
   /** Quantos dias antes do dia trabalhado o corte acontece (1 = na véspera). */
   diasAntecedenciaCorte: number
   /** Calcular o limite de disponíveis do dia a partir do planejamento. */
@@ -282,8 +282,8 @@ export interface DB {
   motoristas: Motorista[]
   chamadas: Chamada[]
   respostas: Resposta[]
-  escalas: Escala[]
-  agenda: DiaAgenda[]
+  planejamento: Planejamento[]
+  disponibilidade: DiaDisponibilidade[]
   limites: LimiteDia[]
   rotas: Rota[]
   programacao: ProgramacaoItem[]

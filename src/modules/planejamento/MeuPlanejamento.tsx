@@ -3,15 +3,15 @@ import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import { Badge, Card, EmptyState } from '../../components/ui'
 
-// Do lado do motorista, a escala montada pelo Dispatcher se chama
+// Do lado do motorista, a planejamento montada pelo Dispatcher se chama
 // PLANEJAMENTO — é o nome que ele entende: o que está planejado para o dia.
 
 /** Visão do motorista: planejamentos publicados em que ele está. */
-export function MinhasEscalas() {
+export function MeuPlanejamento() {
   const db = useDB()
   const { motoristaId } = useSessao()
 
-  const minhas = db.escalas
+  const minhas = db.planejamento
     .filter((e) => e.status !== 'rascunho' && motoristaId && e.motoristaIds.includes(motoristaId))
     .sort((a, b) => b.data.localeCompare(a.data))
 

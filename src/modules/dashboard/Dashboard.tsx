@@ -26,8 +26,8 @@ export function Dashboard() {
   const disponiveisHoje = resumosHoje.reduce((s, r) => s + r.disponiveis, 0)
   const indisponiveisHoje = resumosHoje.reduce((s, r) => s + r.indisponiveis, 0)
   const pendentesHoje = resumosHoje.reduce((s, r) => s + r.pendentes.length, 0)
-  const escalasConcluidas = db.escalas.filter((e) => e.status === 'concluida').length
-  const escalasAbertas = db.escalas.filter((e) => e.status !== 'concluida')
+  const planejamentosConcluidos = db.planejamento.filter((e) => e.status === 'concluida').length
+  const planejamentosAbertos = db.planejamento.filter((e) => e.status !== 'concluida')
   const entregasHoje = chamadasHoje.reduce((s, c) => s + c.qtdNecessaria, 0)
 
   const serie = serieDisponibilidade(db, hojeISO(-6), hojeISO(1))
@@ -70,7 +70,7 @@ export function Dashboard() {
         <StatCard icone="✅" valor={disponiveisHoje} rotulo="Disponíveis hoje" />
         <StatCard icone="❌" valor={indisponiveisHoje} rotulo="Indisponíveis hoje" />
         <StatCard icone="⏳" valor={pendentesHoje} rotulo="Pendentes de resposta" />
-        <StatCard icone="📋" valor={escalasConcluidas} rotulo="Escalas concluídas" />
+        <StatCard icone="📋" valor={planejamentosConcluidos} rotulo="Escalas concluídas" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -120,24 +120,24 @@ export function Dashboard() {
         {/* Escalas em andamento */}
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold text-slate-900">📍 Rotas e escalas em andamento</h2>
-            <Link to="/escalas" className="text-xs font-semibold text-ml-azul hover:underline">
+            <h2 className="font-bold text-slate-900">📍 Rotas e planejamento em andamento</h2>
+            <Link to="/planejamento" className="text-xs font-semibold text-ml-azul hover:underline">
               Ver todas →
             </Link>
           </div>
-          {escalasAbertas.length === 0 ? (
-            <EmptyState icone="📋" titulo="Nenhuma escala em andamento" descricao="Monte a escala a partir do painel de uma chamada." />
+          {planejamentosAbertos.length === 0 ? (
+            <EmptyState icone="📋" titulo="Nenhuma planejamento em andamento" descricao="Monte a planejamento a partir do painel de uma chamada." />
           ) : (
             <ul className="space-y-3">
-              {escalasAbertas.slice(0, 4).map((e) => (
+              {planejamentosAbertos.slice(0, 4).map((e) => (
                 <li key={e.id}>
                   <Link
-                    to={`/escalas/${e.id}`}
+                    to={`/planejamento/${e.id}`}
                     className="flex items-center justify-between rounded-lg border border-slate-200 p-3 transition-colors hover:border-ml-azul hover:bg-blue-50/50"
                   >
                     <div>
                       <span className="font-semibold text-slate-800">{e.nome}</span>
-                      <p className="text-xs text-slate-500">📅 {rotuloDia(e.data)} • 🚚 {e.motoristaIds.length} escalados</p>
+                      <p className="text-xs text-slate-500">📅 {rotuloDia(e.data)} • 🚚 {e.motoristaIds.length} no planejamento</p>
                     </div>
                     <Badge
                       className={

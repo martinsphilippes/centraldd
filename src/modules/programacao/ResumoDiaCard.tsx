@@ -199,7 +199,7 @@ export function ResumoDiaCard({
   // ---------- Chamada automática a partir do resumo ----------
   // A meta vem do próprio card (TOTAL ROTAS); a frota inteira é notificada.
   const chamadaDoDia = db.chamadas.find((c) => c.data === data)
-  // Conta também quem marcou disponibilidade na agenda daquele dia.
+  // Conta também quem marcou disponibilidade na disponibilidade daquele dia.
   const respostasDoDia = chamadaDoDia ? respostasDaChamada(db, chamadaDoDia.id) : []
   const disponiveisNaChamada = respostasDoDia.filter((resp) =>
     STATUS_DISPONIVEIS.includes(resp.status),

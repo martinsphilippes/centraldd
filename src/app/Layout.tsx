@@ -6,8 +6,8 @@ import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
 
-// O menu segue a ESTEIRA da operação: partida (agenda ∥ programação),
-// depois chamada → escala → rotas, e por fim cadastro e análise.
+// O menu segue a ESTEIRA da operação: partida (disponibilidade ∥ programação),
+// depois chamada → planejamento → rotas, e por fim cadastro e análise.
 interface ItemNav {
   para: string
   rotulo: string
@@ -22,9 +22,9 @@ interface ItemNav {
 const NAV_DISPATCHER: ItemNav[] = [
   { para: '/', rotulo: 'Dashboard', icone: '📊', grupo: 'Painel' },
   { para: '/programacao', rotulo: 'Programação', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
-  { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
+  { para: '/disponibilidade', rotulo: 'Disponibilidade', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia', passo: 2 },
-  { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
+  { para: '/planejamento', rotulo: 'Planejamento', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
   { para: '/dispatchers', rotulo: 'Dispatchers', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
@@ -35,8 +35,8 @@ const NAV_DISPATCHER: ItemNav[] = [
 
 const NAV_MOTORISTA: ItemNav[] = [
   { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia', passo: 1 },
-  { para: '/agenda', rotulo: 'Agenda', icone: '📅', grupo: 'Meu dia', passo: 1 },
-  { para: '/minhas-escalas', rotulo: 'Planejamento', icone: '📋', grupo: 'Meu dia', passo: 2 },
+  { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', icone: '📅', grupo: 'Meu dia', passo: 1 },
+  { para: '/meu-planejamento', rotulo: 'Planejamento', icone: '📋', grupo: 'Meu dia', passo: 2 },
   { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },

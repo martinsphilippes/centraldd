@@ -16,7 +16,7 @@ interface Item {
 const TOLERANCIA_LINHA = 3
 /** Espaço horizontal mínimo para considerar que começou outra coluna. */
 const ESPACO_COLUNA = 6
-/** Escala de renderização das páginas para o OCR (maior = mais nítido). */
+/** Planejamento de renderização das páginas para o OCR (maior = mais nítido). */
 const ESCALA_OCR = 2.5
 
 async function carregarPdfjs() {
@@ -299,13 +299,13 @@ async function imagemParaCanvas(arquivo: Blob): Promise<HTMLCanvasElement> {
   // protege a memória do celular.
   const LARGURA_ALVO = 2400
   const MAX_PIXELS = 13_000_000
-  let escala = Math.min(6, LARGURA_ALVO / largura)
-  if (largura * altura * escala * escala > MAX_PIXELS) {
-    escala = Math.sqrt(MAX_PIXELS / (largura * altura))
+  let planejamento = Math.min(6, LARGURA_ALVO / largura)
+  if (largura * altura * planejamento * planejamento > MAX_PIXELS) {
+    planejamento = Math.sqrt(MAX_PIXELS / (largura * altura))
   }
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(largura * escala)
-  canvas.height = Math.round(altura * escala)
+  canvas.width = Math.round(largura * planejamento)
+  canvas.height = Math.round(altura * planejamento)
   const contexto = canvas.getContext('2d')
   if (!contexto) throw new Error('canvas indisponível')
   contexto.imageSmoothingEnabled = true
@@ -509,10 +509,10 @@ export function obterUltimaDimensaoOcr(): { largura: number; altura: number } {
 
 function gerarMiniatura(canvas: HTMLCanvasElement): string {
   try {
-    const escala = Math.min(1, 900 / canvas.width)
+    const planejamento = Math.min(1, 900 / canvas.width)
     const c = document.createElement('canvas')
-    c.width = Math.max(1, Math.round(canvas.width * escala))
-    c.height = Math.max(1, Math.round(canvas.height * escala))
+    c.width = Math.max(1, Math.round(canvas.width * planejamento))
+    c.height = Math.max(1, Math.round(canvas.height * planejamento))
     c.getContext('2d')?.drawImage(canvas, 0, 0, c.width, c.height)
     return c.toDataURL('image/jpeg', 0.6)
   } catch {

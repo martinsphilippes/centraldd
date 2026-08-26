@@ -32,7 +32,7 @@ export function DispatchersList() {
     if (!souDono) return
     if (
       !confirm(
-        `Aprovar ${m.nome} como DISPATCHER?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
+        `Aprovar ${m.nome} como DISPATCHER?\nEle terá acesso total ao painel: programação, rotas, planejamento, parâmetros e aprovações.`,
       )
     )
       return

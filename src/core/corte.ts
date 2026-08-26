@@ -1,13 +1,13 @@
 // Horário de corte da disponibilidade.
 //
 // Regra: para dizer que está DISPONÍVEL num dia D, o motorista tem até
-// `horarioCorteAgenda` do dia (D − diasAntecedenciaCorte). Ex.: corte às 21:00
+// `horarioCorteDisponibilidade` do dia (D − diasAntecedenciaCorte). Ex.: corte às 21:00
 // com 1 dia de antecedência → a disponibilidade de amanhã fecha hoje às 21:00.
 //
 // Passado o prazo, só a declaração de DISPONIBILIDADE trava. Avisar que ficou
 // indisponível (folga, atestado, férias, imprevisto) continua liberado a
 // qualquer hora — segurar essa informação só prejudicaria a operação.
-// O Dispatcher não é afetado: ele ajusta a agenda de quem for preciso.
+// O Dispatcher não é afetado: ele ajusta a disponibilidade de quem for preciso.
 
 import type { ParametrosAlocacao } from './types'
 import { formatarQuando, parseISODate } from './dates'
@@ -28,7 +28,7 @@ export function prazoDisponibilidade(
   p: ParametrosAlocacao,
   agora: Date = new Date(),
 ): PrazoDisponibilidade {
-  const horario = (p.horarioCorteAgenda ?? '').trim()
+  const horario = (p.horarioCorteDisponibilidade ?? '').trim()
   const m = /^(\d{1,2}):(\d{2})$/.exec(horario)
   if (!m || !data) return SEM_CORTE
 

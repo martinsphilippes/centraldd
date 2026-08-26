@@ -15,9 +15,9 @@ export interface ResumoChamada {
 
 /**
  * Respostas que valem para a chamada: as que o motorista deu na própria
- * chamada MAIS o que ele já tinha marcado na agenda daquele dia — os dois
+ * chamada MAIS o que ele já tinha marcado na disponibilidade daquele dia — os dois
  * lados se alimentam, então quem se programou antes não precisa responder
- * de novo (e o Dispatcher consegue montar a escala).
+ * de novo (e o Dispatcher consegue montar a planejamento).
  */
 export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
   const explicitas = db.respostas.filter((r) => r.chamadaId === chamadaId)
@@ -28,27 +28,27 @@ export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
   const elegiveis = new Set(
     db.motoristas.filter((m) => m.ativo && m.aprovado !== false).map((m) => m.id),
   )
-  const daAgenda: Resposta[] = db.agenda
+  const daDisponibilidade: Resposta[] = db.disponibilidade
     .filter(
       (a) =>
         a.data === chamada.data && !jaResponderam.has(a.motoristaId) && elegiveis.has(a.motoristaId),
     )
     .map((a) => ({
-      id: `agenda_${a.id}`,
+      id: `disponibilidade_${a.id}`,
       chamadaId,
       motoristaId: a.motoristaId,
       status: a.status,
       horario: a.horario,
       periodo: a.periodo,
-      observacao: a.observacao ?? 'marcado na agenda',
+      observacao: a.observacao ?? 'marcado na disponibilidade',
       respondidaEm: a.atualizadaEm,
     }))
-  return [...explicitas, ...daAgenda]
+  return [...explicitas, ...daDisponibilidade]
 }
 
-/** true = a "resposta" não foi dada na chamada; veio da agenda do motorista. */
-export function veioDaAgenda(r: Resposta): boolean {
-  return r.id.startsWith('agenda_')
+/** true = a "resposta" não foi dada na chamada; veio da disponibilidade do motorista. */
+export function veioDaDisponibilidade(r: Resposta): boolean {
+  return r.id.startsWith('disponibilidade_')
 }
 
 export function resumoChamada(db: DB, chamada: Chamada): ResumoChamada {
@@ -124,10 +124,10 @@ export function serieDisponibilidade(db: DB, dataIni: string, dataFim: string): 
 }
 
 /**
- * Sugestão automática de escala: disponíveis totais primeiro (melhor histórico primeiro),
- * depois parciais. Base para a futura "escala inteligente" por score.
+ * Sugestão automática de planejamento: disponíveis totais primeiro (melhor histórico primeiro),
+ * depois parciais. Base para a futura "planejamento inteligente" por score.
  */
-export function sugerirEscala(db: DB, chamada: Chamada): Motorista[] {
+export function sugerirPlanejamento(db: DB, chamada: Chamada): Motorista[] {
   const respostas = respostasDaChamada(db, chamada.id)
   const hist = new Map(
     estatisticasMotoristas(db, '0000-01-01', '9999-12-31').map((e) => [e.motorista.id, e]),

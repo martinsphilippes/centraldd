@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { removerDiaAgenda, salvarDiaAgenda, useDB } from '../../core/db'
+import { removerDiaDisponibilidade, salvarDiaDisponibilidade, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { hojeISO, formatarDataLonga, formatarQuando, rotuloDia } from '../../core/dates'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
@@ -12,7 +12,7 @@ import { Button, EmptyState, Field, Input, Modal, Select } from '../../component
 const DIAS_VISIVEIS = 14
 
 /** O motorista marca sua disponibilidade por data, sem depender de chamada aberta. */
-export function MinhaAgenda() {
+export function MinhaDisponibilidade() {
   const db = useDB()
   const { motoristaId } = useSessao()
   const [dataSelecionada, setDataSelecionada] = useState<string | null>(null)
@@ -28,7 +28,7 @@ export function MinhaAgenda() {
   const dias = Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i))
   /** Prazo para se declarar DISPONÍVEL no dia (indisponibilidade nunca trava). */
   const prazoDe = (data: string) => prazoDisponibilidade(data, params)
-  const minha = (data: string) => db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
+  const minha = (data: string) => db.disponibilidade.find((a) => a.motoristaId === motoristaId && a.data === data)
   const precisaComplemento = (s: StatusResposta) => s === 'apos_horario' || s === 'meio_periodo' || s === 'outro'
 
   // O limite do dia vem do planejamento + reserva parametrizada (ou manual).
@@ -37,23 +37,23 @@ export function MinhaAgenda() {
     return calc.limite !== null ? { maxDisponiveis: calc.limite } : undefined
   }
   const disponiveisEm = (data: string) =>
-    db.agenda.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
+    db.disponibilidade.filter((a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status)).length
 
-  // Limite de dias agendados: só conta dias marcados como DISPONÍVEL cujo
-  // ciclo ainda não fechou. Dia trabalhado (data passou) OU com a escala do
-  // dia concluída sai da conta e libera novo agendamento na hora.
+  // Limite de dias marcados: só conta dias marcados como DISPONÍVEL cujo
+  // ciclo ainda não fechou. Dia trabalhado (data passou) OU com a planejamento do
+  // dia concluída sai da conta e libera nova marcação na hora.
   // Indisponível, folga, atestado e férias são sempre livres.
-  const maxAgendados = parametrosAtuais(db).maxDiasAgendados
-  // "Dia concluído" = escala daquele dia concluída com ele, OU (para o dia de
+  const maxDiasMarcados = parametrosAtuais(db).maxDiasDisponiveis
+  // "Dia concluído" = planejamento daquele dia concluída com ele, OU (para o dia de
   // hoje) todas as rotas direcionadas a ele já finalizadas/encerradas.
   const minhasRotas = db.rotas.filter((r) => r.motoristaId === motoristaId)
   const trabalhoDeHojeEncerrado = minhasRotas.length > 0 && minhasRotas.every((r) => r.finalizadaEm)
   const diaConcluido = (data: string) =>
-    db.escalas.some(
+    db.planejamento.some(
       (e) => e.data === data && e.status === 'concluida' && e.motoristaIds.includes(motoristaId),
     ) ||
     (data === hojeISO() && trabalhoDeHojeEncerrado)
-  const meusAgendados = db.agenda.filter(
+  const meusDiasMarcados = db.disponibilidade.filter(
     (a) =>
       a.motoristaId === motoristaId &&
       a.data >= hojeISO() &&
@@ -61,12 +61,12 @@ export function MinhaAgenda() {
       !diaConcluido(a.data),
   ).length
 
-  /** true se o motorista já usou todas as vagas de agendamento (e este dia não é uma delas). */
+  /** true se o motorista já usou todas as vagas de marcação (e este dia não é uma delas). */
   const cotaEstourada = (data: string) => {
-    if (maxAgendados <= 0) return false
-    const minha = db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
+    if (maxDiasMarcados <= 0) return false
+    const minha = db.disponibilidade.find((a) => a.motoristaId === motoristaId && a.data === data)
     const jaConta = !!minha && STATUS_DISPONIVEIS.includes(minha.status) && !diaConcluido(data)
-    return !jaConta && meusAgendados >= maxAgendados
+    return !jaConta && meusDiasMarcados >= maxDiasMarcados
   }
 
   /** true se as vagas de disponibilidade da data acabaram (e eu ainda não ocupo uma). */
@@ -89,7 +89,7 @@ export function MinhaAgenda() {
     }
     if (STATUS_DISPONIVEIS.includes(s) && cotaEstourada(dataSelecionada)) {
       setErroVaga(
-        `📌 Você já tem ${maxAgendados} dia(s) DISPONÍVEL agendado(s) — esse é o limite. Quando o dia for trabalhado e o planejamento/rota for encerrado, a vaga é liberada na hora para agendar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
+        `📌 Você já tem ${maxDiasMarcados} dia(s) marcado(s) como DISPONÍVEL — esse é o limite. Quando o dia for trabalhado e o planejamento/rota for encerrado, a vaga é liberada na hora para marcar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
       )
       return
     }
@@ -104,13 +104,13 @@ export function MinhaAgenda() {
       setObservacao('')
       return
     }
-    salvarDiaAgenda({ motoristaId, data: dataSelecionada, status: s })
+    salvarDiaDisponibilidade({ motoristaId, data: dataSelecionada, status: s })
     fechar()
   }
 
   const confirmarComplemento = () => {
     if (!dataSelecionada || !statusEscolhido) return
-    salvarDiaAgenda({
+    salvarDiaDisponibilidade({
       motoristaId,
       data: dataSelecionada,
       status: statusEscolhido,
@@ -130,34 +130,34 @@ export function MinhaAgenda() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">📅 Minha agenda de disponibilidade</h1>
+        <h1 className="text-xl font-bold text-slate-900">📅 Minha disponibilidade</h1>
         <p className="text-sm text-slate-500">
           Marque com antecedência os dias em que você está (ou não) disponível. O Dispatcher vê tudo em tempo real.
         </p>
       </div>
 
-      {maxAgendados > 0 && (
+      {maxDiasMarcados > 0 && (
         <div
           className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
-            meusAgendados >= maxAgendados
+            meusDiasMarcados >= maxDiasMarcados
               ? 'border-amber-300 bg-amber-50 text-amber-800'
               : 'border-emerald-200 bg-emerald-50 text-emerald-800'
           }`}
         >
           <span className="text-lg">📌</span>
           <span className="flex-1">
-            Dias DISPONÍVEL agendados: <strong>{meusAgendados}/{maxAgendados}</strong>
-            {meusAgendados >= maxAgendados
-              ? ' — limite atingido. Quando o planejamento/rota de um dia agendado for encerrado, a vaga libera sozinha. Indisponível/folga seguem livres.'
-              : ` — você ainda pode agendar ${maxAgendados - meusAgendados} dia(s) disponível. Indisponível/folga são livres.`}
+            Dias marcados como DISPONÍVEL: <strong>{meusDiasMarcados}/{maxDiasMarcados}</strong>
+            {meusDiasMarcados >= maxDiasMarcados
+              ? ' — limite atingido. Quando o planejamento/rota de um dia marcado for encerrado, a vaga libera sozinha. Indisponível/folga seguem livres.'
+              : ` — você ainda pode marcar ${maxDiasMarcados - meusDiasMarcados} dia(s) disponível. Indisponível/folga são livres.`}
           </span>
         </div>
       )}
 
-      {params.horarioCorteAgenda.trim() && (
+      {params.horarioCorteDisponibilidade.trim() && (
         <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
           🔒 <strong>Prazo para se declarar disponível:</strong> até as{' '}
-          <strong>{params.horarioCorteAgenda}</strong>
+          <strong>{params.horarioCorteDisponibilidade}</strong>
           {params.diasAntecedenciaCorte === 1
             ? ' do dia anterior'
             : params.diasAntecedenciaCorte === 0
@@ -274,7 +274,7 @@ export function MinhaAgenda() {
             className="mt-3 w-full"
             onClick={() => {
               const m = minha(dataSelecionada)
-              if (m) removerDiaAgenda(m.id)
+              if (m) removerDiaDisponibilidade(m.id)
               fechar()
             }}
           >

@@ -43,7 +43,7 @@ export function Relatorios() {
     .sort((a, b) => b.indisponiveis - a.indisponiveis)
     .slice(0, 8)
 
-  const escalasPeriodo = db.escalas.filter((e) => e.data >= dataIni && e.data <= dataFim)
+  const planejamentosPeriodo = db.planejamento.filter((e) => e.data >= dataIni && e.data <= dataFim)
 
   const tabelaDisponibilidade = (): Tabela => ({
     titulo: `Disponibilidade ${PERIODOS[periodo].rotulo}`,
@@ -122,7 +122,7 @@ export function Relatorios() {
         <StatCard icone="⏰" valor={serie.length} rotulo="Chamadas no período" />
         <StatCard icone="💬" valor={`${Math.round(taxaRespostaGeral * 100)}%`} rotulo="Taxa de resposta média" destaque />
         <StatCard icone="✅" valor={serie.reduce((s, p) => s + p.disponiveis, 0)} rotulo="Disponibilidades registradas" />
-        <StatCard icone="📋" valor={escalasPeriodo.length} rotulo="Escalas no período" />
+        <StatCard icone="📋" valor={planejamentosPeriodo.length} rotulo="Escalas no período" />
       </div>
 
       <Card className="p-4">

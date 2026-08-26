@@ -1,12 +1,12 @@
 // A "Esteira do Dia": o fluxo da operação de uma data, etapa por etapa.
 //
-//   📅 Agenda  ╲
-//               ⟶  📢 Chamada  ⟶  📋 Escala  ⟶  🛣️ Rotas
+//   📅 Disponibilidade  ╲
+//               ⟶  📢 Chamada  ⟶  📋 Planejamento  ⟶  🛣️ Rotas
 //   📆 Programação ╱
 //
-// Agenda e Programação são PARTIDAS PARALELAS — qualquer uma pode vir
+// Disponibilidade e Programação são PARTIDAS PARALELAS — qualquer uma pode vir
 // primeiro (dá para programar antes e deixar a frota responder depois:
-// a resposta da chamada preenche a agenda do dia sozinha).
+// a resposta da chamada preenche a disponibilidade do dia sozinha).
 
 import { Link } from 'react-router-dom'
 import { useDB } from '../../core/db'
@@ -56,7 +56,7 @@ export function EsteiraDia({
 }) {
   const db = useDB()
 
-  const agendaDisp = db.agenda.filter(
+  const disponibilidadeMarcada = db.disponibilidade.filter(
     (a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status),
   ).length
   const itensProg = db.programacao.filter((p) => p.data === data).length
@@ -68,7 +68,7 @@ export function EsteiraDia({
         (r) => r.chamadaId === chamada.id && STATUS_DISPONIVEIS.includes(r.status),
       ).length
     : 0
-  const escala = chamada ? db.escalas.find((e) => e.chamadaId === chamada.id) : undefined
+  const planejamento = chamada ? db.planejamento.find((e) => e.chamadaId === chamada.id) : undefined
   const totalRotas = db.rotas.length
   const direcionadas = db.rotas.filter((r) => r.motoristaId).length
 
@@ -76,13 +76,13 @@ export function EsteiraDia({
   // rotas existem e alimenta o direcionamento lá na frente.
   const rotasCarregadas = totalRotas > 0
 
-  const agenda: Etapa = {
+  const disponibilidade: Etapa = {
     icone: '📅',
-    titulo: 'Agenda',
-    resumo: agendaDisp > 0 ? `${agendaDisp} disponível(is) no dia` : 'ninguém marcou ainda',
-    feita: agendaDisp > 0,
-    para: '/agenda-frota',
-    acao: 'Ver agenda',
+    titulo: 'Disponibilidade',
+    resumo: disponibilidadeMarcada > 0 ? `${disponibilidadeMarcada} disponível(is) no dia` : 'ninguém marcou ainda',
+    feita: disponibilidadeMarcada > 0,
+    para: '/disponibilidade',
+    acao: 'Ver disponibilidade',
   }
   const programacao: Etapa = {
     icone: '📆',
@@ -104,7 +104,7 @@ export function EsteiraDia({
     acao: rotasCarregadas ? 'Ver rotas' : 'Importar rotas',
   }
   // Só faz sentido chamar a frota depois que o dia tem rota e alguma partida.
-  const partiu = (agenda.feita || programacao.feita) && rotasCarregadas
+  const partiu = (disponibilidade.feita || programacao.feita) && rotasCarregadas
 
   const etapaChamada: Etapa = {
     icone: '📢',
@@ -118,17 +118,17 @@ export function EsteiraDia({
     para: chamada ? `/chamadas/${chamada.id}` : '/programacao',
     acao: chamada ? 'Ver respostas' : rotasCarregadas ? 'Chamar pelo resumo' : 'Importar rotas',
   }
-  const etapaEscala: Etapa = {
+  const etapaPlanejamento: Etapa = {
     icone: '📋',
-    titulo: 'Escala',
-    resumo: escala
-      ? `${escala.motoristaIds.length} escalado(s) · ${escala.status === 'rascunho' ? 'rascunho' : escala.status}`
+    titulo: 'Planejamento',
+    resumo: planejamento
+      ? `${planejamento.motoristaIds.length} no planejamento · ${planejamento.status === 'rascunho' ? 'rascunho' : planejamento.status}`
       : chamada
         ? 'monte a partir da chamada'
         : 'depende da chamada',
-    feita: !!escala && escala.status !== 'rascunho',
-    para: escala ? `/escalas/${escala.id}` : chamada ? `/chamadas/${chamada.id}` : '/escalas',
-    acao: escala ? 'Ver escala' : 'Montar escala',
+    feita: !!planejamento && planejamento.status !== 'rascunho',
+    para: planejamento ? `/planejamento/${planejamento.id}` : chamada ? `/chamadas/${chamada.id}` : '/planejamento',
+    acao: planejamento ? 'Ver planejamento' : 'Montar planejamento',
   }
   const etapaDirecionamento: Etapa = {
     icone: '⚡',
@@ -141,9 +141,9 @@ export function EsteiraDia({
 
   // A etapa "atual" é a primeira ainda não concluída na ordem da esteira.
   const atualChamada = partiu && !etapaChamada.feita
-  const atualEscala = partiu && etapaChamada.feita && !etapaEscala.feita
+  const atualPlanejamento = partiu && etapaChamada.feita && !etapaPlanejamento.feita
   const atualDirecionamento =
-    partiu && etapaChamada.feita && etapaEscala.feita && !etapaDirecionamento.feita
+    partiu && etapaChamada.feita && etapaPlanejamento.feita && !etapaDirecionamento.feita
 
   return (
     <Card className="p-4">
@@ -162,20 +162,20 @@ export function EsteiraDia({
           <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
             Partida — qualquer ordem
           </p>
-          <CartaoEtapa etapa={agenda} atual={!partiu} />
+          <CartaoEtapa etapa={disponibilidade} atual={!partiu} />
           <CartaoEtapa etapa={programacao} atual={!partiu} />
           <CartaoEtapa etapa={carregarRotas} atual={!rotasCarregadas} />
         </div>
         <Seta />
         <CartaoEtapa etapa={etapaChamada} atual={atualChamada} />
         <Seta />
-        <CartaoEtapa etapa={etapaEscala} atual={atualEscala} />
+        <CartaoEtapa etapa={etapaPlanejamento} atual={atualPlanejamento} />
         <Seta />
         <CartaoEtapa etapa={etapaDirecionamento} atual={atualDirecionamento} />
       </div>
       <p className="mt-2 text-center text-[11px] text-slate-400">
         A partida precisa das rotas carregadas: o resumo define a meta da chamada, a resposta
-        preenche a agenda e a escala conduz o direcionamento — {formatarData(data)}.
+        preenche a disponibilidade e a planejamento conduz o direcionamento — {formatarData(data)}.
       </p>
     </Card>
   )

@@ -1,6 +1,6 @@
 // Canais de comunicação com o motorista: WhatsApp, ligação e notificação in-app.
 
-import type { Chamada, Escala, Motorista } from './types'
+import type { Chamada, Planejamento, Motorista } from './types'
 import { formatarDataLonga } from './dates'
 
 function fone55(telefone: string): string {
@@ -35,7 +35,7 @@ export function mensagemCobranca(m: Motorista, c: Chamada): string {
   )
 }
 
-export function mensagemEscala(m: Motorista, e: Escala, c: Chamada | undefined): string {
+export function mensagemPlanejamento(m: Motorista, e: Planejamento, c: Chamada | undefined): string {
   return (
     `Olá, ${m.nome.split(' ')[0]}! ✅\n\n` +
     `Você está no *planejamento*: *${e.nome}*\n\n` +
@@ -45,13 +45,13 @@ export function mensagemEscala(m: Motorista, e: Escala, c: Chamada | undefined):
   )
 }
 
-/** Texto consolidado da escala para colar no grupo do WhatsApp. */
-export function textoEscalaParaGrupo(e: Escala, c: Chamada | undefined, motoristas: Motorista[]): string {
+/** Texto consolidado do planejamento para colar no grupo do WhatsApp. */
+export function textoPlanejamentoParaGrupo(e: Planejamento, c: Chamada | undefined, motoristas: Motorista[]): string {
   const lista = motoristas.map((m, i) => `${String(i + 1).padStart(2, '0')}. ${m.nome} — ${m.veiculo} (${m.cidade})`).join('\n')
   return (
     `📋 *${e.nome}*\n` +
     `📅 ${formatarDataLonga(e.data)}\n` +
     (c ? `📦 ${c.operacao} • 🕖 ${c.horarioInicio} às ${c.horarioFim}\n` : '') +
-    `🚚 ${motoristas.length} motorista(s) escalado(s):\n\n${lista}`
+    `🚚 ${motoristas.length} motorista(s) no planejamento:\n\n${lista}`
   )
 }
