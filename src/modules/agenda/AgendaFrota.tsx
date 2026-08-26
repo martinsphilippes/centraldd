@@ -19,7 +19,7 @@ function detalheDe(a: DiaAgenda): string {
   return a.observacao ?? ''
 }
 
-/** Visão do coordenador: dia a dia, quem trabalha e quem não trabalha (agenda dos motoristas). */
+/** Visão do dispatcher: dia a dia, quem trabalha e quem não trabalha (agenda dos motoristas). */
 export function AgendaFrota() {
   const db = useDB()
   const { usuarioEmail } = useSessao()

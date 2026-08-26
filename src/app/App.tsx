@@ -12,7 +12,7 @@ import { MotoristasList } from '../modules/motoristas/MotoristasList'
 import { MotoristaForm } from '../modules/motoristas/MotoristaForm'
 import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
 import { MinhasCidades } from '../modules/motoristas/MinhasCidades'
-import { CoordenadoresList } from '../modules/motoristas/CoordenadoresList'
+import { DispatchersList } from '../modules/motoristas/DispatchersList'
 import { EscalasList } from '../modules/escalas/EscalasList'
 import { EscalaDetail } from '../modules/escalas/EscalaDetail'
 import { MinhasEscalas } from '../modules/escalas/MinhasEscalas'
@@ -68,7 +68,7 @@ export default function App() {
   return (
     <Layout>
       <Routes>
-        {papel === 'coordenador' ? (
+        {papel === 'dispatcher' ? (
           <>
             <Route path="/" element={<Dashboard />} />
             <Route path="/chamadas" element={<ChamadasList />} />
@@ -79,7 +79,7 @@ export default function App() {
             <Route path="/tipos" element={<TiposOperacao />} />
             <Route path="/programacao" element={<Programacao />} />
             <Route path="/motoristas" element={<MotoristasList />} />
-            <Route path="/coordenadores" element={<CoordenadoresList />} />
+            <Route path="/dispatchers" element={<DispatchersList />} />
             <Route path="/motoristas/novo" element={<MotoristaForm />} />
             <Route path="/motoristas/:id" element={<MotoristaDetail />} />
             <Route path="/motoristas/:id/editar" element={<MotoristaForm />} />

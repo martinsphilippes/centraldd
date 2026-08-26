@@ -1,4 +1,4 @@
-// Tela do COORDENADOR: as cidades que a operação atende.
+// Tela do DISPATCHER: as cidades que a operação atende.
 // É essa lista que aparece para o motorista qualificar (Prefiro/Posso/Nunca) —
 // ele não inventa cidade, só opina sobre as que existem aqui.
 
@@ -40,16 +40,18 @@ export function CidadesOperacao() {
     setAviso(`✅ ${limpo} entrou na lista — já aparece para os motoristas qualificarem.`)
   }
 
-  /** Quantos motoristas marcaram preferência/bloqueio na cidade. */
+  /** Quantos motoristas preferem, fazem ou estão bloqueados na cidade. */
   const contarMarcacoes = (nome: string) => {
     let preferem = 0
-    let recusam = 0
+    let podem = 0
+    let bloqueados = 0
     for (const m of db.motoristas) {
       const lista = (t?: string) => (t ?? '').split(/[,;\n]/).map((c) => chave(c))
       if (lista(m.cidadesPreferidas).includes(chave(nome))) preferem++
-      if (lista(m.cidadesBloqueadas).includes(chave(nome))) recusam++
+      if (lista(m.cidadesPossiveis).includes(chave(nome))) podem++
+      if (lista(m.cidadesBloqueadas).includes(chave(nome))) bloqueados++
     }
-    return { preferem, recusam }
+    return { preferem, podem, bloqueados }
   }
 
   return (
@@ -57,7 +59,8 @@ export function CidadesOperacao() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">📍 Cidades da operação</h1>
         <p className="text-sm text-slate-500">
-          A lista que os motoristas qualificam como <strong>Prefiro / Posso / Nunca</strong> na tela
+          A lista que os motoristas qualificam como <strong>Prefiro / Posso / Não tenho
+          preferência</strong> na tela
           deles. Só o que estiver aqui aparece para eles.
         </p>
       </div>
@@ -137,7 +140,7 @@ export function CidadesOperacao() {
           </p>
           <ul className="space-y-2">
             {cidades.map((c) => {
-              const { preferem, recusam } = contarMarcacoes(c.nome)
+              const { preferem, podem, bloqueados } = contarMarcacoes(c.nome)
               return (
                 <li
                   key={c.id}
@@ -150,8 +153,11 @@ export function CidadesOperacao() {
                         ⭐ {preferem} preferem
                       </Badge>
                     )}
-                    {recusam > 0 && (
-                      <Badge className="border-red-200 bg-red-100 text-red-700">🚫 {recusam} não fazem</Badge>
+                    {podem > 0 && (
+                      <Badge className="border-blue-200 bg-blue-100 text-blue-700">👍 {podem} fazem</Badge>
+                    )}
+                    {bloqueados > 0 && (
+                      <Badge className="border-red-200 bg-red-100 text-red-700">🚫 {bloqueados} bloqueados</Badge>
                     )}
                     <button
                       onClick={() => {

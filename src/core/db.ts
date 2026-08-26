@@ -133,19 +133,20 @@ export function salvarMotorista(m: Motorista) {
 }
 
 /**
- * O MOTORISTA salva as próprias preferências de cidade. Só esses dois campos
+ * O MOTORISTA salva as próprias preferências de cidade. Só esses campos
  * mudam — é o que as regras de segurança permitem para a conta dele.
+ * Bloqueio de cidade NÃO está aqui: quem restringe é o Dispatcher.
  */
 export function salvarPreferenciasCidades(
   motoristaId: string,
   cidadesPreferidas: string,
-  cidadesBloqueadas: string,
+  cidadesPossiveis: string,
 ) {
   updateDoc(doc(firestore, 'motoristas', motoristaId), {
     cidadesPreferidas,
-    cidadesBloqueadas,
+    cidadesPossiveis,
   }).catch(() => {
-    alert('❌ Não consegui salvar suas cidades. Tente de novo; se continuar, avise a coordenação.')
+    alert('❌ Não consegui salvar suas cidades. Tente de novo; se continuar, avise o Dispatcher.')
   })
 }
 
@@ -192,7 +193,7 @@ export function responderChamada(r: Omit<Resposta, 'id' | 'respondidaEm'>) {
   if (r.observacao !== undefined) dados.observacao = r.observacao
   // Falha (ex.: permissão) aparece na hora — nunca "clicar e não acontecer nada".
   setDoc(doc(firestore, 'respostas', id), dados).catch(() => {
-    alert('❌ Não consegui registrar sua resposta. Tente de novo; se continuar, avise a coordenação.')
+    alert('❌ Não consegui registrar sua resposta. Tente de novo; se continuar, avise o Dispatcher.')
   })
   // A resposta também preenche a AGENDA daquele dia: no fluxo
   // "programação primeiro", quem responde à chamada já fica com a data
@@ -224,7 +225,7 @@ export function salvarDiaAgenda(d: Omit<DiaAgenda, 'id' | 'atualizadaEm'>) {
   if (d.periodo !== undefined) dados.periodo = d.periodo
   if (d.observacao !== undefined) dados.observacao = d.observacao
   setDoc(doc(firestore, 'agenda', id), dados).catch(() => {
-    alert('❌ Não consegui salvar sua agenda. Tente de novo; se continuar, avise a coordenação.')
+    alert('❌ Não consegui salvar sua agenda. Tente de novo; se continuar, avise o Dispatcher.')
   })
 }
 
@@ -261,7 +262,7 @@ export function removerRota(id: string) {
  */
 export function finalizarRota(id: string) {
   updateDoc(doc(firestore, 'rotas', id), { finalizadaEm: new Date().toISOString() }).catch(() => {
-    alert('❌ Não consegui finalizar a rota. Tente de novo; se continuar, avise a coordenação.')
+    alert('❌ Não consegui finalizar a rota. Tente de novo; se continuar, avise o Dispatcher.')
   })
 }
 
@@ -391,7 +392,7 @@ export function registrarDiagnosticoOcr(origem: string, texto: string, info: Rec
   }).catch(() => {})
 }
 
-/** Cidades atendidas pela operação — mantidas pelo coordenador. */
+/** Cidades atendidas pela operação — mantidas pelo dispatcher. */
 export function salvarCidadeOperacao(nome: string) {
   const limpo = nome.trim()
   if (!limpo) return
@@ -405,7 +406,7 @@ export function salvarCidadeOperacao(nome: string) {
   void setDoc(doc(firestore, 'cidades', id), cidade)
 }
 
-/** Opções de cadastro (veículos e operações) mantidas pelo coordenador. */
+/** Opções de cadastro (veículos e operações) mantidas pelo dispatcher. */
 export function salvarTipoOperacional(categoria: 'veiculo' | 'operacao', nome: string) {
   const limpo = nome.trim()
   if (!limpo) return
@@ -423,7 +424,7 @@ export function removerCidadeOperacao(id: string) {
 }
 
 /**
- * APRENDE com o resumo que o coordenador salvou: guarda a estrutura do
+ * APRENDE com o resumo que o dispatcher salvou: guarda a estrutura do
  * modelo daquela base (transportadoras e posições por veículo) para a
  * próxima leitura já nascer certa. Números do dia não são guardados.
  */

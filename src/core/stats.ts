@@ -17,7 +17,7 @@ export interface ResumoChamada {
  * Respostas que valem para a chamada: as que o motorista deu na própria
  * chamada MAIS o que ele já tinha marcado na agenda daquele dia — os dois
  * lados se alimentam, então quem se programou antes não precisa responder
- * de novo (e a coordenação consegue montar a escala).
+ * de novo (e o Dispatcher consegue montar a escala).
  */
 export function respostasDaChamada(db: DB, chamadaId: string): Resposta[] {
   const explicitas = db.respostas.filter((r) => r.chamadaId === chamadaId)

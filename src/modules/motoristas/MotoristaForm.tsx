@@ -24,7 +24,7 @@ export function MotoristaForm() {
   const [equipe, setEquipe] = useState(existente?.equipe ?? '')
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
   const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
-  // Opções cadastradas pelo coordenador (Tipos) + o valor atual do motorista.
+  // Opções cadastradas pelo dispatcher (Tipos) + o valor atual do motorista.
   const doSistema = (categoria: 'veiculo' | 'operacao', padrao: string[]): string[] => {
     const lista = db.tipos.filter((t) => t.categoria === categoria).map((t) => t.nome)
     return lista.length > 0 ? lista.sort((a, b) => a.localeCompare(b, 'pt-BR')) : padrao
@@ -57,6 +57,10 @@ export function MotoristaForm() {
         await salvarPerfilMotorista(novoId, email.trim())
       }
       salvarMotorista({
+        // Preserva o que este formulário não edita (as marcações de cidade que
+        // o próprio motorista faz, o papel pedido no pré-cadastro, etc.) — o
+        // salvamento reescreve o documento inteiro.
+        ...existente,
         id: novoId,
         nome: nome.trim(),
         telefone: telefone.replace(/\D/g, ''),
@@ -65,7 +69,7 @@ export function MotoristaForm() {
         operacao,
         veiculo,
         ativo,
-        // Cadastro feito pelo coordenador já nasce aprovado; edição preserva o estado.
+        // Cadastro feito pelo dispatcher já nasce aprovado; edição preserva o estado.
         aprovado: existente ? (existente.aprovado ?? true) : true,
         cidadesBloqueadas: cidadesBloqueadas.trim(),
         cidadesPreferidas: cidadesPreferidas.trim(),
@@ -124,7 +128,7 @@ export function MotoristaForm() {
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="🚫 Cidades bloqueadas (não pode ir — separe por vírgula)">
+            <Field label="🚫 Cidades bloqueadas pelo Dispatcher (não pode ir — separe por vírgula)">
               <Input
                 value={cidadesBloqueadas}
                 onChange={(e) => setCidadesBloqueadas(e.target.value)}

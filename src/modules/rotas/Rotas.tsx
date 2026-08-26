@@ -104,20 +104,20 @@ export function Rotas() {
   }
 
   /**
-   * A COORDENAÇÃO encerra uma rota que o motorista não finalizou: fica
+   * A DISPATCH encerra uma rota que o motorista não finalizou: fica
    * registrada como finalizada COM PENDÊNCIA (entregas que não saíram),
    * e o motorista é avisado na hora.
    */
-  const finalizarPelaCoordenacao = (r: Rota) => {
+  const finalizarPeloDispatcher = (r: Rota) => {
     const nome = r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '') : ''
-    if (!confirm(`Encerrar a rota ${r.rotaExpedicao} pela coordenação? Ela fica registrada como PENDENTE (o motorista ${nome} não finalizou).`))
+    if (!confirm(`Encerrar a rota ${r.rotaExpedicao} pelo Dispatcher? Ela fica registrada como PENDENTE (o motorista ${nome} não finalizou).`))
       return
     salvarRota({ ...r, finalizadaEm: new Date().toISOString(), resultadoFinalizacao: 'pendente' })
     if (r.motoristaId) {
       enviarNotificacao({
         motoristaId: r.motoristaId,
-        titulo: `Rota ${r.rotaExpedicao} encerrada pela coordenação`,
-        mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pela coordenação com entregas pendentes. Qualquer dúvida, fale com a coordenação.`,
+        titulo: `Rota ${r.rotaExpedicao} encerrada pelo Dispatcher`,
+        mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pelo Dispatcher com entregas pendentes. Qualquer dúvida, fale com o Dispatcher.`,
       })
     }
     setAvisoAuto(`🏁 Rota ${r.rotaExpedicao} encerrada como pendente.`)
@@ -152,8 +152,8 @@ export function Rotas() {
       if (r.motoristaId) {
         enviarNotificacao({
           motoristaId: r.motoristaId,
-          titulo: `Rota ${r.rotaExpedicao} encerrada pela coordenação`,
-          mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pela coordenação com entregas pendentes. Qualquer dúvida, fale com a coordenação.`,
+          titulo: `Rota ${r.rotaExpedicao} encerrada pelo Dispatcher`,
+          mensagem: `⚠️ A rota ${r.rotaExpedicao} foi finalizada pelo Dispatcher com entregas pendentes. Qualquer dúvida, fale com o Dispatcher.`,
         })
       }
     }
@@ -358,7 +358,7 @@ export function Rotas() {
                         <span
                           title={
                             r.resultadoFinalizacao === 'pendente'
-                              ? `Encerrada pela coordenação com PENDÊNCIA às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                              ? `Encerrada pelo Dispatcher com PENDÊNCIA às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                               : `Entregue — finalizada pelo motorista às ${new Date(r.finalizadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                           }
                         >
@@ -367,9 +367,9 @@ export function Rotas() {
                       )}
                       {r.motoristaId && !r.finalizadaEm && (
                         <button
-                          onClick={() => finalizarPelaCoordenacao(r)}
+                          onClick={() => finalizarPeloDispatcher(r)}
                           className="rounded px-0.5 hover:bg-slate-200"
-                          title="Encerrar pela coordenação (fica registrada como pendente)"
+                          title="Encerrar pelo Dispatcher (fica registrada como pendente)"
                         >
                           🏁
                         </button>

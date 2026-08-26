@@ -15,6 +15,7 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoExperienciaRota: 4,
   pesoRespeitarPlanoMeli: 5,
   pesoCidadesPreferidas: 6,
+  pesoCidadePossivel: 2,
   pesoRodizio: 5,
   janelaRodizioDias: 7,
   maxVezesSeguidasMesmaCidade: 0,
@@ -24,6 +25,8 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   equivalenciasVeiculo: 'VUC = HR, Van\nUTILITARIO = Fiorino, Van, HR\nVEÍCULO DE PASSEIO = Carro passeio',
   autoAplicarAcimaDe: 0,
   maxDiasAgendados: 2,
+  horarioCorteAgenda: '',
+  diasAntecedenciaCorte: 1,
   limiteAutomatico: true,
   limiteFolgaPercentual: 10,
   limiteFolgaFixa: 0,
@@ -172,6 +175,11 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
+      } else if (algumaCidadeBate(cidades, listaDeTexto(m.cidadesPossiveis))) {
+        // "Posso fazer" é um sim explícito — vale menos que a preferida,
+        // mas mais que quem não tem preferência nenhuma pela cidade.
+        pontos += p.pesoCidadePossivel
+        motivos.push('👍 ele marcou que faz essa cidade')
       }
       const repeticao = cidades.reduce((s, c) => s + (idx?.rodizioPorCidade.get(c) ?? 0), 0)
       if (repeticao > 0) {
@@ -304,6 +312,11 @@ export function alocarMotoristasNasRotas(
       if (preferida) {
         pontos += p.pesoCidadesPreferidas
         motivos.push('⭐ cidade preferida dele')
+      } else if (algumaCidadeBate(cidades, listaDeTexto(m.cidadesPossiveis))) {
+        // "Posso fazer" é um sim explícito — vale menos que a preferida,
+        // mas mais que quem não tem preferência nenhuma pela cidade.
+        pontos += p.pesoCidadePossivel
+        motivos.push('👍 ele marcou que faz essa cidade')
       }
       const exp = cidades.reduce((s, c) => s + (expPorMotorista.get(m.id)?.get(c) ?? 0), 0)
       if (exp > 0) {

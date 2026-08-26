@@ -5,6 +5,7 @@ import { hojeISO, formatarDataLonga, formatarQuando, rotuloDia } from '../../cor
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import { parametrosAtuais } from '../../core/alocacao'
 import { calcularLimiteDoDia } from '../../core/limites'
+import { prazoDisponibilidade } from '../../core/corte'
 import type { Periodo, StatusResposta } from '../../core/types'
 import { Button, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
@@ -23,7 +24,10 @@ export function MinhaAgenda() {
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
+  const params = parametrosAtuais(db)
   const dias = Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i))
+  /** Prazo para se declarar DISPONÍVEL no dia (indisponibilidade nunca trava). */
+  const prazoDe = (data: string) => prazoDisponibilidade(data, params)
   const minha = (data: string) => db.agenda.find((a) => a.motoristaId === motoristaId && a.data === data)
   const precisaComplemento = (s: StatusResposta) => s === 'apos_horario' || s === 'meio_periodo' || s === 'outro'
 
@@ -76,9 +80,16 @@ export function MinhaAgenda() {
 
   const escolher = (s: StatusResposta) => {
     if (!dataSelecionada) return
+    const prazo = prazoDe(dataSelecionada)
+    if (STATUS_DISPONIVEIS.includes(s) && prazo.encerrado) {
+      setErroVaga(
+        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}. Você ainda pode avisar que está indisponível, de folga, atestado ou férias — para entrar no dia, fale com o Dispatcher.`,
+      )
+      return
+    }
     if (STATUS_DISPONIVEIS.includes(s) && cotaEstourada(dataSelecionada)) {
       setErroVaga(
-        `📌 Você já tem ${maxAgendados} dia(s) DISPONÍVEL agendado(s) — esse é o limite. Quando o dia for trabalhado e a escala/rota for encerrada, a vaga é liberada na hora para agendar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
+        `📌 Você já tem ${maxAgendados} dia(s) DISPONÍVEL agendado(s) — esse é o limite. Quando o dia for trabalhado e o planejamento/rota for encerrado, a vaga é liberada na hora para agendar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
       )
       return
     }
@@ -121,7 +132,7 @@ export function MinhaAgenda() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">📅 Minha agenda de disponibilidade</h1>
         <p className="text-sm text-slate-500">
-          Marque com antecedência os dias em que você está (ou não) disponível. A coordenação vê tudo em tempo real.
+          Marque com antecedência os dias em que você está (ou não) disponível. O Dispatcher vê tudo em tempo real.
         </p>
       </div>
 
@@ -137,15 +148,30 @@ export function MinhaAgenda() {
           <span className="flex-1">
             Dias DISPONÍVEL agendados: <strong>{meusAgendados}/{maxAgendados}</strong>
             {meusAgendados >= maxAgendados
-              ? ' — limite atingido. Quando a escala/rota de um dia agendado for encerrada, a vaga libera sozinha. Indisponível/folga seguem livres.'
+              ? ' — limite atingido. Quando o planejamento/rota de um dia agendado for encerrado, a vaga libera sozinha. Indisponível/folga seguem livres.'
               : ` — você ainda pode agendar ${maxAgendados - meusAgendados} dia(s) disponível. Indisponível/folga são livres.`}
           </span>
         </div>
       )}
 
+      {params.horarioCorteAgenda.trim() && (
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+          🔒 <strong>Prazo para se declarar disponível:</strong> até as{' '}
+          <strong>{params.horarioCorteAgenda}</strong>
+          {params.diasAntecedenciaCorte === 1
+            ? ' do dia anterior'
+            : params.diasAntecedenciaCorte === 0
+              ? ' do próprio dia'
+              : ` de ${params.diasAntecedenciaCorte} dias antes`}
+          . Depois disso o dia fecha para novas disponibilidades — avisar indisponibilidade continua
+          liberado a qualquer hora.
+        </p>
+      )}
+
       <div className="space-y-2">
         {dias.map((data) => {
           const marcado = minha(data)
+          const prazo = prazoDe(data)
           const info = marcado ? STATUS_RESPOSTA[marcado.status] : null
           const limite = limiteDe(data)
           const ocupadas = limite ? Math.min(disponiveisEm(data), limite.maxDisponiveis) : 0
@@ -166,6 +192,11 @@ export function MinhaAgenda() {
                 {marcado && diaConcluido(data) && (
                   <span className="block text-[11px] font-semibold text-emerald-700">
                     🏁 dia encerrado — vaga liberada
+                  </span>
+                )}
+                {prazo.encerrado && (
+                  <span className="block text-[11px] font-semibold text-amber-700">
+                    🔒 prazo encerrado em {prazo.texto} — só dá para avisar indisponibilidade
                   </span>
                 )}
                 {limite && (
@@ -218,7 +249,9 @@ export function MinhaAgenda() {
             const bloqueado =
               !!dataSelecionada &&
               STATUS_DISPONIVEIS.includes(s) &&
-              (vagasEsgotadas(dataSelecionada) || cotaEstourada(dataSelecionada))
+              (vagasEsgotadas(dataSelecionada) ||
+                cotaEstourada(dataSelecionada) ||
+                prazoDe(dataSelecionada).encerrado)
             return (
               <button
                 key={s}

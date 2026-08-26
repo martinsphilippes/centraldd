@@ -1,6 +1,6 @@
-// Tela do COORDENADOR: as opções que aparecem nos cadastros.
+// Tela do DISPATCHER: as opções que aparecem nos cadastros.
 // O que estiver aqui é o que a pessoa vê ao se cadastrar (veículo e operação)
-// e o que o coordenador escolhe ao cadastrar um motorista.
+// e o que o dispatcher escolhe ao cadastrar um motorista.
 
 import { useState } from 'react'
 import { removerTipoOperacional, salvarTipoOperacional, useDB } from '../../core/db'

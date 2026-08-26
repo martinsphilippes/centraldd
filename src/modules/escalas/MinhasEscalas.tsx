@@ -3,7 +3,10 @@ import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import { Badge, Card, EmptyState } from '../../components/ui'
 
-/** Visão do motorista: escalas publicadas em que ele está. */
+// Do lado do motorista, a escala montada pelo Dispatcher se chama
+// PLANEJAMENTO — é o nome que ele entende: o que está planejado para o dia.
+
+/** Visão do motorista: planejamentos publicados em que ele está. */
 export function MinhasEscalas() {
   const db = useDB()
   const { motoristaId } = useSessao()
@@ -19,8 +22,8 @@ export function MinhasEscalas() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">📋 Minhas escalas</h1>
-        <p className="text-sm text-slate-500">Rotas em que você foi escalado.</p>
+        <h1 className="text-xl font-bold text-slate-900">📋 Meu planejamento</h1>
+        <p className="text-sm text-slate-500">O que o Dispatcher planejou para os seus dias.</p>
       </div>
 
       {minhasRotas.length > 0 && (
@@ -60,8 +63,8 @@ export function MinhasEscalas() {
       {minhas.length === 0 ? (
         <EmptyState
           icone="📋"
-          titulo="Nenhuma escala publicada para você"
-          descricao="Quando a coordenação publicar uma escala com o seu nome, ela aparece aqui."
+          titulo="Nenhum planejamento publicado para você"
+          descricao="Quando o Dispatcher publicar um planejamento com o seu nome, ele aparece aqui."
         />
       ) : (
         <div className="space-y-3">
@@ -88,7 +91,7 @@ export function MinhasEscalas() {
                       <br />📦 {chamada.operacao} • 🕖 {chamada.horarioInicio} às {chamada.horarioFim}
                     </>
                   )}
-                  <br />🚚 {e.motoristaIds.length} motorista(s) na escala
+                  <br />🚚 {e.motoristaIds.length} motorista(s) no planejamento
                 </p>
               </Card>
             )

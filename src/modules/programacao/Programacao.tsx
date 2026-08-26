@@ -820,6 +820,40 @@ export function Programacao() {
                 <Input type="number" min={0} max={14} value={paramsEdit.maxDiasAgendados}
                   onChange={(e) => setParamsEdit({ ...paramsEdit, maxDiasAgendados: Number(e.target.value) })} />
               </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="🔒 Horário de corte da disponibilidade (vazio = sem corte)">
+                  <Input type="time" value={paramsEdit.horarioCorteAgenda}
+                    onChange={(e) => setParamsEdit({ ...paramsEdit, horarioCorteAgenda: e.target.value })} />
+                </Field>
+                <Field label="📆 Quantos dias antes o corte acontece">
+                  <Input type="number" min={0} max={7} value={paramsEdit.diasAntecedenciaCorte}
+                    onChange={(e) => setParamsEdit({ ...paramsEdit, diasAntecedenciaCorte: Number(e.target.value) })} />
+                </Field>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                🔒 {paramsEdit.horarioCorteAgenda.trim() ? (
+                  <>
+                    Para entrar num dia, o motorista tem até as{' '}
+                    <strong>{paramsEdit.horarioCorteAgenda}</strong>{' '}
+                    <strong>
+                      {paramsEdit.diasAntecedenciaCorte === 0
+                        ? 'do próprio dia'
+                        : paramsEdit.diasAntecedenciaCorte === 1
+                          ? 'do dia anterior'
+                          : `de ${paramsEdit.diasAntecedenciaCorte} dias antes`}
+                    </strong>
+                    . Passado o prazo, ele não consegue mais se declarar disponível — mas continua
+                    podendo avisar indisponibilidade, folga, atestado ou férias a qualquer hora, e
+                    você segue livre para ajustar a agenda dele por aqui.
+                  </>
+                ) : (
+                  <>
+                    Sem corte: o motorista pode se declarar disponível a qualquer momento, até no
+                    próprio dia. Preencha o horário para fechar o dia com antecedência
+                    (ex.: 21:00 com 1 dia antes = a disponibilidade de amanhã fecha hoje às 21h).
+                  </>
+                )}
+              </p>
               <p className="text-[11px] text-slate-500">
                 📌 Com o limite em 2: o motorista agenda até 2 dias; quando trabalha um (a data passa),
                 libera vaga para agendar o próximo — reduz o risco de escala furada.

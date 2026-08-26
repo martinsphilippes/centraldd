@@ -1,7 +1,7 @@
-// Tela do MOTORISTA: as rotas que o coordenador direcionou para ele.
+// Tela do MOTORISTA: as rotas que o dispatcher direcionou para ele.
 // Atualiza em tempo real — direcionou na tela de Rotas, aparece aqui na hora.
 // O motorista FINALIZA cada rota ao terminar: é isso que o libera para
-// receber novas rotas e para entrar na escala do dia seguinte.
+// receber novas rotas e para entrar no planejamento do dia seguinte.
 
 import { useSessao } from '../../context/SessaoContext'
 import { finalizarRota, useDB } from '../../core/db'
@@ -31,7 +31,7 @@ export function MinhasRotas() {
       .map((r) => porMotorista.get(r.motoristaId!) ?? 'outro motorista')
 
   const confirmarFinalizacao = (id: string, nome: string) => {
-    if (confirm(`Finalizar a rota ${nome}? Isso avisa a coordenação que você concluiu as entregas.`))
+    if (confirm(`Finalizar a rota ${nome}? Isso avisa o Dispatcher que você concluiu as entregas.`))
       finalizarRota(id)
   }
 
@@ -44,7 +44,7 @@ export function MinhasRotas() {
         <h1 className="text-xl font-bold text-slate-900">🛣️ Minhas rotas</h1>
         <p className="text-sm text-slate-500">
           {ativas.length === 0
-            ? 'A rota que o coordenador direcionar para você aparece aqui na hora.'
+            ? 'A rota que o dispatcher direcionar para você aparece aqui na hora.'
             : ativas.length === 1
               ? 'Você tem 1 rota em andamento — finalize ao terminar as entregas.'
               : `Você tem ${ativas.length} rotas em andamento — a primeira é a principal, as outras são pacotes extras.`}
@@ -54,14 +54,14 @@ export function MinhasRotas() {
       {ativas.length === 0 && finalizadas.length > 0 && (
         <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           ✅ Todas as suas rotas estão finalizadas — você está liberado para novas rotas e para a
-          próxima escala.
+          próximo planejamento.
         </p>
       )}
       {minhas.length === 0 && (
         <EmptyState
           icone="🛣️"
           titulo="Nenhuma rota direcionada ainda"
-          descricao="Quando a coordenação direcionar uma rota para você, ela aparece aqui automaticamente — sem precisar atualizar."
+          descricao="Quando o Dispatcher direcionar uma rota para você, ela aparece aqui automaticamente — sem precisar atualizar."
         />
       )}
 
@@ -153,7 +153,7 @@ export function MinhasRotas() {
                 >
                   <span className="font-bold text-slate-800">{r.rotaExpedicao}</span>
                   <span className={`text-xs ${pendente ? 'font-semibold text-amber-700' : 'text-emerald-700'}`}>
-                    {pendente ? '⚠️ encerrada pela coordenação · entregas pendentes' : '✅ entregue'} às{' '}
+                    {pendente ? '⚠️ encerrada pelo Dispatcher · entregas pendentes' : '✅ entregue'} às{' '}
                     {new Date(r.finalizadaEm!).toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -167,7 +167,7 @@ export function MinhasRotas() {
       )}
 
       <p className="text-center text-[11px] text-slate-400">
-        Atualização em tempo real — finalizar avisa a coordenação na hora.
+        Atualização em tempo real — finalizar avisa o Dispatcher na hora.
       </p>
     </div>
   )

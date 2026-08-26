@@ -22,17 +22,20 @@ export interface Motorista {
   operacao: string
   veiculo: string
   ativo: boolean
-  /** false = pré-cadastro aguardando aprovação do coordenador (ausente = aprovado). */
+  /** false = pré-cadastro aguardando aprovação do dispatcher (ausente = aprovado). */
   aprovado?: boolean
   /**
-   * Papel solicitado no pré-cadastro. 'coordenador' (antes 'dispatcher') só é
-   * aprovado pelo DONO da operação; 'motorista' qualquer coordenador aprova.
+   * Papel solicitado no pré-cadastro. 'dispatcher' só é aprovado pelo DONO
+   * da operação; 'motorista' qualquer dispatcher aprova.
+   * ('coordenador' é o valor legado gravado antes da renomeação.)
    */
   funcao?: 'motorista' | 'dispatcher' | 'coordenador'
   /** Cidades onde este motorista NÃO pode rodar (separadas por vírgula). */
   cidadesBloqueadas?: string
   /** Cidades onde este motorista rende melhor (separadas por vírgula). */
   cidadesPreferidas?: string
+  /** Cidades marcadas como "Posso fazer" pelo motorista (lista separada por vírgula). */
+  cidadesPossiveis?: string
   criadoEm: string
   transportadoraId?: string
   cdId?: string
@@ -110,7 +113,7 @@ export interface Rota {
   finalizadaEm?: string | null
   /**
    * Como a rota foi encerrada: ausente/'entregue' = o motorista finalizou;
-   * 'pendente' = a coordenação encerrou sem o motorista concluir (ficaram
+   * 'pendente' = o Dispatcher encerrou sem o motorista concluir (ficaram
    * entregas pendentes registradas).
    */
   resultadoFinalizacao?: 'entregue' | 'pendente' | null
@@ -156,6 +159,8 @@ export interface ParametrosAlocacao {
   pesoRespeitarPlanoMeli: number
   /** Valoriza cidades marcadas como preferidas no cadastro do motorista. */
   pesoCidadesPreferidas: number
+  /** Bônus menor para cidade que o motorista marcou como "Posso fazer". */
+  pesoCidadePossivel: number
   /** Penaliza quem foi muitas vezes à mesma cidade recentemente (força o rodízio). */
   pesoRodizio: number
   /** Janela (dias) usada para medir a repetição do rodízio. */
@@ -177,6 +182,10 @@ export interface ParametrosAlocacao {
    * na agenda (0 = sem limite). Trabalhou um dia → a data passa → libera vaga.
    */
   maxDiasAgendados: number
+  /** Horário limite para declarar disponibilidade ('' = sem corte). Ex.: '21:00'. */
+  horarioCorteAgenda: string
+  /** Quantos dias antes do dia trabalhado o corte acontece (1 = na véspera). */
+  diasAntecedenciaCorte: number
   /** Calcular o limite de disponíveis do dia a partir do planejamento. */
   limiteAutomatico: boolean
   /** Reserva em % sobre as rotas planejadas (ex.: 10 = 10% a mais). */
@@ -219,7 +228,7 @@ export interface ResumoDia {
   atualizadoEm: string
 }
 
-/** Limite de motoristas disponíveis definido pelo coordenador para uma data. */
+/** Limite de motoristas disponíveis definido pelo dispatcher para uma data. */
 export interface LimiteDia {
   id: string // = data (YYYY-MM-DD)
   data: string
@@ -241,7 +250,7 @@ export interface ModeloAprendido {
 }
 
 /**
- * Opção de cadastro mantida pelo coordenador (veículos e operações). É o que
+ * Opção de cadastro mantida pelo dispatcher (veículos e operações). É o que
  * aparece nas listas do formulário de cadastro e do cadastro de motorista.
  */
 export interface TipoOperacional {
@@ -251,7 +260,7 @@ export interface TipoOperacional {
   criadoEm: string
 }
 
-/** Cidade que a operação atende — a lista é mantida pelo coordenador. */
+/** Cidade que a operação atende — a lista é mantida pelo dispatcher. */
 export interface CidadeOperacao {
   id: string
   nome: string
@@ -287,7 +296,8 @@ export interface DB {
   notificacoes: Notificacao[]
 }
 
-export type Papel = 'coordenador' | 'motorista'
+/** Papel da conta. 'coordenador' era o nome antigo de dispatcher — ver core/papel.ts. */
+export type Papel = 'dispatcher' | 'motorista'
 
 /** Conta com acesso ao app: define o papel e o cadastro vinculado. */
 export interface Perfil {

@@ -38,8 +38,8 @@ export function ContactButtons({
         onClick={() =>
           enviarNotificacao({
             motoristaId: motorista.id,
-            titulo: 'Aviso da coordenação',
-            mensagem: mensagem ?? 'A coordenação precisa falar com você. Verifique suas chamadas.',
+            titulo: 'Aviso do Dispatcher',
+            mensagem: mensagem ?? 'O Dispatcher precisa falar com você. Verifique suas chamadas.',
           })
         }
         className={`${btn} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}

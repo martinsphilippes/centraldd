@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ehPapelDispatcher } from '../../core/papel'
 import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
 import { EsteiraDia } from './EsteiraDia'
@@ -63,8 +64,8 @@ export function Dashboard() {
         <StatCard icone="🚚" valor={db.motoristas.filter((m) => m.ativo).length} rotulo="Motoristas cadastrados" />
         <StatCard
           icone="🧑‍💼"
-          valor={db.perfis.filter((p) => p.papel === 'coordenador').length}
-          rotulo="Coordenadores cadastrados"
+          valor={db.perfis.filter((p) => ehPapelDispatcher(p.papel)).length}
+          rotulo="Dispatchers cadastrados"
         />
         <StatCard icone="✅" valor={disponiveisHoje} rotulo="Disponíveis hoje" />
         <StatCard icone="❌" valor={indisponiveisHoje} rotulo="Indisponíveis hoje" />

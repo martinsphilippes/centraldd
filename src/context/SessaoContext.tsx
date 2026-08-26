@@ -1,14 +1,15 @@
 // Sessão real com Firebase Auth (e-mail/senha).
 // O papel do usuário vem da coleção `perfis` do Firestore:
-//   - contas criadas no Console sem perfil → viram coordenador no 1º login;
-//   - contas de motorista são criadas pelo coordenador no app, já com perfil.
+//   - contas criadas no Console sem perfil → viram dispatcher no 1º login;
+//   - contas de motorista são criadas pelo dispatcher no app, já com perfil.
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { auth, firestore } from '../core/firebase'
-import { EMAILS_COORDENADOR } from '../core/firebase-config'
+import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { iniciarSincronizacao, pararSincronizacao } from '../core/db'
+import { papelDe } from '../core/papel'
 import type { Papel } from '../core/types'
 
 export type StatusAuth = 'carregando' | 'deslogado' | 'logado'
@@ -27,7 +28,7 @@ const Ctx = createContext<Sessao | null>(null)
 
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [statusAuth, setStatusAuth] = useState<StatusAuth>('carregando')
-  const [papel, setPapel] = useState<Papel>('coordenador')
+  const [papel, setPapel] = useState<Papel>('dispatcher')
   const [motoristaId, setMotoristaId] = useState<string | null>(null)
   const [usuarioEmail, setUsuarioEmail] = useState<string | null>(null)
   const [erroSessao, setErroSessao] = useState<string | null>(null)
@@ -51,8 +52,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       const emCache = localStorage.getItem(chaveCache)
       if (emCache) {
         try {
-          const p = JSON.parse(emCache) as { papel: Papel; motoristaId: string | null }
-          setPapel(p.papel)
+          const p = JSON.parse(emCache) as { papel: string; motoristaId: string | null }
+          setPapel(papelDe(p.papel))
           setMotoristaId(p.motoristaId)
           setUsuarioEmail(user.email)
           setErroSessao(null)
@@ -63,32 +64,33 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Escuta o perfil EM TEMPO REAL: se o papel mudar (ex.: dispatcher
-      // aprovado vira coordenador), a tela troca na hora, sem novo login.
+      // Escuta o perfil EM TEMPO REAL: se o papel mudar (ex.: motorista
+      // aprovado vira dispatcher), a tela troca na hora, sem novo login.
       const ref = doc(firestore, 'perfis', user.uid)
       pararPerfil = onSnapshot(
         ref,
         async (snap) => {
           if (snap.exists()) {
-            const p = snap.data() as { papel: Papel; motoristaId?: string | null }
-            setPapel(p.papel)
+            const p = snap.data() as { papel?: string; motoristaId?: string | null }
+            const papelLido = papelDe(p.papel)
+            setPapel(papelLido)
             setMotoristaId(p.motoristaId ?? null)
             localStorage.setItem(
               chaveCache,
-              JSON.stringify({ papel: p.papel, motoristaId: p.motoristaId ?? null }),
+              JSON.stringify({ papel: papelLido, motoristaId: p.motoristaId ?? null }),
             )
             setErroSessao(null)
             setUsuarioEmail(user.email)
             iniciarSincronizacao()
             setStatusAuth('logado')
-          } else if (user.email && EMAILS_COORDENADOR.includes(user.email.toLowerCase())) {
-            // E-mail autorizado sem perfil → coordenador no primeiro login
+          } else if (user.email && EMAILS_DISPATCHER.includes(user.email.toLowerCase())) {
+            // E-mail autorizado sem perfil → dispatcher no primeiro login
             // (o snapshot dispara de novo após a criação e conclui o login).
-            await setDoc(ref, { papel: 'coordenador', motoristaId: null, email: user.email })
+            await setDoc(ref, { papel: 'dispatcher', motoristaId: null, email: user.email })
           } else {
             // Conta sem perfil e sem autorização: bloqueia o acesso.
             localStorage.removeItem(chaveCache)
-            setErroSessao('Sua conta ainda não foi liberada. Fale com a coordenação.')
+            setErroSessao('Sua conta ainda não foi liberada. Fale com o Dispatcher.')
             await signOut(auth)
           }
         },

@@ -33,12 +33,12 @@ export function Login() {
   const [enviando, setEnviando] = useState(false)
 
   // Pré-cadastro
-  const [funcao, setFuncao] = useState<'motorista' | 'coordenador'>('motorista')
+  const [funcao, setFuncao] = useState<'motorista' | 'dispatcher'>('motorista')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
-  // As opções vêm do que o coordenador cadastrou (tela Tipos); os padrões
+  // As opções vêm do que o dispatcher cadastrou (tela Tipos); os padrões
   // só valem enquanto a lista da operação estiver vazia.
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
   const [operacoesOpcoes, setOperacoesOpcoes] = useState<string[]>(OPERACOES)
@@ -155,7 +155,7 @@ export function Login() {
           ) : (
             <form onSubmit={fazerCadastro} className="space-y-3">
               <p className="text-sm text-slate-600">
-                Preencha seus dados. Seu acesso será liberado <strong>após a aprovação da coordenação</strong>.
+                Preencha seus dados. Seu acesso será liberado <strong>após a aprovação do Dispatcher</strong>.
               </p>
               <div>
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -175,19 +175,19 @@ export function Login() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFuncao('coordenador')}
+                    onClick={() => setFuncao('dispatcher')}
                     className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
-                      funcao === 'coordenador'
+                      funcao === 'dispatcher'
                         ? 'border-ml-azul bg-blue-50 text-ml-azul'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    🧑‍💼 Coordenador
+                    🧑‍💼 Dispatcher
                   </button>
                 </div>
-                {funcao === 'coordenador' && (
+                {funcao === 'dispatcher' && (
                   <p className="mt-1.5 rounded-lg bg-yellow-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-                    Cadastro de coordenador é aprovado <strong>somente pelo dono da operação</strong>.
+                    Cadastro de dispatcher é aprovado <strong>somente pelo dono da operação</strong>.
                     Aprovado, você recebe o painel completo (programação, chamadas, escalas e rotas).
                   </p>
                 )}
@@ -274,7 +274,7 @@ export function Login() {
           )}
         </Card>
         <p className="mt-4 text-center text-xs text-slate-400">
-          Esqueceu a senha? Fale com a coordenação.
+          Esqueceu a senha? Fale com o Dispatcher.
         </p>
       </div>
     </div>

@@ -48,7 +48,7 @@ export function EscalaDetail() {
       enviarNotificacao({
         motoristaId: m.id,
         chamadaId: escala.chamadaId,
-        titulo: `Você foi escalado: ${escala.nome}`,
+        titulo: `Você está no planejamento: ${escala.nome}`,
         mensagem: mensagemEscala(m, escala, chamada),
       })
     }
@@ -223,7 +223,7 @@ export function EscalaDetail() {
                 enviarNotificacao({
                   motoristaId: m.id,
                   chamadaId: escala.chamadaId,
-                  titulo: `Escala: ${escala.nome}`,
+                  titulo: `Planejamento: ${escala.nome}`,
                   mensagem: mensagemEscala(m, escala, chamada),
                 })
               }

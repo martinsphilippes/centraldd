@@ -4,11 +4,11 @@ rules_version = '2';
 // Cole este conteúdo em: Console do Firebase → Firestore Database → Regras → Publicar.
 //
 // Modelo de acesso:
-//  - Coordenador: lê e escreve tudo (chamadas, motoristas, escalas, agenda, notificações).
+//  - Dispatcher: lê e escreve tudo (chamadas, motoristas, escalas, agenda, notificações).
 //  - Motorista APROVADO: lê os dados da operação e só escreve a PRÓPRIA resposta/agenda.
 //  - Pré-cadastro: qualquer conta pode criar o próprio cadastro (aprovado=false) e
-//    o próprio perfil de motorista; só ganha acesso após aprovação do coordenador.
-//  - Contas criadas no Console sem perfil viram coordenador no 1º login (e-mail autorizado).
+//    o próprio perfil de motorista; só ganha acesso após aprovação do dispatcher.
+//  - Contas criadas no Console sem perfil viram dispatcher no 1º login (e-mail autorizado).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -17,19 +17,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Dono da operação: único que decide quem vira COORDENADOR.
+    // Dono da operação: único que decide quem vira DISPATCHER.
     function ehDono() {
       return logado() && request.auth.token.email == 'martinsphilippes@gmail.com';
     }
 
-    function ehCoordenador() {
+    // Aceita o papel novo ('dispatcher') e o legado ('coordenador'), gravado
+    // nos perfis criados antes da renomeação — ninguém perde acesso.
+    function ehDispatcher() {
       return logado() &&
-        get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel == 'coordenador';
+        get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.papel in ['dispatcher', 'coordenador'];
     }
 
     // O cadastro de motorista da conta vem do PERFIL (motoristaId) — no
     // pré-cadastro ele é o próprio uid, mas a conta pode ser ligada a
-    // qualquer cadastro existente pelo coordenador.
+    // qualquer cadastro existente pelo dispatcher.
     function meuMotoristaId() {
       return get(/databases/$(database)/documents/perfis/$(request.auth.uid)).data.motoristaId;
     }
@@ -42,68 +44,69 @@ service cloud.firestore {
 
     match /perfis/{uid} {
       allow read: if logado();
-      // Coordenador cria perfis; o e-mail do administrador cria o próprio perfil de
-      // coordenador; e qualquer conta pode criar o PRÓPRIO perfil de motorista
+      // Dispatcher cria perfis; o e-mail do administrador cria o próprio perfil de
+      // dispatcher; e qualquer conta pode criar o PRÓPRIO perfil de motorista
       // (pré-cadastro — o acesso real só vem com a aprovação do cadastro).
-      // Perfil de COORDENADOR: só o dono cria/muda. Coordenador comum mexe
+      // Perfil de DISPATCHER: só o dono cria/muda. Dispatcher comum mexe
       // apenas em perfil de motorista; e qualquer conta cria o próprio
       // perfil de motorista no pré-cadastro.
       allow create: if ehDono() ||
-        (ehCoordenador() && request.resource.data.papel == 'motorista') ||
+        (ehDispatcher() && request.resource.data.papel == 'motorista') ||
         (logado() && request.auth.uid == uid &&
          request.resource.data.papel == 'motorista' &&
          request.resource.data.motoristaId == uid);
       allow update: if ehDono() ||
-        (ehCoordenador() && request.resource.data.papel == 'motorista' &&
+        (ehDispatcher() && request.resource.data.papel == 'motorista' &&
          resource.data.papel == 'motorista');
       allow delete: if ehDono() ||
-        (ehCoordenador() && resource.data.papel == 'motorista');
+        (ehDispatcher() && resource.data.papel == 'motorista');
     }
 
     match /motoristas/{id} {
       allow read: if logado();
       // Pré-cadastro: a conta cria o próprio registro, obrigatoriamente com
-      // aprovado=false e ativo=false — quem libera é o coordenador.
-      allow create: if ehCoordenador() ||
+      // aprovado=false e ativo=false — quem libera é o dispatcher.
+      allow create: if ehDispatcher() ||
         (logado() && request.auth.uid == id &&
          request.resource.data.aprovado == false &&
          request.resource.data.ativo == false);
-      allow update, delete: if ehCoordenador();
+      allow update, delete: if ehDispatcher();
       // O motorista ajusta as próprias preferências de cidade — e só elas.
+      // 'cidadesBloqueadas' NÃO entra aqui: quem restringe é o Dispatcher.
       allow update: if logado() && id == meuMotoristaId() &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['cidadesPreferidas', 'cidadesBloqueadas']);
+          .hasOnly(['cidadesPreferidas', 'cidadesPossiveis']);
     }
 
     match /chamadas/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador();
+      allow write: if ehDispatcher();
     }
 
     match /escalas/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador();
+      allow write: if ehDispatcher();
     }
 
     match /respostas/{id} {
       allow read: if logado();
-      // Motorista aprovado grava apenas a própria resposta; coordenador pode tudo.
-      allow write: if ehCoordenador() ||
+      // Motorista aprovado grava apenas a própria resposta; dispatcher pode tudo.
+      allow write: if ehDispatcher() ||
         (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
     }
 
     // Disponibilidade por data marcada pelo próprio motorista (agenda).
     match /agenda/{id} {
       allow read: if logado();
-      allow create, update: if ehCoordenador() ||
+      allow create, update: if ehDispatcher() ||
         (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
-      allow delete: if ehCoordenador() ||
+      allow delete: if ehDispatcher() ||
         (logado() && resource.data.motoristaId == meuMotoristaId());
     }
 
     match /rotas/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador();
+      allow write: if ehDispatcher();
       // O motorista finaliza a PRÓPRIA rota — e só pode mexer nesse campo.
       allow update: if logado() &&
         resource.data.motoristaId == meuMotoristaId() &&
@@ -111,28 +114,28 @@ service cloud.firestore {
     }
 
     // Opções de cadastro (veículos/operações): leitura PÚBLICA porque a tela
-    // de cadastro roda antes do login; só o coordenador escreve.
+    // de cadastro roda antes do login; só o dispatcher escreve.
     match /tipos/{id} {
       allow read: if true;
-      allow write: if ehCoordenador();
+      allow write: if ehDispatcher();
     }
 
     match /notificacoes/{id} {
       allow read: if logado();
-      allow create: if ehCoordenador();
+      allow create: if ehDispatcher();
       allow update: if logado(); // marcar como lida
-      allow delete: if ehCoordenador();
+      allow delete: if ehDispatcher();
     }
 
     // Regra geral (vale para limites, cidades e QUALQUER coleção nova):
-    // todo usuário logado lê; apenas o coordenador escreve.
-    // ATENÇÃO: 'perfis' fica de fora — é ela que define quem é coordenador,
+    // todo usuário logado lê; apenas o dispatcher escreve.
+    // ATENÇÃO: 'perfis' fica de fora — é ela que define quem é dispatcher,
     // e liberar aqui anularia a regra específica (só o dono promove).
     // Coleções com escrita do motorista (respostas, agenda, rotas, cadastro)
     // têm as permissões extras específicas definidas acima.
     match /{colecao}/{id} {
       allow read: if logado();
-      allow write: if ehCoordenador() && colecao != 'perfis';
+      allow write: if ehDispatcher() && colecao != 'perfis';
     }
   }
 }

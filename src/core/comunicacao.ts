@@ -38,10 +38,10 @@ export function mensagemCobranca(m: Motorista, c: Chamada): string {
 export function mensagemEscala(m: Motorista, e: Escala, c: Chamada | undefined): string {
   return (
     `Olá, ${m.nome.split(' ')[0]}! ✅\n\n` +
-    `Você foi *escalado(a)* para: *${e.nome}*\n\n` +
+    `Você está no *planejamento*: *${e.nome}*\n\n` +
     `📅 ${formatarDataLonga(e.data)}\n` +
     (c ? `📦 Operação: ${c.operacao}\n🕖 Horário: ${c.horarioInicio} às ${c.horarioFim}\n` : '') +
-    `\nQualquer imprevisto, avise a coordenação. Boa rota! 🚚📦`
+    `\nQualquer imprevisto, avise o Dispatcher. Boa rota! 🚚📦`
   )
 }
 

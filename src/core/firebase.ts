@@ -37,18 +37,18 @@ export async function removerPerfil(uid: string) {
 }
 
 /**
- * Promove um pré-cadastro de dispatcher a COORDENADOR: troca o papel do perfil
+ * Promove um pré-cadastro a DISPATCHER: troca o papel do perfil
  * (a tela da pessoa vira o painel completo na hora) e remove o registro da
- * frota — coordenador não é motorista. O e-mail já gravado no perfil é mantido.
+ * frota — dispatcher não é motorista. O e-mail já gravado no perfil é mantido.
  */
-export async function promoverParaCoordenador(uid: string) {
-  await setDoc(doc(firestore, 'perfis', uid), { papel: 'coordenador', motoristaId: null }, { merge: true })
+export async function promoverParaDispatcher(uid: string) {
+  await setDoc(doc(firestore, 'perfis', uid), { papel: 'dispatcher', motoristaId: null }, { merge: true })
   await deleteDoc(doc(firestore, 'motoristas', uid))
 }
 
 /**
  * Cria uma conta de acesso (e-mail/senha) para um motorista SEM derrubar a
- * sessão do coordenador: usa uma instância secundária do app só para o cadastro.
+ * sessão do dispatcher: usa uma instância secundária do app só para o cadastro.
  * Retorna o uid do novo usuário.
  */
 export async function criarContaMotorista(email: string, senha: string): Promise<string> {
@@ -71,15 +71,15 @@ export interface DadosPreCadastro {
   veiculo: string
   email: string
   senha: string
-  /** 'dispatcher' = ao ser aprovado, vira coordenador com acesso total. */
-  funcao: 'motorista' | 'dispatcher' | 'coordenador'
+  /** 'dispatcher' = ao ser aprovado, ganha o painel completo. */
+  funcao: 'motorista' | 'dispatcher'
 }
 
 /**
  * Pré-cadastro feito pelo PRÓPRIO motorista na tela de login:
  * cria a conta, o perfil e o cadastro com aprovado=false — tudo numa instância
  * secundária (autenticada como o novo usuário, como as regras exigem) — e por
- * fim entra na conta. O acesso real só é liberado quando o coordenador aprovar.
+ * fim entra na conta. O acesso real só é liberado quando o dispatcher aprovar.
  */
 /**
  * Lê as opções de cadastro (veículos/operações) ANTES do login — a tela de

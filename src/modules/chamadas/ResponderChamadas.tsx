@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { responderChamada, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { formatarQuando, rotuloDia } from '../../core/dates'
-import { ORDEM_STATUS, STATUS_RESPOSTA } from '../../core/constants'
+import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
+import { parametrosAtuais } from '../../core/alocacao'
+import { prazoDisponibilidade } from '../../core/corte'
 import type { Chamada, Periodo, StatusResposta } from '../../core/types'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 import { StatusPill } from '../../components/StatusPill'
@@ -25,6 +27,11 @@ export function ResponderChamadas() {
   const motorista = db.motoristas.find((m) => m.id === motoristaId)
   if (!motorista) return <EmptyState icone="🚚" titulo="Nenhum motorista selecionado" />
 
+  // Prazo para se declarar DISPONÍVEL no dia da chamada. Avisar que está
+  // indisponível continua liberado depois do corte.
+  const params = parametrosAtuais(db)
+  const prazoDe = (c: Chamada) => prazoDisponibilidade(c.data, params)
+
   const abertas = db.chamadas
     .filter((c) => c.status === 'aberta')
     .sort((a, b) => a.data.localeCompare(b.data))
@@ -33,12 +40,19 @@ export function ResponderChamadas() {
     db.respostas.find((r) => r.chamadaId === c.id && r.motoristaId === motorista.id)
 
   // Depois que o circuito anda (escala montada / chamada encerrada), a
-  // resposta fica CONCLUÍDA — só a coordenação pode mudar dali em diante.
+  // resposta fica CONCLUÍDA — só o Dispatcher pode mudar dali em diante.
   const respostaTravada = (c: Chamada) =>
     c.status !== 'aberta' || db.escalas.some((e) => e.chamadaId === c.id)
 
   const responder = (c: Chamada, status: StatusResposta) => {
     if (respostaTravada(c)) return
+    const prazo = prazoDe(c)
+    if (STATUS_DISPONIVEIS.includes(status) && prazo.encerrado) {
+      alert(
+        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}.\n\nVocê ainda pode avisar que está indisponível, de folga, atestado ou férias. Para entrar no dia, fale com o Dispatcher.`,
+      )
+      return
+    }
     // Status que precisam de complemento abrem o modal; os demais são um toque só.
     if (status === 'apos_horario' || status === 'meio_periodo' || status === 'outro') {
       setHorario('12:00')
@@ -53,6 +67,7 @@ export function ResponderChamadas() {
 
   const confirmarComplemento = () => {
     if (!complemento || respostaTravada(complemento.chamada)) return
+    if (STATUS_DISPONIVEIS.includes(complemento.status) && prazoDe(complemento.chamada).encerrado) return
     setAlterando(null)
     responderChamada({
       chamadaId: complemento.chamada.id,
@@ -73,12 +88,13 @@ export function ResponderChamadas() {
       </div>
 
       {abertas.length === 0 && (
-        <EmptyState icone="🎉" titulo="Nenhuma chamada aberta" descricao="Quando a coordenação abrir uma chamada, ela aparece aqui." />
+        <EmptyState icone="🎉" titulo="Nenhuma chamada aberta" descricao="Quando o Dispatcher abrir uma chamada, ela aparece aqui." />
       )}
 
       {abertas.map((c) => {
         const r = minhaResposta(c)
         const travada = respostaTravada(c)
+        const prazo = prazoDe(c)
         const mostrarGrade = !r || (!travada && alterando === c.id)
         return (
           <Card key={c.id} className="overflow-hidden">
@@ -109,8 +125,8 @@ export function ResponderChamadas() {
                   </p>
                   {travada ? (
                     <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                      🔒 Resposta registrada e <strong>concluída</strong> — a escala do dia já foi
-                      montada. Precisa mudar? Fale com a coordenação.
+                      🔒 Resposta registrada e <strong>concluída</strong> — o planejamento do dia já foi
+                      montada. Precisa mudar? Fale com o Dispatcher.
                     </p>
                   ) : (
                     <Button variante="secundario" onClick={() => setAlterando(c.id)}>
@@ -130,10 +146,17 @@ export function ResponderChamadas() {
                       </p>
                     </div>
                   )}
+                  {prazo.encerrado && (
+                    <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      🔒 O prazo para se declarar <strong>disponível</strong> neste dia terminou em{' '}
+                      <strong>{prazo.texto}</strong>. Avisar indisponibilidade continua liberado.
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {ORDEM_STATUS.map((s) => {
                       const info = STATUS_RESPOSTA[s]
                       const ativo = r?.status === s
+                      const bloqueado = prazo.encerrado && STATUS_DISPONIVEIS.includes(s)
                       return (
                         <button
                           key={s}
@@ -142,7 +165,7 @@ export function ResponderChamadas() {
                             ativo
                               ? 'border-ml-azul bg-blue-50 text-ml-azul shadow-sm'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                          }`}
+                          } ${bloqueado ? 'opacity-40' : ''}`}
                         >
                           <span className="text-2xl">{info.emoji}</span>
                           {info.label}

@@ -1,6 +1,11 @@
-// Tela do MOTORISTA: preferência por cidade (Prefiro / Posso / Nunca).
-// É parametrização — vale para todos os dias e alimenta a alocação
-// automática: "Prefiro" pontua a favor, "Nunca" tira o motorista da cidade.
+// Tela do MOTORISTA: preferência por cidade (Prefiro / Posso / Não tenho preferência).
+// É parametrização — vale para todos os dias e alimenta a alocação automática:
+// "Prefiro" pontua alto, "Posso" pontua um pouco, "Não tenho preferência" é
+// neutro (nem ajuda nem atrapalha — é o estado padrão de toda cidade).
+//
+// Bloquear cidade NÃO é decisão do motorista: se ele não pode atender um
+// destino, quem registra isso no cadastro é o Dispatcher. Cidade bloqueada
+// aparece aqui só para leitura, para o motorista saber que existe.
 
 import { useState } from 'react'
 import { useSessao } from '../../context/SessaoContext'
@@ -8,12 +13,17 @@ import { salvarPreferenciasCidades, useDB } from '../../core/db'
 import { normalizarTexto } from '../../core/texto'
 import { Card, EmptyState } from '../../components/ui'
 
-type Preferencia = 'prefiro' | 'posso' | 'nunca'
+type Preferencia = 'prefiro' | 'posso' | 'indiferente'
 
 const OPCOES: { valor: Preferencia; rotulo: string; emoji: string; ativo: string }[] = [
   { valor: 'prefiro', rotulo: 'Prefiro', emoji: '⭐', ativo: 'border-emerald-500 bg-emerald-50 text-emerald-800' },
   { valor: 'posso', rotulo: 'Posso', emoji: '👍', ativo: 'border-ml-azul bg-blue-50 text-ml-azul' },
-  { valor: 'nunca', rotulo: 'Nunca', emoji: '🚫', ativo: 'border-red-500 bg-red-50 text-red-700' },
+  {
+    valor: 'indiferente',
+    rotulo: 'Não tenho preferência',
+    emoji: '😐',
+    ativo: 'border-slate-400 bg-slate-100 text-slate-700',
+  },
 ]
 
 /** "A, B" → ['A','B'] sem espaços sobrando nem vazios. */
@@ -35,36 +45,39 @@ export function MinhasCidades() {
   if (!eu) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
   const preferidas = lista(eu.cidadesPreferidas)
+  const possiveis = lista(eu.cidadesPossiveis)
   const bloqueadas = lista(eu.cidadesBloqueadas)
 
-  // A lista vem do coordenador (tela Cidades da operação) — o motorista só
+  // A lista vem do Dispatcher (tela Cidades da operação) — o motorista só
   // qualifica o que a operação atende, não inventa cidade.
-  const cidades = db.cidades
-    .map((c) => c.nome)
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const cidades = db.cidades.map((c) => c.nome).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+
+  const bloqueada = (cidade: string) => bloqueadas.some((c) => chave(c) === chave(cidade))
 
   const preferenciaDe = (cidade: string): Preferencia => {
-    if (bloqueadas.some((c) => chave(c) === chave(cidade))) return 'nunca'
     // Só a primeira vale como preferida (cadastros antigos podiam ter várias).
     if (preferidas[0] && chave(preferidas[0]) === chave(cidade)) return 'prefiro'
-    return 'posso'
+    if (possiveis.some((c) => chave(c) === chave(cidade))) return 'posso'
+    return 'indiferente'
   }
 
   const definir = (cidade: string, valor: Preferencia) => {
+    if (bloqueada(cidade)) return
     const semCidade = (arr: string[]) => arr.filter((c) => chave(c) !== chave(cidade))
     const anterior = preferidas[0]
-    // ⭐ Prefiro é UMA só: escolher outra troca a estrela de lugar.
+    // ⭐ Prefiro é UMA só: escolher outra troca a estrela de lugar. A cidade que
+    // vira preferida sai da lista de "posso" para não contar duas vezes.
     const novasPreferidas = valor === 'prefiro' ? [cidade] : semCidade(preferidas)
-    const novasBloqueadas = valor === 'nunca' ? [...semCidade(bloqueadas), cidade] : semCidade(bloqueadas)
-    salvarPreferenciasCidades(eu.id, novasPreferidas.join(', '), novasBloqueadas.join(', '))
+    const novasPossiveis = valor === 'posso' ? [...semCidade(possiveis), cidade] : semCidade(possiveis)
+    salvarPreferenciasCidades(eu.id, novasPreferidas.join(', '), novasPossiveis.join(', '))
     setAviso(
       valor === 'prefiro'
         ? `⭐ ${cidade} é a sua cidade preferida${
             anterior && chave(anterior) !== chave(cidade) ? ` (antes era ${anterior})` : ''
           }.`
-        : valor === 'nunca'
-          ? `🚫 ${cidade} marcada como cidade que você não faz.`
-          : `👍 ${cidade} voltou para "posso fazer".`,
+        : valor === 'posso'
+          ? `👍 ${cidade} marcada como cidade que você faz.`
+          : `😐 ${cidade} ficou sem preferência — você entra nela normalmente.`,
     )
   }
 
@@ -73,7 +86,7 @@ export function MinhasCidades() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">📍 Cidades preferidas</h1>
         <p className="text-sm text-slate-500">
-          Diga de antemão onde você prefere entregar. A coordenação vê isso e a distribuição
+          Diga de antemão onde você prefere entregar. O Dispatcher vê isso e a distribuição
           automática das rotas leva em conta — vale para todos os dias, não precisa repetir.
         </p>
       </div>
@@ -88,7 +101,7 @@ export function MinhasCidades() {
         <div className="mb-2 grid grid-cols-3 gap-2 text-center text-[11px] font-semibold text-slate-500">
           <span>⭐ Prefiro — só uma cidade</span>
           <span>👍 Posso — quantas quiser</span>
-          <span>🚫 Nunca — quantas quiser</span>
+          <span>😐 Sem preferência — o padrão</span>
         </div>
         <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           {preferidas.length > 0 ? (
@@ -97,24 +110,33 @@ export function MinhasCidades() {
               “Prefiro” <strong>troca</strong> — só vale uma.
             </>
           ) : (
-            <>⭐ Escolha <strong>uma</strong> cidade preferida. As demais podem ficar como “Posso” ou “Nunca”.</>
+            <>
+              ⭐ Escolha <strong>uma</strong> cidade preferida. As demais podem ficar como “Posso” ou
+              “Não tenho preferência”.
+            </>
           )}
+          <br />
+          😐 “Não tenho preferência” <strong>não bloqueia</strong> nada: você continua podendo ser
+          direcionado para a cidade, só não ganha prioridade nela.
         </p>
 
         {cidades.length === 0 ? (
           <EmptyState
             icone="📍"
             titulo="Nenhuma cidade cadastrada ainda"
-            descricao="Assim que a coordenação cadastrar as cidades da operação, elas aparecem aqui para você marcar onde prefere entregar."
+            descricao="Assim que o Dispatcher cadastrar as cidades da operação, elas aparecem aqui para você marcar onde prefere entregar."
           />
         ) : (
           <ul className="space-y-2">
             {cidades.map((cidade) => {
               const atual = preferenciaDe(cidade)
+              const travada = bloqueada(cidade)
               return (
                 <li
                   key={cidade}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-2.5"
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-2.5 ${
+                    travada ? 'border-slate-200 bg-slate-50' : 'border-slate-200'
+                  }`}
                 >
                   <span className="font-semibold text-slate-800">
                     {cidade}
@@ -122,29 +144,34 @@ export function MinhasCidades() {
                       <span className="ml-1 text-[11px] font-normal text-slate-400">• sua cidade</span>
                     )}
                   </span>
-                  <div className="flex gap-1.5">
-                    {OPCOES.map((o) => (
-                      <button
-                        key={o.valor}
-                        onClick={() => definir(cidade, o.valor)}
-                        className={`rounded-lg border-2 px-2.5 py-1.5 text-xs font-bold transition-colors active:scale-95 ${
-                          atual === o.valor ? o.ativo : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                        }`}
-                      >
-                        {o.emoji} {o.rotulo}
-                      </button>
-                    ))}
-                  </div>
+                  {travada ? (
+                    <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                      🚫 Bloqueada no seu cadastro — fale com o Dispatcher
+                    </span>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      {OPCOES.map((o) => (
+                        <button
+                          key={o.valor}
+                          onClick={() => definir(cidade, o.valor)}
+                          className={`rounded-lg border-2 px-2.5 py-1.5 text-xs font-bold transition-colors active:scale-95 ${
+                            atual === o.valor ? o.ativo : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                          }`}
+                        >
+                          {o.emoji} {o.rotulo}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </li>
               )
             })}
           </ul>
         )}
-
       </Card>
 
       <p className="text-center text-[11px] text-slate-400">
-        Salva na hora. A coordenação pode ajustar em casos excepcionais.
+        Salva na hora. O Dispatcher pode ajustar em casos excepcionais.
       </p>
     </div>
   )

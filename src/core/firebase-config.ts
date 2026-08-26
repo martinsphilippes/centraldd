@@ -15,8 +15,8 @@ export const firebaseConfig = {
 export const configPendente = firebaseConfig.apiKey === 'COLE_AQUI'
 
 /**
- * E-mails autorizados a virar COORDENADOR automaticamente no primeiro login.
- * Qualquer outra conta sem perfil criado pela coordenação é desconectada.
+ * E-mails autorizados a virar DISPATCHER automaticamente no primeiro login.
+ * Qualquer outra conta sem perfil criado pelo Dispatcher é desconectada.
  * (Mantenha em sincronia com firestore.rules.)
  */
-export const EMAILS_COORDENADOR = ['martinsphilippes@gmail.com']
+export const EMAILS_DISPATCHER = ['martinsphilippes@gmail.com']

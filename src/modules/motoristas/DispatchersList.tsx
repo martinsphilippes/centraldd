@@ -1,46 +1,46 @@
-// Tela do DONO: quem tem acesso de COORDENADOR no sistema.
+// Tela do DONO: quem tem acesso de DISPATCHER no sistema.
 // Espelha a de motoristas — lista quem já está ativo e os pedidos pendentes,
 // que só o dono aprova.
 
 import { useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
-import { removerPerfil, promoverParaCoordenador } from '../../core/firebase'
+import { removerPerfil, promoverParaDispatcher } from '../../core/firebase'
+import { ehPapelDispatcher, pedeDispatcher } from '../../core/papel'
 import { removerMotorista, enviarNotificacao } from '../../core/db'
-import { EMAILS_COORDENADOR } from '../../core/firebase-config'
+import { EMAILS_DISPATCHER } from '../../core/firebase-config'
 import { formatarTelefone } from '../../core/comunicacao'
 import { formatarData } from '../../core/dates'
 import type { Motorista } from '../../core/types'
 import { Avatar, Badge, Button, Card, EmptyState } from '../../components/ui'
 
-const pedeCoordenador = (funcao?: string) => funcao === 'coordenador' || funcao === 'dispatcher'
 
-export function CoordenadoresList() {
+export function DispatchersList() {
   const db = useDB()
   const { usuarioEmail } = useSessao()
-  const souDono = EMAILS_COORDENADOR.includes((usuarioEmail ?? '').toLowerCase())
+  const souDono = EMAILS_DISPATCHER.includes((usuarioEmail ?? '').toLowerCase())
 
-  const coordenadores = db.perfis
-    .filter((p) => p.papel === 'coordenador')
+  const dispatchers = db.perfis
+    .filter((p) => ehPapelDispatcher(p.papel))
     .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? ''))
 
-  // Pedidos de acesso de coordenador ainda aguardando (pré-cadastro).
+  // Pedidos de acesso de dispatcher ainda aguardando (pré-cadastro).
   const pendentes = db.motoristas
-    .filter((m) => m.aprovado === false && pedeCoordenador(m.funcao))
+    .filter((m) => m.aprovado === false && pedeDispatcher(m.funcao))
     .sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))
 
   const aprovar = (m: Motorista) => {
     if (!souDono) return
     if (
       !confirm(
-        `Aprovar ${m.nome} como COORDENADOR?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
+        `Aprovar ${m.nome} como DISPATCHER?\nEle terá acesso total ao painel: programação, rotas, escalas, parâmetros e aprovações.`,
       )
     )
       return
-    void promoverParaCoordenador(m.id)
+    void promoverParaDispatcher(m.id)
     enviarNotificacao({
       motoristaId: m.id,
-      titulo: 'Acesso de coordenador liberado! 🎉',
-      mensagem: `${m.nome.split(' ')[0]}, seu acesso de coordenador foi aprovado — o painel completo já está disponível.`,
+      titulo: 'Acesso de dispatcher liberado! 🎉',
+      mensagem: `${m.nome.split(' ')[0]}, seu acesso de dispatcher foi aprovado — o painel completo já está disponível.`,
     })
   }
 
@@ -54,7 +54,7 @@ export function CoordenadoresList() {
     if (!souDono) return
     if (
       !confirm(
-        `Remover o acesso de coordenador de ${email ?? uid}?\nA conta continua existindo, mas fica sem acesso até você liberar de novo.`,
+        `Remover o acesso de dispatcher de ${email ?? uid}?\nA conta continua existindo, mas fica sem acesso até você liberar de novo.`,
       )
     )
       return
@@ -64,17 +64,17 @@ export function CoordenadoresList() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">🧑‍💼 Coordenadores</h1>
+        <h1 className="text-xl font-bold text-slate-900">🧑‍💼 Dispatchers</h1>
         <p className="text-sm text-slate-500">
           Quem tem acesso ao painel completo da operação. Só você, como dono, aprova ou remove
-          acesso de coordenador.
+          acesso de dispatcher.
         </p>
       </div>
 
       {pendentes.length > 0 && (
         <Card className="border-amber-300 bg-amber-50 p-4">
           <h2 className="mb-1 font-bold text-slate-900">
-            ⏳ Pedidos de acesso de coordenador ({pendentes.length})
+            ⏳ Pedidos de acesso de dispatcher ({pendentes.length})
           </h2>
           <p className="mb-3 text-xs text-slate-600">
             {souDono
@@ -96,7 +96,7 @@ export function CoordenadoresList() {
                   <div className="flex gap-2">
                     {souDono ? (
                       <Button variante="ml" onClick={() => aprovar(m)}>
-                        ✅ Aprovar como coordenador
+                        ✅ Aprovar como dispatcher
                       </Button>
                     ) : (
                       <Badge className="border-slate-300 bg-slate-100 text-slate-600">
@@ -114,20 +114,20 @@ export function CoordenadoresList() {
         </Card>
       )}
 
-      {coordenadores.length === 0 ? (
+      {dispatchers.length === 0 ? (
         <EmptyState
           icone="🧑‍💼"
-          titulo="Nenhum coordenador cadastrado"
-          descricao="Quando alguém se cadastrar escolhendo “Coordenador” e você aprovar, o acesso aparece aqui."
+          titulo="Nenhum dispatcher cadastrado"
+          descricao="Quando alguém se cadastrar escolhendo “Dispatcher” e você aprovar, o acesso aparece aqui."
         />
       ) : (
         <Card className="p-4">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-            {coordenadores.length} com acesso de coordenador
+            {dispatchers.length} com acesso de dispatcher
           </p>
           <ul className="space-y-2">
-            {coordenadores.map((p) => {
-              const ehDono = EMAILS_COORDENADOR.includes((p.email ?? '').toLowerCase())
+            {dispatchers.map((p) => {
+              const ehDono = EMAILS_DISPATCHER.includes((p.email ?? '').toLowerCase())
               return (
                 <li
                   key={p.id}
@@ -139,7 +139,7 @@ export function CoordenadoresList() {
                       {p.email ?? 'conta sem e-mail registrado'}
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      {ehDono ? '👑 Dono da operação' : '🧑‍💼 Coordenador'}
+                      {ehDono ? '👑 Dono da operação' : '🧑‍💼 Dispatcher'}
                       {p.email?.toLowerCase() === (usuarioEmail ?? '').toLowerCase() && ' • é você'}
                     </p>
                   </div>

@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useSessao } from '../context/SessaoContext'
 import { useDB } from '../core/db'
-import { EMAILS_COORDENADOR } from '../core/firebase-config'
+import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
 
@@ -19,7 +19,7 @@ interface ItemNav {
   soDono?: boolean
 }
 
-const NAV_COORDENADOR: ItemNav[] = [
+const NAV_DISPATCHER: ItemNav[] = [
   { para: '/', rotulo: 'Dashboard', icone: '📊', grupo: 'Painel' },
   { para: '/programacao', rotulo: 'Programação', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
   { para: '/agenda-frota', rotulo: 'Agenda', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
@@ -27,7 +27,7 @@ const NAV_COORDENADOR: ItemNav[] = [
   { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
-  { para: '/coordenadores', rotulo: 'Coordenadores', icone: '🧑‍💼', grupo: 'Cadastro e análise', soDono: true },
+  { para: '/dispatchers', rotulo: 'Dispatchers', icone: '🧑‍💼', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
   { para: '/tipos', rotulo: 'Opções', icone: '🏷️', grupo: 'Cadastro e análise' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
@@ -36,7 +36,7 @@ const NAV_COORDENADOR: ItemNav[] = [
 const NAV_MOTORISTA: ItemNav[] = [
   { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia', passo: 1 },
   { para: '/agenda', rotulo: 'Agenda', icone: '📅', grupo: 'Meu dia', passo: 1 },
-  { para: '/minhas-escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Meu dia', passo: 2 },
+  { para: '/minhas-escalas', rotulo: 'Planejamento', icone: '📋', grupo: 'Meu dia', passo: 2 },
   { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },
@@ -45,12 +45,12 @@ const NAV_MOTORISTA: ItemNav[] = [
 export function Layout({ children }: { children: ReactNode }) {
   const { papel, motoristaId, usuarioEmail, sair } = useSessao()
   const db = useDB()
-  const souDono = EMAILS_COORDENADOR.includes((usuarioEmail ?? '').toLowerCase())
-  const nav = (papel === 'coordenador' ? NAV_COORDENADOR : NAV_MOTORISTA).filter(
+  const souDono = EMAILS_DISPATCHER.includes((usuarioEmail ?? '').toLowerCase())
+  const nav = (papel === 'dispatcher' ? NAV_DISPATCHER : NAV_MOTORISTA).filter(
     (item) => !item.soDono || souDono,
   )
   const motorista = db.motoristas.find((m) => m.id === motoristaId)
-  const nomeExibicao = papel === 'coordenador' ? 'Coordenação' : (motorista?.nome ?? usuarioEmail ?? '')
+  const nomeExibicao = papel === 'dispatcher' ? 'Dispatcher' : (motorista?.nome ?? usuarioEmail ?? '')
   const naoLidas =
     papel === 'motorista' && motoristaId
       ? db.notificacoes.filter((n) => !n.lida && (n.motoristaId === null || n.motoristaId === motoristaId)).length
@@ -142,7 +142,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <div className="hidden text-left sm:block">
                 <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
                 <div className="text-[10px] leading-tight text-slate-500">
-                  {papel === 'coordenador' ? '🧑‍💼 Coordenador' : '🚚 Motorista'}
+                  {papel === 'dispatcher' ? '🧑‍💼 Dispatcher' : '🚚 Motorista'}
                 </div>
               </div>
             </div>
