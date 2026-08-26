@@ -6,7 +6,8 @@ rules_version = '2';
 // Modelo de acesso:
 //  - Dispatcher: lê e escreve tudo (chamadas, motoristas, planejamento,
 //    disponibilidade, notificações).
-//  - Motorista APROVADO: lê os dados da operação e só escreve a PRÓPRIA resposta/agenda.
+//  - Motorista APROVADO: lê os dados da operação e só escreve a PRÓPRIA
+//    resposta/disponibilidade.
 //  - Pré-cadastro: qualquer conta pode criar o próprio cadastro (aprovado=false) e
 //    o próprio perfil de motorista; só ganha acesso após aprovação do dispatcher.
 //  - Contas criadas no Console sem perfil viram dispatcher no 1º login (e-mail autorizado).
@@ -147,7 +148,8 @@ service cloud.firestore {
     // todo usuário logado lê; apenas o dispatcher escreve.
     // ATENÇÃO: 'perfis' fica de fora — é ela que define quem é dispatcher,
     // e liberar aqui anularia a regra específica (só o dono promove).
-    // Coleções com escrita do motorista (respostas, agenda, rotas, cadastro)
+    // Coleções com escrita do motorista (respostas, disponibilidade, rotas,
+    // cadastro)
     // têm as permissões extras específicas definidas acima.
     match /{colecao}/{id} {
       allow read: if logado();
