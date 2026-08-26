@@ -66,7 +66,6 @@ export interface DadosPreCadastro {
   nome: string
   telefone: string
   cidade: string
-  equipe: string
   operacao: string
   veiculo: string
   email: string
@@ -122,7 +121,8 @@ export async function cadastrarPreCadastro(dados: DadosPreCadastro): Promise<voi
       nome: dados.nome.trim(),
       telefone: dados.telefone.replace(/\D/g, ''),
       cidade: dados.cidade.trim(),
-      equipe: dados.equipe.trim(),
+      // Equipe não vem do cadastro: quem define é o Dispatcher.
+      equipe: '',
       operacao: dados.operacao,
       veiculo: dados.veiculo,
       ativo: false,

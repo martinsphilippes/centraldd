@@ -37,7 +37,6 @@ export function Login() {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
-  const [equipe, setEquipe] = useState('')
   // As opções vêm do que o dispatcher cadastrou (tela Tipos); os padrões
   // só valem enquanto a lista da operação estiver vazia.
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
@@ -82,7 +81,7 @@ export function Login() {
     }
     setEnviando(true)
     try {
-      await cadastrarPreCadastro({ nome, telefone, cidade, equipe, operacao, veiculo, email, senha, funcao })
+      await cadastrarPreCadastro({ nome, telefone, cidade, operacao, veiculo, email, senha, funcao })
       // Ao concluir, a sessão entra automaticamente e cai na tela de aguardando aprovação.
     } catch (err) {
       setErro(codigoParaMensagem(err))
@@ -204,16 +203,9 @@ export function Login() {
                   placeholder="Ex.: 11 98765-4321"
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="📍 Cidade">
-                  <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
-                </Field>
-                {funcao === 'motorista' && (
-                  <Field label="👥 Equipe">
-                    <Input value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Se souber" />
-                  </Field>
-                )}
-              </div>
+              <Field label="📍 Cidade">
+                <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
+              </Field>
               {funcao === 'motorista' && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="📦 Operação">
