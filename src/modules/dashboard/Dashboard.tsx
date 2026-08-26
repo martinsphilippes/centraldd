@@ -63,7 +63,7 @@ export function Dashboard() {
         <StatCard icone="📦" valor={entregasHoje} rotulo="Vagas de rota hoje" destaque />
         <StatCard icone="🚚" valor={db.motoristas.filter((m) => m.ativo).length} rotulo="Motoristas cadastrados" />
         <StatCard
-          icone="🧑‍💼"
+          icone="🧑"
           valor={db.perfis.filter((p) => ehPapelDispatcher(p.papel)).length}
           rotulo="Dispatchers cadastrados"
         />

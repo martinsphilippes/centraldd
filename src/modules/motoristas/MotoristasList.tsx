@@ -98,7 +98,7 @@ export function MotoristasList() {
                     <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
                       {m.nome}
                       {pedeDispatcher(m.funcao) && (
-                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑‍💼 Quer ser dispatcher</Badge>
+                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑 Quer ser dispatcher</Badge>
                       )}
                     </p>
                     <p className="text-[11px] text-slate-500">

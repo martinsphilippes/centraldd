@@ -64,7 +64,7 @@ export function DispatchersList() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">🧑‍💼 Dispatchers</h1>
+        <h1 className="text-xl font-bold text-slate-900">🧑 Dispatchers</h1>
         <p className="text-sm text-slate-500">
           Quem tem acesso ao painel completo da operação. Só você, como dono, aprova ou remove
           acesso de dispatcher.
@@ -116,7 +116,7 @@ export function DispatchersList() {
 
       {dispatchers.length === 0 ? (
         <EmptyState
-          icone="🧑‍💼"
+          icone="🧑"
           titulo="Nenhum dispatcher cadastrado"
           descricao="Quando alguém se cadastrar escolhendo “Dispatcher” e você aprovar, o acesso aparece aqui."
         />
@@ -139,7 +139,7 @@ export function DispatchersList() {
                       {p.email ?? 'conta sem e-mail registrado'}
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      {ehDono ? '👑 Dono da operação' : '🧑‍💼 Dispatcher'}
+                      {ehDono ? '👑 Dono da operação' : '🧑 Dispatcher'}
                       {p.email?.toLowerCase() === (usuarioEmail ?? '').toLowerCase() && ' • é você'}
                     </p>
                   </div>

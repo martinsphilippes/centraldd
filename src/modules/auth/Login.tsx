@@ -181,7 +181,7 @@ export function Login() {
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    🧑‍💼 Dispatcher
+                    🧑 Dispatcher
                   </button>
                 </div>
                 {funcao === 'dispatcher' && (

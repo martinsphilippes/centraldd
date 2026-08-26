@@ -27,7 +27,7 @@ const NAV_DISPATCHER: ItemNav[] = [
   { para: '/escalas', rotulo: 'Escalas', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
-  { para: '/dispatchers', rotulo: 'Dispatchers', icone: '🧑‍💼', grupo: 'Cadastro e análise', soDono: true },
+  { para: '/dispatchers', rotulo: 'Dispatchers', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
   { para: '/tipos', rotulo: 'Opções', icone: '🏷️', grupo: 'Cadastro e análise' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
@@ -142,7 +142,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <div className="hidden text-left sm:block">
                 <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
                 <div className="text-[10px] leading-tight text-slate-500">
-                  {papel === 'dispatcher' ? '🧑‍💼 Dispatcher' : '🚚 Motorista'}
+                  {papel === 'dispatcher' ? '🧑 Dispatcher' : '🚚 Motorista'}
                 </div>
               </div>
             </div>
