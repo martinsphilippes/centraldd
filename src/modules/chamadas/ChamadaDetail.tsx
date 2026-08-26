@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarEscala, uid, useDB, enviarNotificacao } from '../../core/db'
-import { formatarData, rotuloDia } from '../../core/dates'
+import { formatarData, formatarQuando, rotuloDia } from '../../core/dates'
 import { respostasDaChamada, resumoChamada, sugerirEscala, veioDaAgenda } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
@@ -152,6 +152,12 @@ export function ChamadaDetail() {
         <span className="ml-auto" />
         <ContactButtons motorista={m} mensagem={r ? undefined : mensagemCobranca(m, chamada)} compacto />
       </div>
+      {r && (
+        <p className="mt-1 text-[11px] text-slate-500">
+          {veioDaAgenda(r) ? '📅 marcou na agenda em ' : '✋ respondeu em '}
+          <strong>{formatarQuando(r.respondidaEm)}</strong>
+        </p>
+      )}
       {r?.observacao && <p className="mt-1 text-[11px] italic text-slate-500">“{r.observacao}”</p>}
     </li>
   )

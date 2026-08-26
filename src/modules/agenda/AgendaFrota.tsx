@@ -4,7 +4,7 @@ import { removerLimiteDia, salvarDiaAgenda, salvarLimiteDia, useDB } from '../..
 import { useSessao } from '../../context/SessaoContext'
 import { calcularLimiteDoDia } from '../../core/limites'
 import { parametrosAtuais } from '../../core/alocacao'
-import { hojeISO, formatarData, parseISODate, rotuloDia } from '../../core/dates'
+import { hojeISO, formatarData, formatarQuando, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaAgenda, Motorista } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
@@ -155,6 +155,11 @@ export function AgendaFrota() {
         <p className="truncate text-[11px] text-slate-500">
           {m.cidade} • {m.equipe} • {m.veiculo}
         </p>
+        {a && (
+          <p className="truncate text-[11px] text-slate-400">
+            🕒 marcou em <strong>{formatarQuando(a.atualizadaEm)}</strong>
+          </p>
+        )}
       </div>
       {concluidosDoDia.has(m.id) ? (
         <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>

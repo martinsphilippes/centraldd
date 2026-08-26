@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { removerDiaAgenda, salvarDiaAgenda, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
-import { hojeISO, formatarDataLonga, rotuloDia } from '../../core/dates'
+import { hojeISO, formatarDataLonga, formatarQuando, rotuloDia } from '../../core/dates'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import { parametrosAtuais } from '../../core/alocacao'
 import { calcularLimiteDoDia } from '../../core/limites'
@@ -176,6 +176,11 @@ export function MinhaAgenda() {
                   >
                     🎯 {ocupadas}/{limite.maxDisponiveis} vagas
                     {vagasEsgotadas(data) ? ' — esgotadas' : ''}
+                  </span>
+                )}
+                {marcado && (
+                  <span className="block text-[11px] text-slate-400">
+                    🕒 marcado em <strong>{formatarQuando(marcado.atualizadaEm)}</strong>
                   </span>
                 )}
                 {marcado?.observacao && (

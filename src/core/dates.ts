@@ -30,6 +30,17 @@ export function formatarDataHora(iso: string): string {
   return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
 }
 
+/** "22/08/2026 às 18:43" — data e horário exatos de um ISO datetime. */
+export function formatarQuando(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`
+}
+
 export function ehHoje(iso: string): boolean {
   return iso === hojeISO()
 }

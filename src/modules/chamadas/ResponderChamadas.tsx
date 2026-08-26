@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { responderChamada, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
-import { rotuloDia } from '../../core/dates'
+import { formatarQuando, rotuloDia } from '../../core/dates'
 import { ORDEM_STATUS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Chamada, Periodo, StatusResposta } from '../../core/types'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
@@ -101,8 +101,11 @@ export function ResponderChamadas() {
               {r && !mostrarGrade ? (
                 // Resposta dada: o quadrante encolhe para só o status escolhido.
                 <div className="space-y-3">
-                  <p className="flex items-center gap-2 text-sm text-slate-600">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                     Sua resposta: <StatusPill resposta={r} />
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    🕒 enviada em <strong>{formatarQuando(r.respondidaEm)}</strong>
                   </p>
                   {travada ? (
                     <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
@@ -118,9 +121,14 @@ export function ResponderChamadas() {
               ) : (
                 <>
                   {r && (
-                    <p className="mb-3 flex items-center gap-2 text-sm text-slate-600">
-                      Sua resposta: <StatusPill resposta={r} />
-                    </p>
+                    <div className="mb-3">
+                      <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                        Sua resposta: <StatusPill resposta={r} />
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        🕒 enviada em <strong>{formatarQuando(r.respondidaEm)}</strong>
+                      </p>
+                    </div>
                   )}
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {ORDEM_STATUS.map((s) => {
