@@ -107,6 +107,15 @@ export function DisponibilidadeFrota() {
     db.disponibilidade.find((a) => a.motoristaId === m.id && a.data === data)
 
   const doDia = frota.map((m) => ({ motorista: m, marcacao: marcacaoDe(m, diaSelecionado) }))
+  // Quem entrou no planejamento do dia (e quem ficou na fila) — declarado
+  // ANTES de qualquer uso: era usado abaixo antes de existir e derrubava a tela.
+  const doPlanejamentoDoDia = new Set(
+    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
+  )
+  const naEsperaDoDia = new Set(
+    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.esperaIds ?? []),
+  )
+
   const trabalham = doDia.filter((x) => x.marcacao && STATUS_DISPONIVEIS.includes(x.marcacao.status))
   const naoTrabalham = doDia.filter((x) => x.marcacao && !STATUS_DISPONIVEIS.includes(x.marcacao.status))
   const semMarcacao = doDia.filter((x) => !x.marcacao)
@@ -160,12 +169,7 @@ export function DisponibilidadeFrota() {
   })
 
   // Fecha o ciclo com a esteira: quem já está na planejamento do dia fica marcado.
-  const doPlanejamentoDoDia = new Set(
-    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
-  )
-  const naEsperaDoDia = new Set(
-    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.esperaIds ?? []),
-  )
+
   // Ciclo do dia FECHADO: planejamento do dia concluída com o motorista, ou (hoje)
   // todas as rotas direcionadas a ele finalizadas/encerradas — interligado
   // com as telas de Rotas e Planejamento.

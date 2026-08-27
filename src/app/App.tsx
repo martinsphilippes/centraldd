@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './Layout'
+import { ErroTela } from '../components/ErroTela'
 import { useSessao } from '../context/SessaoContext'
 import { useDB, useDBCarregado } from '../core/db'
 import { Login } from '../modules/auth/Login'
@@ -70,6 +71,7 @@ export default function App() {
 
   return (
     <Layout>
+      <ErroTela>
       <Routes>
         {papel === 'dispatcher' ? (
           <>
@@ -106,6 +108,7 @@ export default function App() {
           </>
         )}
       </Routes>
+      </ErroTela>
     </Layout>
   )
 }
