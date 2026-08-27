@@ -188,14 +188,34 @@ export function RoteiroRota({ c, editavel }: Props) {
     return seguir === 'meli' ? ordemMeli(pendentes) : otimizarRoteiro(inicio, pendentes, null)
   }, [pendentes, posicaoAtual, progresso.proximaId, seguir])
 
-  // Comparação estática (rota inteira desde a base): Meli × otimizado.
+  // Comparação da rota completa desde a base: a ordem do Meli × o caminho
+  // REAL de hoje (entregues na ordem em que foram feitas + pendentes na ordem
+  // atual, com a escolha do motorista dentro) — recalcula a cada mudança.
+  const entreguesEmOrdem = useMemo(
+    () =>
+      progresso.entregues
+        .map((id) => paradas.find((x) => x.id === id))
+        .filter((x): x is Parada => !!x),
+    [progresso.entregues, paradas],
+  )
   const comparacao = useMemo(() => {
     if (!base || paradas.length === 0) return null
     return {
       meli: kmDaOrdem(base, ordemMeli(paradas)),
-      otimizado: kmDaOrdem(base, otimizarRoteiro(base, paradas)),
+      atual: kmDaOrdem(base, [...entreguesEmOrdem, ...ordemExecucao]),
     }
-  }, [base, paradas])
+  }, [base, paradas, entreguesEmOrdem, ordemExecucao])
+
+  // Quanto a ESCOLHA avulsa custou (ou economizou) em relação ao caminho que
+  // o sistema sugeriria sem ela, da mesma posição.
+  const escolhaValida =
+    progresso.proximaId && pendentes.some((p) => p.id === progresso.proximaId)
+  const deltaEscolha = useMemo(() => {
+    if (!escolhaValida || !posicaoAtual) return null
+    const semEscolha =
+      seguir === 'meli' ? ordemMeli(pendentes) : otimizarRoteiro(posicaoAtual, pendentes, null)
+    return kmDaOrdem(posicaoAtual, ordemExecucao) - kmDaOrdem(posicaoAtual, semEscolha)
+  }, [escolhaValida, posicaoAtual, pendentes, ordemExecucao, seguir])
 
   if (paradas.length === 0) {
     return (
@@ -251,13 +271,25 @@ export function RoteiroRota({ c, editavel }: Props) {
         </Badge>
         {kmRestante !== null && pendentes.length > 0 && (
           <Badge className="border-sky-200 bg-sky-50 text-sky-800">
-            🛣️ ~{kmRestante.toFixed(0)} km restantes (linha reta)
+            🛣️ ~{kmRestante.toFixed(1).replace('.', ',')} km restantes (linha reta)
+          </Badge>
+        )}
+        {deltaEscolha !== null && Math.abs(deltaEscolha) >= 0.05 && (
+          <Badge
+            className={
+              deltaEscolha > 0
+                ? 'border-amber-300 bg-amber-100 text-amber-800'
+                : 'border-emerald-300 bg-emerald-100 text-emerald-800'
+            }
+          >
+            📍 sua escolha: {deltaEscolha > 0 ? '+' : '−'}
+            {Math.abs(deltaEscolha).toFixed(1).replace('.', ',')} km vs o sugerido
           </Badge>
         )}
         {comparacao && (
           <span className="text-xs text-slate-500">
-            Rota completa: Meli ~{comparacao.meli.toFixed(0)} km · otimizada ~
-            {comparacao.otimizado.toFixed(0)} km
+            Rota completa: Meli ~{comparacao.meli.toFixed(0)} km · seu caminho ~
+            {comparacao.atual.toFixed(0)} km
           </span>
         )}
         {editavel ? (
@@ -292,12 +324,7 @@ export function RoteiroRota({ c, editavel }: Props) {
       <MapaParadas
         // Caminho completo do dia: entregues NA ORDEM em que foram feitas +
         // pendentes na ordem recalculada — a numeração conta a jornada real.
-        ordem={[
-          ...progresso.entregues
-            .map((id) => paradas.find((x) => x.id === id))
-            .filter((x): x is Parada => !!x),
-          ...ordemExecucao,
-        ]}
+        ordem={[...entreguesEmOrdem, ...ordemExecucao]}
         ordemDoMeli={ordemMeli(paradas)}
         base={base}
         entregues={entregues}
@@ -328,12 +355,12 @@ export function RoteiroRota({ c, editavel }: Props) {
         </span>
         <span className="flex items-center gap-3 font-semibold text-slate-600">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> nossa
-            {comparacao && ` ~${comparacao.otimizado.toFixed(0)} km`}
+            <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> seu caminho
+            {comparacao && ` ~${comparacao.atual.toFixed(1).replace('.', ',')} km`}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" /> Meli
-            {comparacao && ` ~${comparacao.meli.toFixed(0)} km`}
+            {comparacao && ` ~${comparacao.meli.toFixed(1).replace('.', ',')} km`}
           </span>
         </span>
         {editavel && (
