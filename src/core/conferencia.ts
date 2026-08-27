@@ -25,6 +25,33 @@ export interface LeituraNumeracoes {
   repetidas: number
 }
 
+/**
+ * O app de leitura de código de barras exporta o conteúdo lido na coluna
+ * `text`. Num QR do Meli isso vem como JSON — {"id":"47837917383","t":"lm"} —
+ * e num Code 128 vem o número cru. Aqui o JSON vira só a numeração; o resto
+ * passa direto.
+ */
+export function decodificarPayload(bruto: string): string {
+  const v = bruto.trim()
+  if (!v.startsWith('{')) return v
+  try {
+    const obj = JSON.parse(v) as Record<string, unknown>
+    const id = obj.id ?? obj.ID ?? obj.codigo ?? obj.code
+    if (typeof id === 'string' || typeof id === 'number') return String(id).trim()
+  } catch {
+    // JSON truncado pela leitura: ainda dá para pescar o id no texto.
+    const m = /"id"\s*:\s*"?([A-Za-z0-9._\-/]+)"?/i.exec(v)
+    if (m) return m[1]
+  }
+  return v
+}
+
+/** Cabeçalhos que anunciam a coluna da numeração, em qualquer planilha. */
+const TITULOS_CODIGO = [
+  'text', 'texto', 'codigo', 'code', 'pacote', 'id', 'numeracao', 'numero',
+  'shipment', 'remessa', 'etiqueta', 'barcode',
+]
+
 /** Cara de código de pacote: começa com letra ou dígito e tem 3+ caracteres. */
 const CODIGO = /^[A-Za-z0-9][A-Za-z0-9._\-/]{2,}$/
 
@@ -65,6 +92,15 @@ function celulas(linha: string, sep: string): string[] {
   return saida.map((c) => c.trim())
 }
 
+/** Título da coluna sem acento, pontuação nem caixa. */
+function chaveTitulo(t: string): string {
+  return t
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toLowerCase()
+}
+
 function ehCodigo(v: string): boolean {
   return CODIGO.test(v) && !DATA_OU_HORA.test(v)
 }
@@ -78,7 +114,9 @@ export function extrairNumeracoes(texto: string, colunaForcada?: number): Leitur
   if (linhas.length === 0) return { colunas: [], colunaUsada: 0, valores: [], repetidas: 0 }
 
   const sep = linhas[0].includes('\t') ? '\t' : linhas[0].includes(';') ? ';' : ','
-  const grade = linhas.map((l) => celulas(l, sep))
+  // Decodifica na leitura: daí em diante toda a lógica trabalha com a
+  // numeração final, não com o payload cru do leitor.
+  const grade = linhas.map((l) => celulas(l, sep).map(decodificarPayload))
   const largura = Math.max(...grade.map((l) => l.length))
 
   // Cabeçalho: rótulo de coluna não tem número ("Pacote", "Nº do pacote"),
@@ -109,8 +147,12 @@ export function extrairNumeracoes(texto: string, colunaForcada?: number): Leitur
     })
   }
 
-  // Escolha automática: a coluna com mais códigos distintos.
-  const melhor = colunas.reduce((a, b) => (b.codigos > a.codigos ? b : a), colunas[0])
+  // Escolha automática: um cabeçalho conhecido ('text', 'código', 'pacote'…)
+  // manda; sem ele, vale a coluna com mais códigos distintos.
+  const porTitulo = temCabecalho
+    ? colunas.find((c) => c.codigos > 0 && TITULOS_CODIGO.includes(chaveTitulo(c.titulo)))
+    : undefined
+  const melhor = porTitulo ?? colunas.reduce((a, b) => (b.codigos > a.codigos ? b : a), colunas[0])
   const usada =
     colunaForcada !== undefined && colunaForcada >= 0 && colunaForcada < largura
       ? colunaForcada

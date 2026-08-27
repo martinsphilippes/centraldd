@@ -28,12 +28,16 @@ function Envio({ c }: { c: Conferencia }) {
       <p className="text-sm font-semibold text-slate-700">
         📥 Envie a sua lista ({c.esperados.length} numeração(ões) esperada(s))
       </p>
+      <p className="text-xs text-slate-500">
+        📎 Mande o <strong>CSV do app de leitura</strong> do jeito que ele exporta — o sistema acha
+        a numeração sozinho, tanto no QR Code quanto no código de barras, e ignora bipada repetida.
+      </p>
       <EntradaNumeracoes
         aoLer={(v, a) => {
           setValores(v)
           setArquivo(a)
         }}
-        placeholder="Envie o CSV do coletor, ou cole/digite as numerações…"
+        placeholder="Envie o CSV do app de leitura, ou cole/digite as numerações…"
       />
       <div className="flex justify-end">
         <Button variante="ml" onClick={enviar} disabled={valores.length === 0 || enviando}>
