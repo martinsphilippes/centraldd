@@ -13,8 +13,6 @@ interface ItemNav {
   rotulo: string
   icone: string
   grupo: string
-  /** Número da etapa na esteira (etapas de partida dividem o passo 1). */
-  passo?: number
   /** true = item exclusivo do DONO da operação. */
   soDono?: boolean
   /**
@@ -26,12 +24,12 @@ interface ItemNav {
 
 const NAV_DISPATCHER: ItemNav[] = [
   { para: '/', rotulo: 'Dashboard', icone: '📊', grupo: 'Painel' },
-  { para: '/programacao', rotulo: 'Programação', curto: 'Program.', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
-  { para: '/disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
-  { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia', passo: 2 },
-  { para: '/planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
-  { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
-  { para: '/conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Fluxo do dia', passo: 5 },
+  { para: '/programacao', rotulo: 'Programação', curto: 'Program.', icone: '📆', grupo: 'Fluxo do dia' },
+  { para: '/disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Fluxo do dia' },
+  { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia' },
+  { para: '/planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Fluxo do dia' },
+  { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia' },
+  { para: '/conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Fluxo do dia' },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
   { para: '/dispatchers', rotulo: 'Dispatchers', curto: 'Dispatch.', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
@@ -40,11 +38,11 @@ const NAV_DISPATCHER: ItemNav[] = [
 ]
 
 const NAV_MOTORISTA: ItemNav[] = [
-  { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia', passo: 1 },
-  { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Meu dia', passo: 1 },
-  { para: '/meu-planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Meu dia', passo: 2 },
-  { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
-  { para: '/minha-conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Meu dia', passo: 4 },
+  { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia' },
+  { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Meu dia' },
+  { para: '/meu-planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Meu dia' },
+  { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia' },
+  { para: '/minha-conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Meu dia' },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },
   { para: '/meu-perfil', rotulo: 'Meu perfil', icone: '👤', curto: 'Perfil', grupo: 'Minhas preferências' },
@@ -99,17 +97,6 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               {({ isActive }) => (
                 <>
-                  {item.passo ? (
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                        isActive ? 'bg-slate-900/15 text-slate-900' : 'bg-white/15 text-slate-200'
-                      }`}
-                    >
-                      {item.passo}
-                    </span>
-                  ) : (
-                    <span className="w-5 shrink-0" />
-                  )}
                   <span>{item.icone}</span>
                   {item.rotulo}
                   {item.para === '/notificacoes' && naoLidas > 0 && (
