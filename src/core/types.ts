@@ -55,6 +55,18 @@ export interface Conferencia {
   arquivoDispatcher: string
   /** ISO — quando o Dispatcher subiu o documento. */
   enviadaEm: string
+  /**
+   * Detalhe de cada pacote quando a lista veio da página de rota do Meli:
+   * etiqueta de carga (CD-n), cidade, endereço e destinatário. É o que deixa
+   * a lista de faltantes apontar ONDE procurar o pacote.
+   */
+  pacotes?: {
+    numeracao: string
+    etiqueta: string
+    cidade: string
+    endereco: string
+    destinatario: string
+  }[]
   /** Numerações que o motorista enviou. null = ainda não enviou. */
   conferidos: string[] | null
   arquivoMotorista: string

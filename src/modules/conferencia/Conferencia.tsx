@@ -7,6 +7,8 @@ import { compararConferencia } from '../../core/conferencia'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { Conferencia as Conf } from '../../core/types'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
+import { normalizarTexto } from '../../core/texto'
+import type { RotaMeliLida } from '../../core/meli-rota'
 import { EntradaNumeracoes } from './EntradaNumeracoes'
 import { CarimbosConferencia, ResultadoConferencia } from './ResultadoConferencia'
 
@@ -30,6 +32,7 @@ export function Conferencia() {
   const [rotaId, setRotaId] = useState('')
   const [esperados, setEsperados] = useState<string[]>([])
   const [arquivo, setArquivo] = useState('')
+  const [rotaMeli, setRotaMeli] = useState<RotaMeliLida | null>(null)
 
   const motoristas = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
@@ -48,7 +51,24 @@ export function Conferencia() {
     setRotaId('')
     setEsperados([])
     setArquivo('')
+    setRotaMeli(null)
     setNovo(true)
+  }
+
+  /**
+   * Página do Meli lida: preenche o que der sozinho — o título vira o nome da
+   * rota e, se o motorista do documento estiver no cadastro (mesmo nome, sem
+   * acento), ele já fica selecionado.
+   */
+  const aplicarRotaMeli = (rota: RotaMeliLida | undefined) => {
+    setRotaMeli(rota ?? null)
+    if (!rota) return
+    if (rota.rota) setTitulo((t) => t.trim() || `Rota ${rota.rota}`)
+    if (rota.motorista) {
+      const alvo = normalizarTexto(rota.motorista)
+      const achado = motoristas.find((m) => normalizarTexto(m.nome) === alvo)
+      if (achado) setMotoristaId(achado.id)
+    }
   }
 
   const criar = () => {
@@ -61,6 +81,17 @@ export function Conferencia() {
       rotaId: rotaId || null,
       titulo: titulo.trim() || (rota ? `Rota ${rota.rotaExpedicao}` : `Conferência ${formatarData(data)}`),
       esperados,
+      // O detalhe de cada pacote (CD-n, cidade, endereço) vem junto quando a
+      // lista nasceu da página do Meli — é o que enriquece a lista de faltas.
+      pacotes: rotaMeli
+        ? rotaMeli.pacotes.map((x) => ({
+            numeracao: x.numeracao,
+            etiqueta: x.etiqueta,
+            cidade: x.cidade,
+            endereco: x.endereco,
+            destinatario: x.destinatario,
+          }))
+        : [],
       arquivoDispatcher: arquivo,
       enviadaEm: new Date().toISOString(),
       conferidos: null,
@@ -167,11 +198,12 @@ export function Conferencia() {
               📄 Lista do que deve sair
             </p>
             <EntradaNumeracoes
-              aoLer={(v, a) => {
+              aoLer={(v, a, rotaLida) => {
                 setEsperados(v)
                 setArquivo(a)
+                aplicarRotaMeli(rotaLida)
               }}
-              placeholder="Cole a lista de numerações do documento…"
+              placeholder="Cole aqui a página da rota do Meli (do bloco de notas), envie o arquivo salvo, ou cole as numerações…"
             />
           </div>
 

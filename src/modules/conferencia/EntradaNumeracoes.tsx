@@ -4,11 +4,15 @@
 
 import { useRef, useState, type ChangeEvent } from 'react'
 import { extrairNumeracoes } from '../../core/conferencia'
+import { parsearRotaMeli, pareceRotaMeli, type RotaMeliLida } from '../../core/meli-rota'
 import { Button, Select } from '../../components/ui'
 
 interface Props {
-  /** Chamado a cada leitura, com as numerações e o nome do arquivo. */
-  aoLer: (valores: string[], arquivo: string) => void
+  /**
+   * Chamado a cada leitura, com as numerações e o nome do arquivo. Quando o
+   * texto é a página de rota do Meli, `rota` vem junto com os detalhes.
+   */
+  aoLer: (valores: string[], arquivo: string, rota?: RotaMeliLida) => void
   placeholder?: string
 }
 
@@ -18,14 +22,25 @@ export function EntradaNumeracoes({ aoLer, placeholder }: Props) {
   const [coluna, setColuna] = useState<number | undefined>(undefined)
   const arquivoRef = useRef<HTMLInputElement>(null)
 
-  const leitura = texto.trim() ? extrairNumeracoes(texto, coluna) : null
+  const rotaMeli = texto.trim() && pareceRotaMeli(texto) ? parsearRotaMeli(texto) : null
+  const leitura = texto.trim() && !rotaMeli ? extrairNumeracoes(texto, coluna) : null
 
   const atualizar = (t: string, novaColuna?: number, nome = arquivo) => {
     setTexto(t)
     setColuna(novaColuna)
     setArquivo(nome)
-    const r = t.trim() ? extrairNumeracoes(t, novaColuna) : null
-    aoLer(r?.valores ?? [], nome)
+    if (!t.trim()) {
+      aoLer([], nome)
+      return
+    }
+    // Página de rota do Meli (Ctrl+S / colada do bloco de notas): a extração
+    // vem completa — numerações, motorista, rota e o detalhe de cada pacote.
+    const rota = pareceRotaMeli(t) ? parsearRotaMeli(t) : null
+    if (rota) {
+      aoLer(rota.pacotes.map((x) => x.numeracao), nome, rota)
+      return
+    }
+    aoLer(extrairNumeracoes(t, novaColuna).valores, nome)
   }
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
@@ -43,7 +58,7 @@ export function EntradaNumeracoes({ aoLer, placeholder }: Props) {
         <Button variante="secundario" onClick={() => arquivoRef.current?.click()}>
           📎 Enviar CSV
         </Button>
-        <input ref={arquivoRef} type="file" accept=".csv,.txt,text/csv" hidden onChange={lerArquivo} />
+        <input ref={arquivoRef} type="file" accept=".csv,.txt,.html,.htm,text/csv,text/plain,text/html" hidden onChange={lerArquivo} />
         {texto && (
           <Button variante="fantasma" onClick={() => { setArquivo(''); atualizar('', undefined, '') }}>
             🗑️ Limpar
@@ -57,6 +72,31 @@ export function EntradaNumeracoes({ aoLer, placeholder }: Props) {
         onChange={(e) => atualizar(e.target.value, coluna)}
         placeholder={placeholder ?? 'Cole aqui as numerações (Ctrl+C no Excel → Ctrl+V), ou uma por linha…'}
       />
+
+      {rotaMeli && (
+        <div className="space-y-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <p className="text-sm font-bold text-emerald-900">
+            🛣️ Página de rota do Meli reconhecida — {rotaMeli.pacotes.length} pacote(s)
+          </p>
+          <p className="text-xs text-emerald-800">
+            Rota <strong>{rotaMeli.rota || '—'}</strong>
+            {rotaMeli.motorista && <> · 🚚 {rotaMeli.motorista}</>}
+            {rotaMeli.veiculo && <> · 🚐 {rotaMeli.veiculo}</>}
+            {rotaMeli.placa && <> · {rotaMeli.placa}</>}
+          </p>
+          <p className="text-xs text-emerald-800">
+            📍 {Object.entries(
+              rotaMeli.pacotes.reduce<Record<string, number>>((acc, x) => {
+                if (x.cidade) acc[x.cidade] = (acc[x.cidade] ?? 0) + 1
+                return acc
+              }, {}),
+            )
+              .map(([cid, n]) => `${cid} (${n})`)
+              .join(' · ') || 'cidades não informadas'}
+            {arquivo && <span className="text-emerald-700"> · {arquivo}</span>}
+          </p>
+        </div>
+      )}
 
       {leitura && (
         <div className="space-y-1.5 rounded-lg bg-slate-50 px-3 py-2">

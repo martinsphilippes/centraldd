@@ -2,9 +2,46 @@
 // bateu ou não bateu, e exatamente quais numerações não fecharam.
 // Os dois lados precisam ver a MESMA coisa — por isso um componente só.
 
-import { compararConferencia } from '../../core/conferencia'
+import { chaveNumeracao, compararConferencia } from '../../core/conferencia'
 import { formatarQuando } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
+
+type Pacote = NonNullable<Conferencia['pacotes']>[number]
+
+/**
+ * Faltas com o detalhe do documento do Meli: etiqueta de carga (CD-n),
+ * cidade e endereço — o motorista sabe ONDE procurar, não só o número.
+ */
+function FaltasDetalhadas({ valores, pacotes }: { valores: string[]; pacotes: Map<string, Pacote> }) {
+  const MOSTRAR = 40
+  return (
+    <ul className="mt-2 space-y-1">
+      {valores.slice(0, MOSTRAR).map((v) => {
+        const p = pacotes.get(chaveNumeracao(v))
+        return (
+          <li key={v} className="rounded border border-red-200 bg-white px-2 py-1 text-[12px]">
+            <span className="font-mono font-bold text-red-800">{v}</span>
+            {p && (
+              <span className="text-slate-600">
+                {p.etiqueta && (
+                  <>
+                    {' '}— <strong className="text-slate-800">{p.etiqueta}</strong>
+                  </>
+                )}
+                {p.cidade && <> · {p.cidade}</>}
+                {p.endereco && <> · {p.endereco}</>}
+                {p.destinatario && <> ({p.destinatario})</>}
+              </span>
+            )}
+          </li>
+        )
+      })}
+      {valores.length > MOSTRAR && (
+        <li className="px-1 text-[11px] text-slate-500">e mais {valores.length - MOSTRAR}…</li>
+      )}
+    </ul>
+  )
+}
 
 /** Lista de numerações em caixinhas, com corte quando é muita coisa. */
 function Numeracoes({ valores, cor }: { valores: string[]; cor: string }) {
@@ -72,7 +109,14 @@ export function ResultadoConferencia({ c }: { c: Conferencia }) {
           <p className="text-sm font-semibold text-red-800">
             ❌ Não apareceu na conferência ({r.faltando.length}):
           </p>
-          <Numeracoes valores={r.faltando} cor="border-red-300 bg-white text-red-800" />
+          {c.pacotes && c.pacotes.length > 0 ? (
+            <FaltasDetalhadas
+              valores={r.faltando}
+              pacotes={new Map(c.pacotes.map((p) => [chaveNumeracao(p.numeracao), p]))}
+            />
+          ) : (
+            <Numeracoes valores={r.faltando} cor="border-red-300 bg-white text-red-800" />
+          )}
         </div>
       )}
       {r.sobrando.length > 0 && (
