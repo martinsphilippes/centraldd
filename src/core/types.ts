@@ -55,6 +55,14 @@ export interface Conferencia {
   arquivoDispatcher: string
   /** ISO — quando o Dispatcher subiu o documento. */
   enviadaEm: string
+  /** Metadados extraídos do documento de origem (página de rota do Meli). */
+  origem?: {
+    rota: string
+    motorista: string
+    transportadora: string
+    placa: string
+    veiculo: string
+  }
   /**
    * Detalhe de cada pacote quando a lista veio da página de rota do Meli:
    * etiqueta de carga (CD-n), cidade, endereço e destinatário. É o que deixa

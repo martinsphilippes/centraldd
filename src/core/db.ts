@@ -300,7 +300,9 @@ export async function importarMotoristas(
 
 /** O DISPATCHER cria/atualiza a conferência (a lista do que deve sair). */
 export function salvarConferencia(c: Conferencia) {
-  void setDoc(doc(firestore, 'conferencias', c.id), c)
+  // O Firestore rejeita undefined: campo opcional ausente sai do documento.
+  const dados = Object.fromEntries(Object.entries(c).filter(([, v]) => v !== undefined))
+  void setDoc(doc(firestore, 'conferencias', c.id), dados)
 }
 
 export function removerConferencia(id: string) {

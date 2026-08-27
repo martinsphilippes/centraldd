@@ -9,6 +9,7 @@ import type { Conferencia as Conf } from '../../core/types'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 import { normalizarTexto } from '../../core/texto'
 import type { RotaMeliLida } from '../../core/meli-rota'
+import { DetalheConferencia } from './DetalheConferencia'
 import { EntradaNumeracoes } from './EntradaNumeracoes'
 import { CarimbosConferencia, ResultadoConferencia } from './ResultadoConferencia'
 
@@ -26,6 +27,7 @@ function SeloSituacao({ c }: { c: Conf }) {
 export function Conferencia() {
   const db = useDB()
   const [novo, setNovo] = useState(false)
+  const [aberta, setAberta] = useState<string | null>(null)
   const [motoristaId, setMotoristaId] = useState('')
   const [data, setData] = useState(hojeISO())
   const [titulo, setTitulo] = useState('')
@@ -81,6 +83,15 @@ export function Conferencia() {
       rotaId: rotaId || null,
       titulo: titulo.trim() || (rota ? `Rota ${rota.rotaExpedicao}` : `Conferência ${formatarData(data)}`),
       esperados,
+      origem: rotaMeli
+        ? {
+            rota: rotaMeli.rota,
+            motorista: rotaMeli.motorista,
+            transportadora: rotaMeli.transportadora,
+            placa: rotaMeli.placa,
+            veiculo: rotaMeli.veiculo,
+          }
+        : undefined,
       // O detalhe de cada pacote (CD-n, cidade, endereço) vem junto quando a
       // lista nasceu da página do Meli — é o que enriquece a lista de faltas.
       pacotes: rotaMeli
@@ -131,7 +142,11 @@ export function Conferencia() {
         <div className="space-y-3">
           {lista.map((c) => (
             <Card key={c.id} className="p-4">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              {/* Cabeçalho clicável: um toque abre o detalhe pacote a pacote. */}
+              <button
+                className="-m-1 flex w-full flex-wrap items-center justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-slate-50"
+                onClick={() => setAberta((a) => (a === c.id ? null : c.id))}
+              >
                 <div>
                   <h2 className="font-bold text-slate-900">
                     {c.titulo}
@@ -143,15 +158,23 @@ export function Conferencia() {
                 </div>
                 <div className="flex items-center gap-2">
                   <SeloSituacao c={c} />
-                  <Button variante="fantasma" onClick={() => apagar(c)} title="Apagar conferência">
-                    🗑️
-                  </Button>
+                  <span className="text-slate-400">{aberta === c.id ? '▲' : '▼'}</span>
                 </div>
-              </div>
-              <div className="space-y-2">
+              </button>
+              <div className="mt-2 space-y-2">
                 <ResultadoConferencia c={c} />
                 <CarimbosConferencia c={c} />
               </div>
+              {aberta === c.id && (
+                <>
+                  <DetalheConferencia c={c} />
+                  <div className="mt-2 flex justify-end">
+                    <Button variante="fantasma" onClick={() => apagar(c)}>
+                      🗑️ Apagar conferência
+                    </Button>
+                  </div>
+                </>
+              )}
             </Card>
           ))}
         </div>
