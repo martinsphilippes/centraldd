@@ -669,6 +669,21 @@ export function ResumoDiaCard({
           <Button variante="secundario" onClick={() => setModalRotas(true)}>
             🛣️ Importar rotas
           </Button>
+          {existente && (
+            <Button
+              variante="fantasma"
+              onClick={() => {
+                if (
+                  confirm(
+                    `Limpar o resumo de ${formatarData(data)}?\n\nO modelo sai do dia e a Programação volta a aparecer como pendente na esteira. As rotas importadas e a chamada não são afetadas.`,
+                  )
+                )
+                  removerResumoDia(data)
+              }}
+            >
+              🗑️ Limpar
+            </Button>
+          )}
           <Button variante="ml" onClick={() => { setRascunho(existente ?? novoResumo(data, '')); setEditando(true) }}>
             ✏️ {existente ? 'Editar' : 'Preencher'}
           </Button>
