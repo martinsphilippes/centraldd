@@ -180,9 +180,12 @@ export function ResumoDiaCard({
   const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
   const totalPosicoes = num(r.posicoesTotal) > 0 ? num(r.posicoesTotal) : posicoesCalculadas
 
-  /** O dia é editável no formulário; o id do resumo é a própria data. */
+  /**
+   * O dia é editável no formulário; o id do resumo é a própria data.
+   * Dia passado não se programa — a troca para trás é ignorada.
+   */
   const mudarDia = (novoDia: string) => {
-    if (!novoDia) return
+    if (!novoDia || novoDia < hojeISO()) return
     setRascunho({ ...rascunho, id: novoDia, data: novoDia })
   }
 
@@ -415,6 +418,7 @@ export function ResumoDiaCard({
             <Input
               type="date"
               value={rascunho.data}
+              min={hojeISO()}
               onChange={(e) => mudarDia(e.target.value)}
               style={{ width: 'auto' }}
             />

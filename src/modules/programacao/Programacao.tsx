@@ -70,9 +70,14 @@ export function Programacao() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
   const porId = new Map(motoristas.map((m) => [m.id, m]))
 
-  const datas = [...new Set(db.programacao.map((p) => p.data))].sort().reverse()
+  // Programação é para frente: dia passado não se programa. As datas antigas
+  // continuam no banco (rodízio e relatórios usam), só somem do seletor.
+  const datas = [...new Set(db.programacao.map((p) => p.data))]
+    .filter((d) => d >= hojeISO())
+    .sort()
   const [dataSelecionada, setDataSelecionada] = useState<string>('')
-  const dataAtiva = dataSelecionada || datas.find((d) => d >= hojeISO()) || datas[0] || hojeISO()
+  const escolherData = (d: string) => setDataSelecionada(d && d < hojeISO() ? hojeISO() : d)
+  const dataAtiva = dataSelecionada || datas.find((d) => d >= hojeISO()) || hojeISO()
 
   const doDia = db.programacao
     .filter((p) => p.data === dataAtiva)
@@ -320,7 +325,7 @@ export function Programacao() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Dia:</span>
             {datas.length > 0 && (
-              <Select value={datas.includes(dataAtiva) ? dataAtiva : ''} onChange={(e) => setDataSelecionada(e.target.value)} style={{ width: 'auto' }}>
+              <Select value={datas.includes(dataAtiva) ? dataAtiva : ''} onChange={(e) => escolherData(e.target.value)} style={{ width: 'auto' }}>
                 {!datas.includes(dataAtiva) && <option value="">{rotuloDia(dataAtiva)}</option>}
                 {datas.map((d) => (
                   <option key={d} value={d}>
@@ -332,14 +337,15 @@ export function Programacao() {
             <input
               type="date"
               value={dataAtiva}
-              onChange={(e) => setDataSelecionada(e.target.value)}
+              min={hojeISO()}
+              onChange={(e) => escolherData(e.target.value)}
               className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-ml-azul"
-              title="Escolher qualquer data"
+              title="Escolher hoje ou um dia futuro"
             />
           </div>
 
-          <EsteiraDia data={dataAtiva} aoMudarData={setDataSelecionada} />
-          <ResumoDiaCard data={dataAtiva} aoMudarDia={setDataSelecionada} />
+          <EsteiraDia data={dataAtiva} aoMudarData={escolherData} />
+          <ResumoDiaCard data={dataAtiva} aoMudarDia={escolherData} />
 
           {db.programacao.length === 0 ? (
             <EmptyState
