@@ -8,7 +8,9 @@
 // Dispatcher (leitura): o mesmo roteiro com o progresso ao vivo, o mapinha
 // das paradas e a comparação Meli × otimizado.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { salvarRoteiroConferencia } from '../../core/db'
 import {
   kmDaOrdem,
@@ -30,10 +32,11 @@ interface Props {
 }
 
 /**
- * Mapa das paradas — desenhado pelo próprio app, sem serviço externo.
- * Mostra as DUAS rotas ao mesmo tempo (Meli tracejada, otimizada cheia) para
- * comparar no próprio mapa, e no modo do motorista cada parada é um botão:
- * tocar nela a escolhe como PRÓXIMA e o caminho recalcula na hora.
+ * Mapa DE RUAS interativo (Leaflet + OpenStreetMap): zoom de pinça, arrasto,
+ * ruas e nomes de verdade. As duas rotas aparecem em cores diferentes —
+ * otimizada em AZUL cheio, ordem do Meli em ROXO tracejado — e no modo do
+ * motorista cada parada é um botão: tocar nela a torna a PRÓXIMA e o caminho
+ * recalcula na hora.
  */
 function MapaParadas({
   ordem,
@@ -56,81 +59,92 @@ function MapaParadas({
   mostrarOtimizada: boolean
   aoTocar?: (p: Parada) => void
 }) {
-  const todas = [...ordem, ...ordemDoMeli]
-  const pontos: Ponto[] = [...todas, ...(base ? [base] : [])]
-  if (pontos.length < 2) return null
-  const lats = pontos.map((p) => p.lat)
-  const lngs = pontos.map((p) => p.lng)
-  const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)]
-  const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)]
-  const L = 560
-  const A = 380
-  const M = 22
-  const x = (p: Ponto) => M + ((p.lng - minLng) / Math.max(1e-9, maxLng - minLng)) * (L - 2 * M)
-  const y = (p: Ponto) => A - M - ((p.lat - minLat) / Math.max(1e-9, maxLat - minLat)) * (A - 2 * M)
-  const tracado = (lista: Parada[]) =>
-    [...(base ? [base] : []), ...lista]
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p).toFixed(1)},${y(p).toFixed(1)}`)
-      .join(' ')
+  const caixaRef = useRef<HTMLDivElement>(null)
+  const mapaRef = useRef<L.Map | null>(null)
+  const camadasRef = useRef<L.LayerGroup | null>(null)
+  const enquadrouRef = useRef(false)
 
-  // Posição no roteiro de execução, para numerar os pontos.
-  const posicao = new Map(ordem.map((p, i) => [p.id, i + 1]))
+  // Cria o mapa uma vez; as camadas são redesenhadas a cada mudança.
+  useEffect(() => {
+    if (!caixaRef.current || mapaRef.current) return
+    const mapa = L.map(caixaRef.current, { zoomControl: true, attributionControl: true })
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap',
+    }).addTo(mapa)
+    camadasRef.current = L.layerGroup().addTo(mapa)
+    mapaRef.current = mapa
+    return () => {
+      mapa.remove()
+      mapaRef.current = null
+      camadasRef.current = null
+      enquadrouRef.current = false
+    }
+  }, [])
 
-  return (
-    <svg viewBox={`0 0 ${L} ${A}`} className="w-full rounded-xl border border-slate-200 bg-slate-50">
-      {mostrarMeli && (
-        <path d={tracado(ordemDoMeli)} fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.8" />
-      )}
-      {mostrarOtimizada && (
-        <path d={tracado(ordem)} fill="none" stroke="#3483fa" strokeWidth="2.2" opacity="0.9" />
-      )}
-      {base && (
-        <g>
-          <rect x={x(base) - 6} y={y(base) - 6} width="12" height="12" fill="#1e293b" rx="2" />
-          <text x={x(base)} y={y(base) - 10} textAnchor="middle" fontSize="10" fill="#1e293b" fontWeight="bold">
-            BASE
-          </text>
-        </g>
-      )}
-      {ordem.map((p) => {
-        const entregue = entregues.has(p.id)
-        const proxima = p.id === proximaId
-        const escolhida = p.id === escolhidaId
-        const n = posicao.get(p.id) ?? 0
-        return (
-          <g
-            key={p.id}
-            onClick={aoTocar && !entregue ? () => aoTocar(p) : undefined}
-            style={aoTocar && !entregue ? { cursor: 'pointer' } : undefined}
-          >
-            {/* alvo de toque generoso para dedo no tablet */}
-            <circle cx={x(p)} cy={y(p)} r={15} fill="transparent" />
-            {escolhida && !entregue && (
-              <circle cx={x(p)} cy={y(p)} r={13} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 2" />
-            )}
-            <circle
-              cx={x(p)}
-              cy={y(p)}
-              r={proxima ? 10 : 8.5}
-              fill={entregue ? '#10b981' : proxima ? '#ffe600' : '#ffffff'}
-              stroke={entregue ? '#059669' : proxima ? '#b45309' : '#64748b'}
-              strokeWidth="1.5"
-            />
-            <text
-              x={x(p)}
-              y={y(p) + 3.5}
-              textAnchor="middle"
-              fontSize="9"
-              fontWeight="bold"
-              fill={entregue ? '#ffffff' : '#334155'}
-            >
-              {n}
-            </text>
-          </g>
-        )
-      })}
-    </svg>
-  )
+  useEffect(() => {
+    const mapa = mapaRef.current
+    const camadas = camadasRef.current
+    if (!mapa || !camadas) return
+    camadas.clearLayers()
+
+    const ll = (p: Ponto): [number, number] => [p.lat, p.lng]
+    const caminho = (lista: Parada[]) => [...(base ? [base] : []), ...lista].map(ll)
+
+    // Traçados: Meli em roxo tracejado, otimizada em azul cheio (por cima).
+    if (mostrarMeli && ordemDoMeli.length > 0)
+      L.polyline(caminho(ordemDoMeli), { color: '#8b5cf6', weight: 3, dashArray: '8 8', opacity: 0.85 }).addTo(camadas)
+    if (mostrarOtimizada && ordem.length > 0)
+      L.polyline(caminho(ordem), { color: '#3483fa', weight: 4, opacity: 0.9 }).addTo(camadas)
+
+    if (base) {
+      L.marker(ll(base), {
+        icon: L.divIcon({
+          className: '',
+          html: '<div style="background:#1e293b;color:#fff;font-weight:700;font-size:10px;padding:2px 6px;border-radius:6px;white-space:nowrap">🏠 BASE</div>',
+          iconAnchor: [24, 10],
+        }),
+      }).addTo(camadas)
+    }
+
+    ordem.forEach((p, i) => {
+      const entregue = entregues.has(p.id)
+      const proxima = p.id === proximaId
+      const escolhida = p.id === escolhidaId
+      const cor = entregue ? '#10b981' : proxima ? '#ffe600' : '#ffffff'
+      const borda = entregue ? '#059669' : proxima ? '#b45309' : escolhida ? '#f59e0b' : '#475569'
+      const marcador = L.marker(ll(p), {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="background:${cor};border:2px ${escolhida && !entregue ? 'dashed' : 'solid'} ${borda};color:${entregue ? '#fff' : '#1e293b'};width:${proxima ? 28 : 24}px;height:${proxima ? 28 : 24}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.35)">${i + 1}</div>`,
+          iconAnchor: [proxima ? 14 : 12, proxima ? 14 : 12],
+        }),
+      }).addTo(camadas)
+      const capitaliza = (t: string) => t.replace(/\b\w/g, (c) => c.toUpperCase())
+      marcador.bindPopup(
+        `<strong>${i + 1}º · ${p.endereco || 'Endereço não informado'}</strong><br/>` +
+          `${p.cidade}${p.destinatario ? ` · ${capitaliza(p.destinatario)}` : ''}<br/>` +
+          `📦 ${p.pacotes.map((x) => x.etiqueta || x.numeracao).join(', ')}` +
+          (aoTocar && !entregue ? '<br/><em>toque no ponto de novo para fazer esta AGORA</em>' : ''),
+      )
+      if (aoTocar && !entregue) {
+        // 1º toque abre o balão; 2º toque no mesmo ponto confirma a escolha.
+        marcador.on('click', () => {
+          if (escolhida || marcador.isPopupOpen()) aoTocar(p)
+        })
+      }
+    })
+
+    if (!enquadrouRef.current) {
+      const pontos = [...ordem, ...ordemDoMeli, ...(base ? [base] : [])]
+      if (pontos.length > 0) {
+        mapa.fitBounds(L.latLngBounds(pontos.map(ll)), { padding: [24, 24] })
+        enquadrouRef.current = true
+      }
+    }
+  }, [ordem, ordemDoMeli, base, entregues, proximaId, escolhidaId, mostrarMeli, mostrarOtimizada, aoTocar])
+
+  return <div ref={caixaRef} className="h-80 w-full rounded-xl border border-slate-200 sm:h-[26rem]" />
 }
 
 export function RoteiroRota({ c, editavel }: Props) {
@@ -266,19 +280,19 @@ export function RoteiroRota({ c, editavel }: Props) {
           onClick={() => setTracoOtimizada((v) => !v)}
           className={`flex items-center gap-1.5 font-semibold ${tracoOtimizada ? 'text-ml-azul' : 'text-slate-400 line-through'}`}
         >
-          <span className="inline-block h-0.5 w-6 rounded bg-ml-azul" /> Rota otimizada
+          <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> Nossa rota (azul)
           {comparacao && ` ~${comparacao.otimizado.toFixed(0)} km`}
         </button>
         <button
           onClick={() => setTracoMeli((v) => !v)}
           className={`flex items-center gap-1.5 font-semibold ${tracoMeli ? 'text-slate-600' : 'text-slate-400 line-through'}`}
         >
-          <span className="inline-block w-6 border-t-2 border-dashed border-slate-500" /> Ordem do Meli
+          <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" /> Ordem do Meli (roxo)
           {comparacao && ` ~${comparacao.meli.toFixed(0)} km`}
         </button>
         {editavel && (
           <span className="ml-auto text-slate-500">
-            👆 Toque numa parada no mapa para fazê-la <strong>agora</strong> — o caminho recalcula.
+            👆 Toque num ponto para ver o endereço; toque de novo para fazê-lo <strong>agora</strong> — o caminho recalcula.
           </span>
         )}
       </div>
