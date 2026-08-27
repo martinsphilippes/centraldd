@@ -144,6 +144,11 @@ export interface Planejamento {
   nome: string
   data: string
   motoristaIds: string[]
+  /**
+   * Fila de espera: quem estava disponível mas ficou fora porque a meta já
+   * estava cheia — na ordem de prioridade, prontos para substituir falta.
+   */
+  esperaIds?: string[]
   status: StatusPlanejamento
   criadaEm: string
 }

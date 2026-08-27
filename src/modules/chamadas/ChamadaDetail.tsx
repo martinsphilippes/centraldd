@@ -21,6 +21,7 @@ export function ChamadaDetail() {
   const [filtro, setFiltro] = useState<Filtro>({ cidade: '', status: '' })
   const [modalPlanejamento, setModalPlanejamento] = useState(false)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [espera, setEspera] = useState<Set<string>>(new Set())
 
   const chamada = db.chamadas.find((c) => c.id === id)
   const resumo = useMemo(() => (chamada ? resumoChamada(db, chamada) : null), [db, chamada])
@@ -59,13 +60,11 @@ export function ChamadaDetail() {
   const indisponiveis = respostasFiltradas.filter((r) => !STATUS_DISPONIVEIS.includes(r.status))
 
   const abrirMontagem = () => {
-    setSelecionados(
-      new Set(
-        sugerirPlanejamento(db, chamada)
-          .map((m) => m.id)
-          .filter((mid) => !comRotaPendente.has(mid)),
-      ),
-    )
+    // A sugestão já vem dividida pela parametrização: a meta entra, o
+    // excedente vai direto para a fila de espera.
+    const sugestao = sugerirPlanejamento(db, chamada)
+    setSelecionados(new Set(sugestao.escolhidos.map((m) => m.id).filter((mid) => !comRotaPendente.has(mid))))
+    setEspera(new Set(sugestao.espera.map((m) => m.id).filter((mid) => !comRotaPendente.has(mid))))
     setModalPlanejamento(true)
   }
 
@@ -77,6 +76,7 @@ export function ChamadaDetail() {
       nome: `Planejamento ${chamada.titulo.replace('Disponibilidade para ', '')} ${formatarData(chamada.data)}`,
       data: chamada.data,
       motoristaIds: [...selecionados],
+      esperaIds: [...espera],
       status: 'rascunho',
       criadaEm: new Date().toISOString(),
     })
@@ -363,14 +363,22 @@ export function ChamadaDetail() {
       {/* Modal de montagem de planejamento */}
       <Modal aberto={modalPlanejamento} titulo="📋 Montar planejamento" onFechar={() => setModalPlanejamento(false)}>
         <p className="mb-3 text-sm text-slate-500">
-          Sugestão automática: disponíveis primeiro, ordenados pelo melhor histórico. Ajuste como quiser.
+          A sugestão preenche a <strong>meta</strong> com os melhores pela parametrização; quem
+          sobra vai para a <strong>🕐 fila de espera</strong>, pronto para cobrir falta. Toque em
+          alguém para trocar: ☑️ entra → 🕐 espera → ⬜ fora.
         </p>
-        <div className="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
           <span className="font-semibold text-slate-700">
-            {selecionados.size} selecionado(s) / meta {chamada.qtdNecessaria}
+            ☑️ {selecionados.size}/{chamada.qtdNecessaria} no planejamento · 🕐 {espera.size} na espera
           </span>
           <ProgressBar valor={selecionados.size} total={chamada.qtdNecessaria} />
         </div>
+        {selecionados.size > chamada.qtdNecessaria && (
+          <p className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            ⚠️ Você selecionou {selecionados.size - chamada.qtdNecessaria} acima da meta — o
+            excedente deveria ficar na fila de espera.
+          </p>
+        )}
         <ul className="max-h-72 space-y-1.5 overflow-y-auto">
           {respostas
             .filter((r) => STATUS_DISPONIVEIS.includes(r.status))
@@ -378,27 +386,39 @@ export function ChamadaDetail() {
               const m = porId.get(r.motoristaId)
               if (!m) return null
               const ativo = selecionados.has(m.id)
+              const naEspera = espera.has(m.id)
               const pendente = comRotaPendente.has(m.id)
               return (
                 <li key={r.id}>
                   <button
                     disabled={pendente}
                     onClick={() => {
-                      const novo = new Set(selecionados)
-                      if (ativo) novo.delete(m.id)
-                      else novo.add(m.id)
-                      setSelecionados(novo)
+                      // Cicla: entra → espera → fora → entra.
+                      const novoSel = new Set(selecionados)
+                      const novaEsp = new Set(espera)
+                      if (ativo) {
+                        novoSel.delete(m.id)
+                        novaEsp.add(m.id)
+                      } else if (naEspera) {
+                        novaEsp.delete(m.id)
+                      } else {
+                        novoSel.add(m.id)
+                      }
+                      setSelecionados(novoSel)
+                      setEspera(novaEsp)
                     }}
                     className={`flex w-full items-center gap-2 rounded-lg border p-2 text-left transition-colors ${
                       pendente
                         ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-60'
                         : ativo
                           ? 'border-ml-azul bg-blue-50'
-                          : 'border-slate-200 hover:bg-slate-50'
+                          : naEspera
+                            ? 'border-amber-300 bg-amber-50'
+                            : 'border-slate-200 hover:bg-slate-50'
                     }`}
                     title={pendente ? 'Só entra no planejamento depois de finalizar a(s) rota(s) em andamento.' : undefined}
                   >
-                    <span className="text-base">{pendente ? '🚧' : ativo ? '☑️' : '⬜'}</span>
+                    <span className="text-base">{pendente ? '🚧' : ativo ? '☑️' : naEspera ? '🕐' : '⬜'}</span>
                     <Avatar nome={m.nome} tamanho="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{m.nome}</span>
@@ -417,7 +437,7 @@ export function ChamadaDetail() {
             Cancelar
           </Button>
           <Button variante="ml" onClick={criarPlanejamento} disabled={selecionados.size === 0}>
-            📋 Criar planejamento com {selecionados.size}
+            📋 Criar com {selecionados.size} + {espera.size} na espera
           </Button>
         </div>
       </Modal>

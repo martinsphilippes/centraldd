@@ -30,13 +30,19 @@ export function PlanejamentoDetail() {
     .filter((m): m is NonNullable<typeof m> => !!m)
 
   // Disponíveis na chamada que ainda não estão na planejamento (para incluir).
+  // Fila de espera: na ordem de prioridade gravada na criação.
+  const filaEspera = (planejamento.esperaIds ?? [])
+    .map((id) => porId.get(id))
+    .filter((m): m is NonNullable<typeof m> => !!m)
+
   const foraDoPlanejamento = chamada
     ? db.respostas
         .filter(
           (r) =>
             r.chamadaId === chamada.id &&
             STATUS_DISPONIVEIS.includes(r.status) &&
-            !planejamento.motoristaIds.includes(r.motoristaId),
+            !planejamento.motoristaIds.includes(r.motoristaId) &&
+            !(planejamento.esperaIds ?? []).includes(r.motoristaId),
         )
         .map((r) => porId.get(r.motoristaId))
         .filter((m): m is NonNullable<typeof m> => !!m)
@@ -153,9 +159,13 @@ export function PlanejamentoDetail() {
                   <ContactButtons motorista={m} mensagem={mensagemPlanejamento(m, planejamento, chamada)} compacto />
                   {planejamento.status !== 'concluida' && (
                     <button
-                      title="Remover do planejamento"
+                      title="Faltou / sair do planejamento — vai para a frente da fila de espera"
                       onClick={() =>
-                        salvarPlanejamento({ ...planejamento, motoristaIds: planejamento.motoristaIds.filter((x) => x !== m.id) })
+                        salvarPlanejamento({
+                          ...planejamento,
+                          motoristaIds: planejamento.motoristaIds.filter((x) => x !== m.id),
+                          esperaIds: [m.id, ...(planejamento.esperaIds ?? []).filter((x) => x !== m.id)],
+                        })
                       }
                       className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100"
                     >
@@ -169,6 +179,44 @@ export function PlanejamentoDetail() {
         </Card>
 
         <Card className="p-4">
+          <h2 className="mb-1 font-bold text-slate-900">🕐 Fila de espera ({filaEspera.length})</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Estavam disponíveis além da meta. Alguém faltou? <strong>⬆️ Promover</strong> coloca o
+            primeiro da fila no lugar.
+          </p>
+          {filaEspera.length === 0 ? (
+            <p className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">
+              Ninguém na fila — a disponibilidade não passou da meta.
+            </p>
+          ) : (
+            <ul className="mb-4 space-y-2">
+              {filaEspera.map((m, i) => (
+                <li key={m.id} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-2.5">
+                  <span className="w-6 text-center text-xs font-bold text-amber-600">{i + 1}º</span>
+                  <Avatar nome={m.nome} tamanho="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-800">{m.nome}</p>
+                    <p className="text-[11px] text-slate-500">{m.cidade} • {m.veiculo}</p>
+                  </div>
+                  {planejamento.status !== 'concluida' && (
+                    <Button
+                      variante="ml"
+                      onClick={() =>
+                        salvarPlanejamento({
+                          ...planejamento,
+                          motoristaIds: [...planejamento.motoristaIds, m.id],
+                          esperaIds: (planejamento.esperaIds ?? []).filter((x) => x !== m.id),
+                        })
+                      }
+                    >
+                      ⬆️ Promover
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
           <h2 className="mb-3 font-bold text-slate-900">➕ Disponíveis fora do planejamento ({foraDoPlanejamento.length})</h2>
           {foraDoPlanejamento.length === 0 ? (
             <EmptyState icone="✅" titulo="Todos os disponíveis já estão no planejamento" />

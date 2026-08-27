@@ -12,7 +12,12 @@ export function MeuPlanejamento() {
   const { motoristaId } = useSessao()
 
   const minhas = db.planejamento
-    .filter((e) => e.status !== 'rascunho' && motoristaId && e.motoristaIds.includes(motoristaId))
+    .filter(
+      (e) =>
+        e.status !== 'rascunho' &&
+        motoristaId &&
+        (e.motoristaIds.includes(motoristaId) || (e.esperaIds ?? []).includes(motoristaId)),
+    )
     .sort((a, b) => b.data.localeCompare(a.data))
 
   const minhasRotas = db.rotas
@@ -74,16 +79,28 @@ export function MeuPlanejamento() {
               <Card key={e.id} className="p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-900">{e.nome}</span>
-                  <Badge
-                    className={
-                      e.status === 'concluida'
-                        ? 'border-slate-200 bg-slate-100 text-slate-600'
-                        : 'border-emerald-200 bg-emerald-100 text-emerald-800'
-                    }
-                  >
-                    {e.status === 'concluida' ? '✔️ Concluída' : '✅ Confirmada'}
-                  </Badge>
+                  {motoristaId && (e.esperaIds ?? []).includes(motoristaId) ? (
+                    <Badge className="border-amber-300 bg-amber-100 text-amber-800">
+                      🕐 {(e.esperaIds ?? []).indexOf(motoristaId) + 1}º da fila de espera
+                    </Badge>
+                  ) : (
+                    <Badge
+                      className={
+                        e.status === 'concluida'
+                          ? 'border-slate-200 bg-slate-100 text-slate-600'
+                          : 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                      }
+                    >
+                      {e.status === 'concluida' ? '✔️ Concluída' : '✅ Confirmada'}
+                    </Badge>
+                  )}
                 </div>
+                {motoristaId && (e.esperaIds ?? []).includes(motoristaId) && (
+                  <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    🕐 Você está na <strong>fila de espera</strong>: a meta do dia já fechou, mas se
+                    alguém faltar você é chamado — fique atento aos avisos.
+                  </p>
+                )}
                 <p className="mt-1 text-sm text-slate-600">
                   📅 {rotuloDia(e.data)}
                   {chamada && (

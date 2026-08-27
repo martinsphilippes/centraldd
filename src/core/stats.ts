@@ -2,6 +2,7 @@
 
 import type { Chamada, DB, Motorista, Resposta, StatusResposta } from './types'
 import { STATUS_DISPONIVEIS } from './constants'
+import { disponiveisNoDomingoAnterior, parametrosAtuais } from './alocacao'
 
 export interface ResumoChamada {
   chamada: Chamada
@@ -127,24 +128,47 @@ export function serieDisponibilidade(db: DB, dataIni: string, dataFim: string): 
  * Sugestão automática de planejamento: disponíveis totais primeiro (melhor histórico primeiro),
  * depois parciais. Base para a futura "planejamento inteligente" por score.
  */
-export function sugerirPlanejamento(db: DB, chamada: Chamada): Motorista[] {
+/**
+ * Sugestão do planejamento: TODOS os disponíveis ranqueados pela
+ * parametrização — os primeiros `qtdNecessaria` entram, o excedente vira a
+ * fila de espera (pronto para substituir falta). Critérios, nesta ordem:
+ * disponível cheio antes de parcial → prioridade do domingo (quando ativa
+ * para o dia) → melhor histórico de disponibilidade → quem respondeu antes.
+ */
+export function sugerirPlanejamento(
+  db: DB,
+  chamada: Chamada,
+): { escolhidos: Motorista[]; espera: Motorista[] } {
   const respostas = respostasDaChamada(db, chamada.id)
   const hist = new Map(
     estatisticasMotoristas(db, '0000-01-01', '9999-12-31').map((e) => [e.motorista.id, e]),
   )
+  const p = parametrosAtuais(db)
+  const comDomingo =
+    p.limiarRotasPrioridadeDomingo > 0 &&
+    p.pesoPrioridadeDomingo > 0 &&
+    chamada.qtdNecessaria < p.limiarRotasPrioridadeDomingo
+      ? disponiveisNoDomingoAnterior(db, chamada.data)
+      : new Set<string>()
   const peso = (s: StatusResposta) => (s === 'disponivel' ? 0 : STATUS_DISPONIVEIS.includes(s) ? 1 : 2)
   const candidatos = respostas
     .filter((r) => STATUS_DISPONIVEIS.includes(r.status))
     .sort((a, b) => {
-      const p = peso(a.status) - peso(b.status)
-      if (p !== 0) return p
+      const pp = peso(a.status) - peso(b.status)
+      if (pp !== 0) return pp
+      const d = Number(comDomingo.has(b.motoristaId)) - Number(comDomingo.has(a.motoristaId))
+      if (d !== 0) return d
       const ha = hist.get(a.motoristaId)?.taxaDisponibilidade ?? 0
       const hb = hist.get(b.motoristaId)?.taxaDisponibilidade ?? 0
-      return hb - ha
+      if (hb !== ha) return hb - ha
+      return a.respondidaEm.localeCompare(b.respondidaEm)
     })
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
-  return candidatos
+  const ordenados = candidatos
     .map((r) => porId.get(r.motoristaId))
     .filter((m): m is Motorista => !!m)
-    .slice(0, chamada.qtdNecessaria)
+  return {
+    escolhidos: ordenados.slice(0, chamada.qtdNecessaria),
+    espera: ordenados.slice(chamada.qtdNecessaria),
+  }
 }
