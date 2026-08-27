@@ -110,6 +110,10 @@ export function DisponibilidadeFrota() {
   const trabalham = doDia.filter((x) => x.marcacao && STATUS_DISPONIVEIS.includes(x.marcacao.status))
   const naoTrabalham = doDia.filter((x) => x.marcacao && !STATUS_DISPONIVEIS.includes(x.marcacao.status))
   const semMarcacao = doDia.filter((x) => !x.marcacao)
+  // A fila de espera vira coluna própria: disponível que NÃO foi selecionado
+  // (excedente da meta) sai da coluna de disponíveis e aparece aguardando.
+  const filaEspera = trabalham.filter((x) => naEsperaDoDia.has(x.motorista.id))
+  const disponiveisSelecionados = trabalham.filter((x) => !naEsperaDoDia.has(x.motorista.id))
 
   const resumoDoDia = (data: string) => {
     let sim = 0
@@ -499,19 +503,32 @@ export function DisponibilidadeFrota() {
       </div>
 
       {/* Listas do dia */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className={`grid gap-4 ${filaEspera.length > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
         <Card className="p-4">
-          <h2 className="mb-3 font-bold text-emerald-700">✅ Disponíveis ({trabalham.length})</h2>
-          {trabalham.length === 0 ? (
+          <h2 className="mb-3 font-bold text-emerald-700">✅ Disponíveis ({disponiveisSelecionados.length})</h2>
+          {disponiveisSelecionados.length === 0 ? (
             <EmptyState icone="🕐" titulo="Ninguém confirmado ainda" />
           ) : (
             <ul className="space-y-2">
-              {trabalham.map(({ motorista, marcacao }) => (
+              {disponiveisSelecionados.map(({ motorista, marcacao }) => (
                 <LinhaMotorista key={motorista.id} m={motorista} a={marcacao} />
               ))}
             </ul>
           )}
         </Card>
+        {filaEspera.length > 0 && (
+          <Card className="border-amber-200 p-4">
+            <h2 className="mb-1 font-bold text-amber-700">🕐 Fila de espera ({filaEspera.length})</h2>
+            <p className="mb-3 text-xs text-slate-500">
+              Disponíveis além da meta — não foram selecionados no planejamento e aguardam falta.
+            </p>
+            <ul className="space-y-2">
+              {filaEspera.map(({ motorista, marcacao }) => (
+                <LinhaMotorista key={motorista.id} m={motorista} a={marcacao} />
+              ))}
+            </ul>
+          </Card>
+        )}
         <Card className="p-4">
           <h2 className="mb-3 font-bold text-red-600">❌ Indisponíveis ({naoTrabalham.length})</h2>
           {naoTrabalham.length === 0 ? (
