@@ -6,7 +6,7 @@ import { calcularLimiteDoDia } from '../../core/limites'
 import { parametrosAtuais } from '../../core/alocacao'
 import { hojeISO, formatarData, formatarQuando, parseISODate, rotuloDia } from '../../core/dates'
 import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
-import type { DiaDisponibilidade, Motorista } from '../../core/types'
+import type { DiaDisponibilidade, Motorista, StatusResposta } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Avatar, Badge, Button, Card, EmptyState, ProgressBar, Select, StatCard } from '../../components/ui'
@@ -29,6 +29,9 @@ export function DisponibilidadeFrota() {
   const [editandoLimite, setEditandoLimite] = useState(false)
   const [novoLimite, setNovoLimite] = useState(40)
   const [avisoSimulacao, setAvisoSimulacao] = useState('')
+  const [marcarTodos, setMarcarTodos] = useState(false)
+  const [statusMassa, setStatusMassa] = useState<StatusResposta>('disponivel')
+  const [alcanceMassa, setAlcanceMassa] = useState<'sem-marcacao' | 'todos'>('sem-marcacao')
 
   // 🧪 Só o dono vê: marca todos os motoristas FICTÍCIOS (teste-*) como
   // disponíveis no dia selecionado, para simular a operação em um clique.
@@ -39,6 +42,36 @@ export function DisponibilidadeFrota() {
   const temProgramacao =
     db.programacao.some((p) => p.data === diaSelecionado) ||
     db.resumos.some((r) => r.id === diaSelecionado)
+  /**
+   * ⚡ Só o DONO: marca a disponibilidade da frota inteira de uma vez no dia
+   * selecionado. Respeita o filtro de cidade da tela, e por padrão só
+   * preenche quem ainda não marcou — quem respondeu não é atropelado sem
+   * o dono pedir explicitamente.
+   */
+  const aplicarMarcacaoEmMassa = () => {
+    const alvo = frota.filter(
+      (m) => alcanceMassa === 'todos' || !marcacaoDe(m, diaSelecionado),
+    )
+    const rotulo = STATUS_RESPOSTA[statusMassa].label.toUpperCase()
+    if (alvo.length === 0) {
+      setAvisoSimulacao('⚡ Ninguém para marcar — todos os motoristas do filtro já têm marcação neste dia.')
+      setMarcarTodos(false)
+      return
+    }
+    if (
+      !confirm(
+        `Marcar ${alvo.length} motorista(s) como ${rotulo} em ${rotuloDia(diaSelecionado)}?` +
+          (alcanceMassa === 'todos' ? '\n\nATENÇÃO: isso SOBRESCREVE quem já marcou.' : ''),
+      )
+    )
+      return
+    for (const m of alvo) {
+      salvarDiaDisponibilidade({ motoristaId: m.id, data: diaSelecionado, status: statusMassa })
+    }
+    setAvisoSimulacao(`⚡ ${alvo.length} motorista(s) marcados como ${rotulo} em ${rotuloDia(diaSelecionado)}.`)
+    setMarcarTodos(false)
+  }
+
   const simularDisponiveis = () => {
     if (!temProgramacao) return
     if (
@@ -215,11 +248,58 @@ export function DisponibilidadeFrota() {
               🧪 Simular disponíveis ({ficticios.length})
             </Button>
           )}
+          {souDono && (
+            <Button variante="ml" onClick={() => setMarcarTodos((v) => !v)}>
+              ⚡ Marcar todos
+            </Button>
+          )}
           <Button variante="ml" onClick={() => exportarExcel(tabelaPeriodo())}>
             📊 Relatório do período (Excel)
           </Button>
         </div>
       </div>
+
+      {souDono && marcarTodos && (
+        <Card className="border-ml-amarelo bg-yellow-50 p-4">
+          <p className="mb-2 text-sm font-bold text-slate-900">
+            ⚡ Marcar a frota em massa — {rotuloDia(diaSelecionado)}
+            {cidade && <span className="font-semibold text-slate-600"> · filtro: {cidade}</span>}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={statusMassa}
+              onChange={(e) => setStatusMassa(e.target.value as StatusResposta)}
+              style={{ width: 'auto' }}
+            >
+              {Object.entries(STATUS_RESPOSTA).map(([valor, info]) => (
+                <option key={valor} value={valor}>
+                  {info.emoji} {info.label}
+                </option>
+              ))}
+            </Select>
+            <Select
+              value={alcanceMassa}
+              onChange={(e) => setAlcanceMassa(e.target.value as 'sem-marcacao' | 'todos')}
+              style={{ width: 'auto' }}
+            >
+              <option value="sem-marcacao">
+                só quem ainda não marcou ({doDia.filter((x) => !x.marcacao).length})
+              </option>
+              <option value="todos">TODOS — sobrescreve quem já marcou ({frota.length})</option>
+            </Select>
+            <Button variante="ml" onClick={aplicarMarcacaoEmMassa}>
+              ✅ Aplicar
+            </Button>
+            <Button variante="secundario" onClick={() => setMarcarTodos(false)}>
+              Cancelar
+            </Button>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-600">
+            Vale para os motoristas do filtro atual da tela. Cada marcação fica registrada com data e
+            hora, como se o motorista tivesse marcado — ajuste individual continua na lista abaixo.
+          </p>
+        </Card>
+      )}
 
       {avisoSimulacao && (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
