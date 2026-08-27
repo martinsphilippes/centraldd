@@ -132,15 +132,28 @@ export function Layout({ children }: { children: ReactNode }) {
             <span className="text-sm font-bold">MLDisponibilidade</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-              <Avatar nome={nomeExibicao || '?'} tamanho="sm" />
-              <div className="hidden text-left sm:block">
-                <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
-                <div className="text-[10px] leading-tight text-slate-500">
-                  {papel === 'dispatcher' ? '🧑 Dispatcher' : '🚚 Motorista'}
+            {/* O avatar do motorista abre o Meu perfil (dados + trocar senha). */}
+            {papel === 'motorista' ? (
+              <NavLink
+                to="/meu-perfil"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 transition-colors hover:border-ml-azul hover:bg-blue-50/50"
+                title="Meu perfil — editar dados e trocar senha"
+              >
+                <Avatar nome={nomeExibicao || '?'} tamanho="sm" />
+                <div className="hidden text-left sm:block">
+                  <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
+                  <div className="text-[10px] leading-tight text-slate-500">🚚 Motorista · 👤 meu perfil</div>
+                </div>
+              </NavLink>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                <Avatar nome={nomeExibicao || '?'} tamanho="sm" />
+                <div className="hidden text-left sm:block">
+                  <div className="max-w-40 truncate text-xs font-bold leading-tight text-slate-800">{nomeExibicao}</div>
+                  <div className="text-[10px] leading-tight text-slate-500">🧑 Dispatcher</div>
                 </div>
               </div>
-            </div>
+            )}
             <button
               onClick={() => void sair()}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
