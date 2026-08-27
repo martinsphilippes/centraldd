@@ -17,17 +17,22 @@ interface ItemNav {
   passo?: number
   /** true = item exclusivo do DONO da operação. */
   soDono?: boolean
+  /**
+   * Rótulo da barra inferior (celular), onde não cabe o nome inteiro.
+   * Só os nomes compridos precisam — os demais usam o `rotulo`.
+   */
+  curto?: string
 }
 
 const NAV_DISPATCHER: ItemNav[] = [
   { para: '/', rotulo: 'Dashboard', icone: '📊', grupo: 'Painel' },
-  { para: '/programacao', rotulo: 'Programação', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
-  { para: '/disponibilidade', rotulo: 'Disponibilidade', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
+  { para: '/programacao', rotulo: 'Programação', curto: 'Program.', icone: '📆', grupo: 'Fluxo do dia', passo: 1 },
+  { para: '/disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Fluxo do dia', passo: 1 },
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia', passo: 2 },
-  { para: '/planejamento', rotulo: 'Planejamento', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
+  { para: '/planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
-  { para: '/dispatchers', rotulo: 'Dispatchers', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
+  { para: '/dispatchers', rotulo: 'Dispatchers', curto: 'Dispatch.', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
   { para: '/tipos', rotulo: 'Opções', icone: '🏷️', grupo: 'Cadastro e análise' },
   { para: '/relatorios', rotulo: 'Relatórios', icone: '📈', grupo: 'Cadastro e análise' },
@@ -35,8 +40,8 @@ const NAV_DISPATCHER: ItemNav[] = [
 
 const NAV_MOTORISTA: ItemNav[] = [
   { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia', passo: 1 },
-  { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', icone: '📅', grupo: 'Meu dia', passo: 1 },
-  { para: '/meu-planejamento', rotulo: 'Planejamento', icone: '📋', grupo: 'Meu dia', passo: 2 },
+  { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Meu dia', passo: 1 },
+  { para: '/meu-planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Meu dia', passo: 2 },
   { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },
@@ -165,20 +170,20 @@ export function Layout({ children }: { children: ReactNode }) {
       </main>
 
       {/* Menu inferior mobile (rolável quando há muitos itens) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-slate-200 bg-white lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
         {nav.map((item) => (
           <NavLink
             key={item.para}
             to={item.para}
             end={item.para === '/'}
             className={({ isActive }) =>
-              `relative flex min-w-16 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+              `relative flex min-w-15 shrink-0 grow flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium ${
                 isActive ? 'text-ml-azul' : 'text-slate-500'
               }`
             }
           >
-            <span className="text-lg">{item.icone}</span>
-            {item.rotulo}
+            <span className="text-lg leading-none">{item.icone}</span>
+            <span className="w-full truncate text-center leading-tight">{item.curto ?? item.rotulo}</span>
             {item.para === '/notificacoes' && naoLidas > 0 && (
               <span className="absolute right-1/4 top-1 rounded-full bg-red-500 px-1.5 text-[9px] font-bold text-white">
                 {naoLidas}
