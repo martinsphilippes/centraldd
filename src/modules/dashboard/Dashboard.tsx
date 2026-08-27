@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ehPapelDispatcher } from '../../core/papel'
 import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
-import { EsteiraDia } from './EsteiraDia'
+import { MelhoresMotoristas } from './MelhoresMotoristas'
 import { resumoChamada, serieDisponibilidade } from '../../core/stats'
 import { Badge, Button, Card, ProgressBar, StatCard, EmptyState } from '../../components/ui'
 import { BarChart, Legenda } from '../../components/charts'
@@ -11,14 +10,6 @@ import { BarChart, Legenda } from '../../components/charts'
 export function Dashboard() {
   const db = useDB()
   const hoje = hojeISO()
-  // A esteira abre na data da próxima chamada aberta (senão, amanhã).
-  const [dataEsteira, setDataEsteira] = useState(
-    () =>
-      db.chamadas
-        .filter((c) => c.status === 'aberta')
-        .map((c) => c.data)
-        .sort()[0] ?? hojeISO(1),
-  )
 
   const chamadasHoje = db.chamadas.filter((c) => c.data === hoje)
   const resumosHoje = chamadasHoje.map((c) => resumoChamada(db, c))
@@ -56,8 +47,6 @@ export function Dashboard() {
         </Link>
       </div>
 
-      <EsteiraDia data={dataEsteira} aoMudarData={setDataEsteira} />
-
       {/* Indicadores */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard icone="📦" valor={entregasHoje} rotulo="Vagas de rota hoje" destaque />
@@ -71,6 +60,41 @@ export function Dashboard() {
         <StatCard icone="❌" valor={indisponiveisHoje} rotulo="Indisponíveis hoje" />
         <StatCard icone="⏳" valor={pendentesHoje} rotulo="Pendentes de resposta" />
         <StatCard icone="📋" valor={planejamentosConcluidos} rotulo="Escalas concluídas" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <MelhoresMotoristas />
+
+        {/* Gráfico da semana */}
+        <Card className="p-4">
+          <h2 className="mb-1 font-bold text-slate-900">📈 Disponibilidade — últimos 7 dias</h2>
+          <p className="mb-3 text-xs text-slate-500">Comparativo por chamada: disponíveis, indisponíveis e pendentes.</p>
+          {serie.length === 0 ? (
+            <EmptyState icone="📈" titulo="Sem dados no período" />
+          ) : (
+            <>
+              <BarChart
+                barras={serie.map((p) => ({
+                  rotulo: parseISODate(p.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                  valores: [
+                    { valor: p.disponiveis, cor: '#10b981' },
+                    { valor: p.indisponiveis, cor: '#ef4444' },
+                    { valor: p.pendentes, cor: '#94a3b8' },
+                  ],
+                }))}
+              />
+              <div className="mt-2">
+                <Legenda
+                  itens={[
+                    { rotulo: 'Disponíveis', cor: '#10b981' },
+                    { rotulo: 'Indisponíveis', cor: '#ef4444' },
+                    { rotulo: 'Pendentes', cor: '#94a3b8' },
+                  ]}
+                />
+              </div>
+            </>
+          )}
+        </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -156,36 +180,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Gráfico da semana */}
-      <Card className="p-4">
-        <h2 className="mb-1 font-bold text-slate-900">📈 Disponibilidade — últimos 7 dias</h2>
-        <p className="mb-3 text-xs text-slate-500">Comparativo por chamada: disponíveis, indisponíveis e pendentes.</p>
-        {serie.length === 0 ? (
-          <EmptyState icone="📈" titulo="Sem dados no período" />
-        ) : (
-          <>
-            <BarChart
-              barras={serie.map((p) => ({
-                rotulo: parseISODate(p.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                valores: [
-                  { valor: p.disponiveis, cor: '#10b981' },
-                  { valor: p.indisponiveis, cor: '#ef4444' },
-                  { valor: p.pendentes, cor: '#94a3b8' },
-                ],
-              }))}
-            />
-            <div className="mt-2">
-              <Legenda
-                itens={[
-                  { rotulo: 'Disponíveis', cor: '#10b981' },
-                  { rotulo: 'Indisponíveis', cor: '#ef4444' },
-                  { rotulo: 'Pendentes', cor: '#94a3b8' },
-                ]}
-              />
-            </div>
-          </>
-        )}
-      </Card>
     </div>
   )
 }
