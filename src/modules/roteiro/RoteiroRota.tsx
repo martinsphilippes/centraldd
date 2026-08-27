@@ -144,7 +144,10 @@ function MapaParadas({
     }
   }, [ordem, ordemDoMeli, base, entregues, proximaId, escolhidaId, mostrarMeli, mostrarOtimizada, aoTocar])
 
-  return <div ref={caixaRef} className="h-80 w-full rounded-xl border border-slate-200 sm:h-[26rem]" />
+  // relative + z-0 criam um contexto de empilhamento próprio: os z-index
+  // internos do Leaflet (até 1000) ficam PRESOS aqui dentro e nunca mais
+  // passam por cima do menu, do cabeçalho ou dos modais do app.
+  return <div ref={caixaRef} className="relative z-0 h-80 w-full rounded-xl border border-slate-200 sm:h-[26rem]" />
 }
 
 type Traco = 'ambas' | 'otimizada' | 'meli'
