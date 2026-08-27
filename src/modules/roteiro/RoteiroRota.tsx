@@ -248,6 +248,15 @@ export function RoteiroRota({ c, editavel }: Props) {
       seguir,
     })
   }
+  /** Um toque desfaz a escolha avulsa: volta a valer a rota sugerida. */
+  const voltarSugerida = () => {
+    salvarRoteiroConferencia(c.id, {
+      entregues: progresso.entregues,
+      proximaId: null,
+      seguir,
+    })
+  }
+
   const trocarSeguir = (novo: 'otimizada' | 'meli') => {
     salvarRoteiroConferencia(c.id, {
       entregues: progresso.entregues,
@@ -288,6 +297,14 @@ export function RoteiroRota({ c, editavel }: Props) {
             📍 sua escolha: {deltaEscolha > 0 ? '+' : '−'}
             {Math.abs(deltaEscolha).toFixed(1).replace('.', ',')} km vs o sugerido
           </Badge>
+        )}
+        {editavel && escolhaValida && (
+          <button
+            onClick={voltarSugerida}
+            className="rounded-full border border-ml-azul bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-ml-azul transition-colors hover:bg-blue-100"
+          >
+            ↩️ Voltar à rota sugerida
+          </button>
         )}
         {comparacao && (
           <span className="text-xs text-slate-500">
