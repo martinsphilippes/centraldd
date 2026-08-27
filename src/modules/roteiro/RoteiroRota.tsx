@@ -147,10 +147,10 @@ function MapaParadas({
   return <div ref={caixaRef} className="h-80 w-full rounded-xl border border-slate-200 sm:h-[26rem]" />
 }
 
+type Traco = 'ambas' | 'otimizada' | 'meli'
+
 export function RoteiroRota({ c, editavel }: Props) {
-  const [verMeli, setVerMeli] = useState(false)
-  const [tracoOtimizada, setTracoOtimizada] = useState(true)
-  const [tracoMeli, setTracoMeli] = useState(true)
+  const [traco, setTraco] = useState<Traco>('ambas')
 
   const paradas = useMemo(() => montarParadas(c.pacotes ?? []), [c.pacotes])
   const base: Ponto | null =
@@ -159,6 +159,8 @@ export function RoteiroRota({ c, editavel }: Props) {
       : null
 
   const progresso = c.roteiro ?? { entregues: [], proximaId: null, atualizadoEm: '' }
+  /** A decisão do motorista: seguir a nossa rota ou a ordem do Meli. */
+  const seguir = progresso.seguir ?? 'otimizada'
   const entregues = useMemo(() => new Set(progresso.entregues), [progresso.entregues])
 
   // Posição atual = última parada entregue (ou a base, no começo do dia).
@@ -179,8 +181,12 @@ export function RoteiroRota({ c, editavel }: Props) {
     const proxima = progresso.proximaId && pendentes.some((p) => p.id === progresso.proximaId)
       ? progresso.proximaId
       : null
-    return otimizarRoteiro(inicio, pendentes, proxima)
-  }, [pendentes, posicaoAtual, progresso.proximaId])
+    // O motorista escolheu uma parada específica? A partir dela o SISTEMA
+    // recalcula a melhor forma de fazer o resto — vale nas duas ordens.
+    if (proxima) return otimizarRoteiro(inicio, pendentes, proxima)
+    // Sem escolha pontual: segue a ordem que ele decidiu usar.
+    return seguir === 'meli' ? ordemMeli(pendentes) : otimizarRoteiro(inicio, pendentes, null)
+  }, [pendentes, posicaoAtual, progresso.proximaId, seguir])
 
   // Comparação estática (rota inteira desde a base): Meli × otimizado.
   const comparacao = useMemo(() => {
@@ -202,25 +208,37 @@ export function RoteiroRota({ c, editavel }: Props) {
 
   const proximaDaVez = ordemExecucao[0] ?? null
   const kmRestante = posicaoAtual ? kmDaOrdem(posicaoAtual, ordemExecucao) : null
-  const listaMostrada = verMeli ? ordemMeli(paradas) : ordemExecucao
+  const listaMostrada = ordemExecucao
 
   const marcarEntregue = (p: Parada) => {
     const novos = [...progresso.entregues.filter((id) => id !== p.id), p.id]
     salvarRoteiroConferencia(c.id, {
       entregues: novos,
       proximaId: progresso.proximaId === p.id ? null : progresso.proximaId,
+      seguir,
     })
   }
   const desfazerEntregue = (p: Parada) => {
     salvarRoteiroConferencia(c.id, {
       entregues: progresso.entregues.filter((id) => id !== p.id),
       proximaId: progresso.proximaId,
+      seguir,
     })
   }
+  const trocarSeguir = (novo: 'otimizada' | 'meli') => {
+    salvarRoteiroConferencia(c.id, {
+      entregues: progresso.entregues,
+      // Trocar de ordem limpa a escolha pontual: a nova ordem assume inteira.
+      proximaId: null,
+      seguir: novo,
+    })
+  }
+
   const escolherProxima = (p: Parada) => {
     salvarRoteiroConferencia(c.id, {
       entregues: progresso.entregues,
       proximaId: progresso.proximaId === p.id ? null : p.id,
+      seguir,
     })
   }
 
@@ -242,12 +260,26 @@ export function RoteiroRota({ c, editavel }: Props) {
             {comparacao.otimizado.toFixed(0)} km
           </span>
         )}
-        <button
-          onClick={() => setVerMeli((v) => !v)}
-          className="ml-auto rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          {verMeli ? '🧭 Ver ordem otimizada' : '📋 Ver ordem do Meli'}
-        </button>
+        {editavel ? (
+          <span className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 text-xs font-bold">
+            <button
+              onClick={() => trocarSeguir('otimizada')}
+              className={`rounded-md px-2.5 py-1 ${seguir === 'otimizada' ? 'bg-ml-azul text-white' : 'text-slate-600'}`}
+            >
+              🧭 Seguir a nossa
+            </button>
+            <button
+              onClick={() => trocarSeguir('meli')}
+              className={`rounded-md px-2.5 py-1 ${seguir === 'meli' ? 'bg-violet-600 text-white' : 'text-slate-600'}`}
+            >
+              📋 Seguir o Meli
+            </button>
+          </span>
+        ) : (
+          <Badge className="ml-auto border-slate-200 bg-slate-100 text-slate-700">
+            {seguir === 'meli' ? '📋 seguindo a ordem do Meli' : '🧭 seguindo a nossa rota'}
+          </Badge>
+        )}
       </div>
 
       {progresso.atualizadoEm && (
@@ -271,25 +303,39 @@ export function RoteiroRota({ c, editavel }: Props) {
         entregues={entregues}
         proximaId={proximaDaVez?.id ?? null}
         escolhidaId={progresso.proximaId}
-        mostrarMeli={tracoMeli}
-        mostrarOtimizada={tracoOtimizada}
+        mostrarMeli={traco !== 'otimizada'}
+        mostrarOtimizada={traco !== 'meli'}
         aoTocar={editavel ? escolherProxima : undefined}
       />
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <button
-          onClick={() => setTracoOtimizada((v) => !v)}
-          className={`flex items-center gap-1.5 font-semibold ${tracoOtimizada ? 'text-ml-azul' : 'text-slate-400 line-through'}`}
-        >
-          <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> Nossa rota (azul)
-          {comparacao && ` ~${comparacao.otimizado.toFixed(0)} km`}
-        </button>
-        <button
-          onClick={() => setTracoMeli((v) => !v)}
-          className={`flex items-center gap-1.5 font-semibold ${tracoMeli ? 'text-slate-600' : 'text-slate-400 line-through'}`}
-        >
-          <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" /> Ordem do Meli (roxo)
-          {comparacao && ` ~${comparacao.meli.toFixed(0)} km`}
-        </button>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-bold uppercase tracking-wide text-slate-500">Ver no mapa:</span>
+        <span className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 font-bold">
+          {(
+            [
+              ['ambas', '🔵🟣 As duas'],
+              ['otimizada', '🔵 Só a nossa'],
+              ['meli', '🟣 Só o Meli'],
+            ] as [Traco, string][]
+          ).map(([valor, rotulo]) => (
+            <button
+              key={valor}
+              onClick={() => setTraco(valor)}
+              className={`rounded-md px-2.5 py-1 ${traco === valor ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </span>
+        <span className="flex items-center gap-3 font-semibold text-slate-600">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> nossa
+            {comparacao && ` ~${comparacao.otimizado.toFixed(0)} km`}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" /> Meli
+            {comparacao && ` ~${comparacao.meli.toFixed(0)} km`}
+          </span>
+        </span>
         {editavel && (
           <span className="ml-auto text-slate-500">
             👆 Toque num ponto para ver o endereço; toque de novo para fazê-lo <strong>agora</strong> — o caminho recalcula.
@@ -298,7 +344,7 @@ export function RoteiroRota({ c, editavel }: Props) {
       </div>
 
       {/* Próxima parada em destaque (modo execução do motorista) */}
-      {editavel && !verMeli && proximaDaVez && (
+      {editavel && proximaDaVez && (
         <div className="rounded-xl border-2 border-ml-amarelo bg-yellow-50 p-3">
           <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Próxima parada</p>
           <p className="mt-0.5 font-bold text-slate-900">
@@ -336,7 +382,7 @@ export function RoteiroRota({ c, editavel }: Props) {
         </div>
       )}
 
-      {editavel && !verMeli && pendentes.length > 0 && (
+      {editavel && pendentes.length > 0 && (
         <p className="text-[11px] text-slate-500">
           👆 Quer fazer outra primeiro? Toque em <strong>📍 Fazer agora</strong> em qualquer parada —
           ela vira a próxima e o resto do caminho é recalculado a partir dela.
@@ -354,13 +400,13 @@ export function RoteiroRota({ c, editavel }: Props) {
               className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 ${
                 entregue
                   ? 'border-emerald-100 bg-emerald-50/60'
-                  : escolhida && !verMeli
+                  : escolhida
                     ? 'border-yellow-300 bg-yellow-50'
                     : 'border-slate-100 bg-white'
               }`}
             >
               <span className="w-7 shrink-0 text-center text-xs font-bold text-slate-500">
-                {verMeli ? (p.ordemMeli ?? '—') : i + 1}º
+                {i + 1}º
               </span>
               <span className="min-w-0 flex-1">
                 <span className={`block truncate text-sm font-semibold ${entregue ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
@@ -385,8 +431,7 @@ export function RoteiroRota({ c, editavel }: Props) {
                   )}
                 </span>
               ) : (
-                editavel &&
-                !verMeli && (
+                editavel && (
                   <span className="flex items-center gap-1.5">
                     <button
                       onClick={() => escolherProxima(p)}

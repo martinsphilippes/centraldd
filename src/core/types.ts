@@ -74,6 +74,8 @@ export interface Conferencia {
   roteiro?: {
     entregues: string[]
     proximaId: string | null
+    /** Qual ordem o MOTORISTA decidiu seguir: a nossa otimizada ou a do Meli. */
+    seguir?: 'otimizada' | 'meli'
     atualizadoEm: string
   }
   /**
