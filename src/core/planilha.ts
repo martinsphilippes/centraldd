@@ -259,6 +259,75 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
   return r
 }
 
+/**
+ * Conserta o código da rota de expedição lido por OCR.
+ *
+ * O formato real (foto da planilha e página do Meli) é PREFIXO + número +
+ * "_" + período: I15_AM1, VN9_AM1, D13_AM1, G7_AM1, VD2_PM1, B26_PM1. O OCR
+ * erra de três jeitos recorrentes:
+ *  - a letra I vira o dígito 1 ("I15_AM1" → "115 AM1");
+ *  - "AM1"/"PM1" viram "AMI", "AMl", "AM11";
+ *  - o "_" some ou vira espaço.
+ * Aqui a gramática é remontada; o que não se encaixa nela passa intocado.
+ */
+export function repararRotaExpedicao(bruto: string): string {
+  const t = bruto.toUpperCase().replace(/[_\s]+/g, ' ').trim()
+  // separa "corpo" e "período" (o período pode vir colado: "VD2PM1")
+  const m = /^(.*?)[ ]?([AP])[M1IL|]{1,3}$/i.exec(t.replace(/[ ]?([AP])M[I1L|]{1,2}$/i, ' $1M1'))
+  const m2 = /^(.+?)[ ]([AP]M)[I1L|]{0,2}(\d)?$/.exec(t)
+  let corpo = ''
+  let periodo = ''
+  if (m2) {
+    corpo = m2[1].trim()
+    periodo = `${m2[2]}${m2[3] ?? '1'}`.replace(/[IL|]/g, '1')
+  } else {
+    const colado = /^([A-Z]{0,2}\d{1,3})([AP]M)([I1L|\d]?)$/.exec(t.replace(/ /g, ''))
+    if (!colado) return bruto.trim()
+    corpo = colado[1]
+    periodo = `${colado[2]}${colado[3] || '1'}`.replace(/[IL|]/g, '1')
+  }
+  void m
+  // "AMI" sem dígito nenhum → AM1
+  if (!/\d$/.test(periodo)) periodo += '1'
+
+  // Corpo: prefixo de letras + número. O OCR também troca dígito por letra
+  // parecida ("G8" → "GB", "I4" → "lá") — na parte numérica, letra sósia
+  // vira o dígito de volta; acento se perde antes de tudo.
+  let limpo = corpo
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/ /g, '')
+  let pm = /^([A-Z]{0,2})(\d{1,3})$/.exec(limpo)
+  if (!pm) {
+    const misto = /^([A-Z]{0,2})([0-9OILZABSGT]{1,3})$/.exec(limpo)
+    if (!misto) return bruto.trim()
+    const SOSIA: Record<string, string> = { O: '0', I: '1', L: '1', Z: '2', A: '4', B: '8', S: '5', G: '9', T: '7' }
+    const numeroReparado = misto[2].replace(/[A-Z]/g, (c) => SOSIA[c] ?? c)
+    if (!/^\d+$/.test(numeroReparado)) return bruto.trim()
+    limpo = `${misto[1]}${numeroReparado}`
+    pm = /^([A-Z]{0,2})(\d{1,3})$/.exec(limpo)
+    if (!pm) return bruto.trim()
+  }
+  let prefixo = pm[1]
+  let numero = pm[2]
+  // "115" → "I15": sem prefixo, o 1 inicial era a letra I.
+  if (!prefixo && numero.length >= 2 && numero.startsWith('1')) {
+    prefixo = 'I'
+    numero = numero.slice(1)
+  }
+  // "l" minúsculo lido no lugar de "I".
+  if (prefixo === 'L') prefixo = 'I'
+  if (!prefixo || Number(numero) === 0) return bruto.trim()
+  return `${prefixo}${Number(numero)}_${periodo}`
+}
+
+/** "AM1 89" / "AMI_89" → "AM1_89" (rota original: período + sequência). */
+export function repararRotaOriginal(bruto: string): string {
+  const m = /^([AP])M[I1L|]{0,2}[ _]+(\d{1,3})$/i.exec(bruto.trim())
+  return m ? `${m[1].toUpperCase()}M1_${m[2]}` : bruto.trim()
+}
+
 export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; ignoradas: number } {
   const linhas = texto
     .split(/\r?\n/)
@@ -295,6 +364,8 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     COLUNAS.forEach((c, i) => {
       rota[c] = celulas[i] ?? ''
     })
+    rota.rotaExpedicao = repararRotaExpedicao(rota.rotaExpedicao)
+    rota.rotaOriginal = repararRotaOriginal(rota.rotaOriginal)
     rotas.push(rota)
   }
   // A mesma rota lida duas vezes (passadas de OCR, fotos com sobreposição)

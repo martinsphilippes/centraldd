@@ -669,6 +669,15 @@ export async function importarProgramacao(
 export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>[]) {
   const agora = new Date().toISOString()
   const existentes = new Map(state.rotas.map((r) => [r.id, r]))
+  // Cidade lida por OCR converge para a grafia oficial da operação
+  // ("tuiutaba" → "Ituiutaba"): é ela que casa com as preferências.
+  const cidadeOficial = (lida: string): string => {
+    if (!lida.trim()) return lida
+    const igual = state.cidades.find((c) => normalizarTexto(c.nome) === normalizarTexto(lida))
+    if (igual) return igual.nome
+    const parecida = state.cidades.find((c) => parecidoCom(c.nome, lida))
+    return parecida ? parecida.nome : lida
+  }
   // O OCR costuma falhar na transportadora. Rota NOVA sem leitura herda a
   // transportadora mais comum da operação (na prática, quase tudo é uma só).
   const contagem = new Map<string, number>()
@@ -684,6 +693,7 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
       const rota: Rota = {
         ...n,
         id,
+        cidade: cidadeOficial(n.cidade),
         // Leitura vazia não apaga a já salva; rota nova fica com a mais comum.
         transportadora: n.transportadora || anterior?.transportadora || maisComum,
         motoristaId: anterior?.motoristaId ?? null,
