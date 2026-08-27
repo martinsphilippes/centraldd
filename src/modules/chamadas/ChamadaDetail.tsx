@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarPlanejamento, uid, useDB, enviarNotificacao } from '../../core/db'
-import { formatarData, formatarQuando, rotuloDia } from '../../core/dates'
+import { formatarData, formatarQuandoCurto, rotuloDia } from '../../core/dates'
 import { respostasDaChamada, resumoChamada, sugerirPlanejamento, veioDaDisponibilidade } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
@@ -149,9 +149,9 @@ export function ChamadaDetail() {
         <ContactButtons motorista={m} mensagem={r ? undefined : mensagemCobranca(m, chamada)} compacto />
       </div>
       {r && (
-        <p className="mt-1 text-[11px] text-slate-500">
-          {veioDaDisponibilidade(r) ? '📅 marcou na disponibilidade em ' : '✋ respondeu em '}
-          <strong>{formatarQuando(r.respondidaEm)}</strong>
+        <p className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
+          {veioDaDisponibilidade(r) ? '📅 Marcou na disponibilidade ' : '✋ Respondeu '}
+          <strong className="text-slate-800">{formatarQuandoCurto(r.respondidaEm)}</strong>
         </p>
       )}
       {r?.observacao && <p className="mt-1 text-[11px] italic text-slate-500">“{r.observacao}”</p>}

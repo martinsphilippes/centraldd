@@ -41,6 +41,18 @@ export function formatarQuando(iso: string): string {
   })}`
 }
 
+/** "hoje às 08:51" / "ontem às 18:00" / "27/08 às 08:51" — curto, para listas. */
+export function formatarQuandoCurto(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  if (dia === hojeISO()) return `hoje às ${hora}`
+  if (dia === hojeISO(-1)) return `ontem às ${hora}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${hora}`
+}
+
 export function ehHoje(iso: string): boolean {
   return iso === hojeISO()
 }
