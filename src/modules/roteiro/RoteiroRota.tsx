@@ -29,67 +29,102 @@ interface Props {
   editavel: boolean
 }
 
-/** Mapinha das paradas: pontos numerados + traço da ordem, sem serviço externo. */
+/**
+ * Mapa das paradas — desenhado pelo próprio app, sem serviço externo.
+ * Mostra as DUAS rotas ao mesmo tempo (Meli tracejada, otimizada cheia) para
+ * comparar no próprio mapa, e no modo do motorista cada parada é um botão:
+ * tocar nela a escolhe como PRÓXIMA e o caminho recalcula na hora.
+ */
 function MapaParadas({
   ordem,
+  ordemDoMeli,
   base,
   entregues,
   proximaId,
+  escolhidaId,
+  mostrarMeli,
+  mostrarOtimizada,
+  aoTocar,
 }: {
   ordem: Parada[]
+  ordemDoMeli: Parada[]
   base: Ponto | null
   entregues: Set<string>
   proximaId: string | null
+  escolhidaId: string | null
+  mostrarMeli: boolean
+  mostrarOtimizada: boolean
+  aoTocar?: (p: Parada) => void
 }) {
-  const pontos: Ponto[] = [...ordem, ...(base ? [base] : [])]
+  const todas = [...ordem, ...ordemDoMeli]
+  const pontos: Ponto[] = [...todas, ...(base ? [base] : [])]
   if (pontos.length < 2) return null
   const lats = pontos.map((p) => p.lat)
   const lngs = pontos.map((p) => p.lng)
   const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)]
   const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)]
   const L = 560
-  const A = 300
-  const M = 18
+  const A = 380
+  const M = 22
   const x = (p: Ponto) => M + ((p.lng - minLng) / Math.max(1e-9, maxLng - minLng)) * (L - 2 * M)
   const y = (p: Ponto) => A - M - ((p.lat - minLat) / Math.max(1e-9, maxLat - minLat)) * (A - 2 * M)
+  const tracado = (lista: Parada[]) =>
+    [...(base ? [base] : []), ...lista]
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p).toFixed(1)},${y(p).toFixed(1)}`)
+      .join(' ')
 
-  const caminho = [...(base ? [base] : []), ...ordem]
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p).toFixed(1)},${y(p).toFixed(1)}`)
-    .join(' ')
+  // Posição no roteiro de execução, para numerar os pontos.
+  const posicao = new Map(ordem.map((p, i) => [p.id, i + 1]))
 
   return (
-    <svg viewBox={`0 0 ${L} ${A}`} className="w-full rounded-lg border border-slate-200 bg-slate-50">
-      <path d={caminho} fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 3" />
+    <svg viewBox={`0 0 ${L} ${A}`} className="w-full rounded-xl border border-slate-200 bg-slate-50">
+      {mostrarMeli && (
+        <path d={tracado(ordemDoMeli)} fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="5 4" opacity="0.8" />
+      )}
+      {mostrarOtimizada && (
+        <path d={tracado(ordem)} fill="none" stroke="#3483fa" strokeWidth="2.2" opacity="0.9" />
+      )}
       {base && (
         <g>
-          <rect x={x(base) - 5} y={y(base) - 5} width="10" height="10" fill="#1e293b" rx="2" />
-          <text x={x(base)} y={y(base) - 8} textAnchor="middle" fontSize="9" fill="#1e293b" fontWeight="bold">
+          <rect x={x(base) - 6} y={y(base) - 6} width="12" height="12" fill="#1e293b" rx="2" />
+          <text x={x(base)} y={y(base) - 10} textAnchor="middle" fontSize="10" fill="#1e293b" fontWeight="bold">
             BASE
           </text>
         </g>
       )}
-      {ordem.map((p, i) => {
+      {ordem.map((p) => {
         const entregue = entregues.has(p.id)
         const proxima = p.id === proximaId
+        const escolhida = p.id === escolhidaId
+        const n = posicao.get(p.id) ?? 0
         return (
-          <g key={p.id}>
+          <g
+            key={p.id}
+            onClick={aoTocar && !entregue ? () => aoTocar(p) : undefined}
+            style={aoTocar && !entregue ? { cursor: 'pointer' } : undefined}
+          >
+            {/* alvo de toque generoso para dedo no tablet */}
+            <circle cx={x(p)} cy={y(p)} r={15} fill="transparent" />
+            {escolhida && !entregue && (
+              <circle cx={x(p)} cy={y(p)} r={13} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 2" />
+            )}
             <circle
               cx={x(p)}
               cy={y(p)}
-              r={proxima ? 9 : 7}
+              r={proxima ? 10 : 8.5}
               fill={entregue ? '#10b981' : proxima ? '#ffe600' : '#ffffff'}
               stroke={entregue ? '#059669' : proxima ? '#b45309' : '#64748b'}
               strokeWidth="1.5"
             />
             <text
               x={x(p)}
-              y={y(p) + 3}
+              y={y(p) + 3.5}
               textAnchor="middle"
-              fontSize="8"
+              fontSize="9"
               fontWeight="bold"
               fill={entregue ? '#ffffff' : '#334155'}
             >
-              {i + 1}
+              {n}
             </text>
           </g>
         )
@@ -100,6 +135,8 @@ function MapaParadas({
 
 export function RoteiroRota({ c, editavel }: Props) {
   const [verMeli, setVerMeli] = useState(false)
+  const [tracoOtimizada, setTracoOtimizada] = useState(true)
+  const [tracoMeli, setTracoMeli] = useState(true)
 
   const paradas = useMemo(() => montarParadas(c.pacotes ?? []), [c.pacotes])
   const base: Ponto | null =
@@ -205,12 +242,46 @@ export function RoteiroRota({ c, editavel }: Props) {
         </p>
       )}
 
+      {/* Mapa com as duas rotas: comparar e ESCOLHER direto nele */}
       <MapaParadas
-        ordem={listaMostrada}
+        // Caminho completo do dia: entregues NA ORDEM em que foram feitas +
+        // pendentes na ordem recalculada — a numeração conta a jornada real.
+        ordem={[
+          ...progresso.entregues
+            .map((id) => paradas.find((x) => x.id === id))
+            .filter((x): x is Parada => !!x),
+          ...ordemExecucao,
+        ]}
+        ordemDoMeli={ordemMeli(paradas)}
         base={base}
         entregues={entregues}
-        proximaId={editavel && !verMeli ? (proximaDaVez?.id ?? null) : null}
+        proximaId={proximaDaVez?.id ?? null}
+        escolhidaId={progresso.proximaId}
+        mostrarMeli={tracoMeli}
+        mostrarOtimizada={tracoOtimizada}
+        aoTocar={editavel ? escolherProxima : undefined}
       />
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <button
+          onClick={() => setTracoOtimizada((v) => !v)}
+          className={`flex items-center gap-1.5 font-semibold ${tracoOtimizada ? 'text-ml-azul' : 'text-slate-400 line-through'}`}
+        >
+          <span className="inline-block h-0.5 w-6 rounded bg-ml-azul" /> Rota otimizada
+          {comparacao && ` ~${comparacao.otimizado.toFixed(0)} km`}
+        </button>
+        <button
+          onClick={() => setTracoMeli((v) => !v)}
+          className={`flex items-center gap-1.5 font-semibold ${tracoMeli ? 'text-slate-600' : 'text-slate-400 line-through'}`}
+        >
+          <span className="inline-block w-6 border-t-2 border-dashed border-slate-500" /> Ordem do Meli
+          {comparacao && ` ~${comparacao.meli.toFixed(0)} km`}
+        </button>
+        {editavel && (
+          <span className="ml-auto text-slate-500">
+            👆 Toque numa parada no mapa para fazê-la <strong>agora</strong> — o caminho recalcula.
+          </span>
+        )}
+      </div>
 
       {/* Próxima parada em destaque (modo execução do motorista) */}
       {editavel && !verMeli && proximaDaVez && (
