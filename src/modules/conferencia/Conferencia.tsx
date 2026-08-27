@@ -100,6 +100,8 @@ export function Conferencia() {
             transportadora: rotaMeli.transportadora,
             placa: rotaMeli.placa,
             veiculo: rotaMeli.veiculo,
+            baseLat: rotaMeli.baseLat,
+            baseLng: rotaMeli.baseLng,
           }
         : undefined,
       // O detalhe de cada pacote (CD-n, cidade, endereço) vem junto quando a
@@ -113,6 +115,9 @@ export function Conferencia() {
             destinatario: x.destinatario,
             naoEntregue: x.naoEntregue,
             reclamacoes: x.reclamacoes,
+            lat: x.lat,
+            lng: x.lng,
+            ordemMeli: x.ordemMeli,
           }))
         : [],
       arquivoDispatcher: arquivo,

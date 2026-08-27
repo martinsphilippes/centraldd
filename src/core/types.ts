@@ -62,6 +62,19 @@ export interface Conferencia {
     transportadora: string
     placa: string
     veiculo: string
+    /** Ponto de partida da rota (a base), para o roteiro. */
+    baseLat?: number | null
+    baseLng?: number | null
+  }
+  /**
+   * Execução do roteiro pelo motorista: paradas já entregues (ids de parada)
+   * e a próxima que ele ESCOLHEU — a escolha dele manda, e o resto do
+   * caminho é recalculado a partir dela.
+   */
+  roteiro?: {
+    entregues: string[]
+    proximaId: string | null
+    atualizadoEm: string
   }
   /**
    * Detalhe de cada pacote quando a lista veio da página de rota do Meli:
@@ -78,6 +91,11 @@ export interface Conferencia {
     naoEntregue?: boolean
     /** Reclamações do cliente neste pacote, extraídas do documento. */
     reclamacoes?: number
+    /** Coordenadas do endereço (telhado) — base do roteiro. */
+    lat?: number | null
+    lng?: number | null
+    /** Posição na sequência planejada pelo Meli. */
+    ordemMeli?: number | null
   }[]
   /** Numerações que o motorista enviou. null = ainda não enviou. */
   conferidos: string[] | null

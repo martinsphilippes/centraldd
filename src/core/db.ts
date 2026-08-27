@@ -332,6 +332,18 @@ export function removerPacoteConferencia(id: string, numeracao: string) {
   })
 }
 
+/** O MOTORISTA registra o andamento do roteiro (entregues + próxima escolhida). */
+export function salvarRoteiroConferencia(
+  id: string,
+  roteiro: { entregues: string[]; proximaId: string | null },
+) {
+  updateDoc(doc(firestore, 'conferencias', id), {
+    roteiro: { ...roteiro, atualizadoEm: new Date().toISOString() },
+  }).catch(() => {
+    alert('❌ Não consegui salvar o andamento. Tente de novo; se continuar, avise o Dispatcher.')
+  })
+}
+
 /** O MOTORISTA limpa a conferência da tela dele — o histórico não muda. */
 export function ocultarConferenciaMotorista(id: string) {
   updateDoc(doc(firestore, 'conferencias', id), { ocultaMotorista: true }).catch(() => {

@@ -14,6 +14,11 @@ export interface PacoteRotaMeli {
   naoEntregue: boolean
   /** Reclamações abertas pelo cliente neste pacote (claims do Meli). */
   reclamacoes: number
+  /** Coordenadas do endereço (precisão de telhado, vem do Meli). */
+  lat: number | null
+  lng: number | null
+  /** Posição desta parada na sequência planejada pelo Meli (1, 2, 3…). */
+  ordemMeli: number | null
 }
 
 export interface RotaMeliLida {
@@ -23,6 +28,9 @@ export interface RotaMeliLida {
   transportadora: string
   placa: string
   veiculo: string
+  /** Ponto de partida/chegada da rota (a base), quando a página informa. */
+  baseLat: number | null
+  baseLng: number | null
   pacotes: PacoteRotaMeli[]
 }
 
@@ -42,16 +50,36 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
   if (!pareceRotaMeli(texto)) return null
 
   // Dados do destinatário, indexados pela numeração.
-  const recebedor = new Map<string, { destinatario: string; endereco: string; cidade: string }>()
+  const recebedor = new Map<
+    string,
+    { destinatario: string; endereco: string; cidade: string; lat: number | null; lng: number | null }
+  >()
   const reInfo =
-    /"shipment_id":(\d+),"receiver_name":"([^"]*)","street_name":"([^"]*)","street_number":"([^"]*)"[^}]*?"neighborhood":"([^"]*)","city":"([^"]*)"/g
+    /"shipment_id":(\d+),"receiver_name":"([^"]*)","street_name":"([^"]*)","street_number":"([^"]*)","latitude":(-?[\d.]+),"longitude":(-?[\d.]+)[^}]*?"neighborhood":"([^"]*)","city":"([^"]*)"/g
   for (const m of texto.matchAll(reInfo)) {
-    const [, id, nome, rua, numero, bairro, cidade] = m
+    const [, id, nome, rua, numero, lat, lng, bairro, cidade] = m
     recebedor.set(id, {
       destinatario: nome,
       endereco: [rua, numero].filter(Boolean).join(', ') + (bairro ? ` — ${bairro}` : ''),
       cidade,
+      lat: Number(lat) || null,
+      lng: Number(lng) || null,
     })
+  }
+
+  // Sequência das paradas: cada bloco de pacote pertence à última parada
+  // ("sequence":N) aberta antes dele no texto.
+  const sequencias = [...texto.matchAll(/"sequence":(\d+)/g)].map((m) => ({
+    posicao: m.index ?? 0,
+    valor: Number(m[1]),
+  }))
+  const sequenciaEm = (posicao: number): number | null => {
+    let atual: number | null = null
+    for (const s of sequencias) {
+      if (s.posicao > posicao) break
+      atual = s.valor
+    }
+    return atual
   }
 
   // Cada pacote aparece como relatedEntity; a etiqueta (CD-n) vem logo depois,
@@ -78,6 +106,9 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
       destinatario: info?.destinatario ?? '',
       naoEntregue: substatus === 'missing',
       reclamacoes: Number(pega(bloco, /"claimsAmount":(\d+)/)) || 0,
+      lat: info?.lat ?? null,
+      lng: info?.lng ?? null,
+      ordemMeli: sequenciaEm(inicio),
     })
   }
   if (pacotes.length === 0) return null
@@ -90,6 +121,10 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
     transportadora: pega(texto, /"carrier":"([^"]+)"/),
     placa: pega(texto, /"license":"([^"]+)"/),
     veiculo: pega(texto, /"vehicleType":"([^"]+)"/),
+    baseLat:
+      Number(pega(texto, /"destinationFacility":\{[^}]*?"latitude":(-?[\d.]+)/)) || null,
+    baseLng:
+      Number(pega(texto, /"destinationFacility":\{[^}]*?"longitude":(-?[\d.]+)/)) || null,
     pacotes,
   }
 }

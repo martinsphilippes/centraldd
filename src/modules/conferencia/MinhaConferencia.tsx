@@ -8,6 +8,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
 import { Button, Card, EmptyState } from '../../components/ui'
+import { RoteiroRota } from '../roteiro/RoteiroRota'
 import { EntradaNumeracoes } from './EntradaNumeracoes'
 import { CarimbosConferencia, ResultadoConferencia } from './ResultadoConferencia'
 
@@ -52,6 +53,7 @@ export function MinhaConferencia() {
   const db = useDB()
   const { motoristaId } = useSessao()
   const [refazer, setRefazer] = useState<string | null>(null)
+  const [roteiroAberto, setRoteiroAberto] = useState<string | null>(null)
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
@@ -87,6 +89,18 @@ export function MinhaConferencia() {
             <div className="space-y-2">
               <ResultadoConferencia c={c} />
               <CarimbosConferencia c={c} />
+
+              {(c.pacotes ?? []).some((p) => p.lat != null) && (
+                <>
+                  <Button
+                    variante={roteiroAberto === c.id ? 'secundario' : 'ml'}
+                    onClick={() => setRoteiroAberto((a) => (a === c.id ? null : c.id))}
+                  >
+                    🧭 {roteiroAberto === c.id ? 'Fechar roteiro' : 'Meu roteiro de entregas'}
+                  </Button>
+                  {roteiroAberto === c.id && <RoteiroRota c={c} editavel />}
+                </>
+              )}
 
               {c.conferidos === null || refazer === c.id ? (
                 <Envio c={c} />

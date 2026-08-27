@@ -8,6 +8,7 @@ import { chaveNumeracao } from '../../core/conferencia'
 import { normalizarTexto } from '../../core/texto'
 import type { Conferencia } from '../../core/types'
 import { Badge, Input } from '../../components/ui'
+import { RoteiroRota } from '../roteiro/RoteiroRota'
 
 type Situacao = 'bipado' | 'falta' | 'aguardando'
 
@@ -26,6 +27,8 @@ function ordemEtiqueta(e: string): number {
 export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExcluir?: boolean }) {
   const [busca, setBusca] = useState('')
   const [soFaltas, setSoFaltas] = useState(false)
+  const [aba, setAba] = useState<'pacotes' | 'roteiro'>('pacotes')
+  const temRoteiro = (c.pacotes ?? []).some((p) => p.lat != null)
 
   const bipados = useMemo(
     () => new Set((c.conferidos ?? []).map(chaveNumeracao)),
@@ -75,6 +78,26 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
 
   return (
     <div className="mt-3 space-y-3 border-t border-slate-200 pt-3">
+      {temRoteiro && (
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setAba('pacotes')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'pacotes' ? 'bg-ml-amarelo text-slate-900' : 'bg-slate-100 text-slate-600'}`}
+          >
+            📦 Pacotes
+          </button>
+          <button
+            onClick={() => setAba('roteiro')}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'roteiro' ? 'bg-ml-amarelo text-slate-900' : 'bg-slate-100 text-slate-600'}`}
+          >
+            🧭 Roteiro e progresso
+          </button>
+        </div>
+      )}
+      {temRoteiro && aba === 'roteiro' ? (
+        <RoteiroRota c={c} editavel={false} />
+      ) : (
+        <>
       {/* O que o documento disse sobre a rota */}
       {(c.origem || cidades.length > 0) && (
         <p className="text-xs text-slate-600">
@@ -203,6 +226,8 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )
