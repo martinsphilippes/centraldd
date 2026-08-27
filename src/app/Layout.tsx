@@ -67,7 +67,10 @@ export function Layout({ children }: { children: ReactNode }) {
       : 0
 
   return (
-    <div className="min-h-screen lg:pl-60">
+    // Casca de APP: a página em si nunca rola — só o <main> interno. Com isso
+    // a barra inferior e o cabeçalho são filhos fixos do flex, e o iOS não tem
+    // como soltá-los no meio da tela durante a rolagem.
+    <div className="flex h-dvh flex-col overflow-hidden lg:pl-60">
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-ml-navy pt-[env(safe-area-inset-top)] lg:flex">
         <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
@@ -125,7 +128,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Topbar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
+      <header className="shrink-0 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ml-amarelo">🚚</span>
@@ -165,15 +168,17 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-8">
+      <main className="min-h-0 w-full flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl p-4 lg:p-6">
         <div className="mb-4 empty:mb-0 lg:hidden">
           <InstalarBanner />
         </div>
         {children}
+        </div>
       </main>
 
       {/* Menu inferior mobile (rolável quando há muitos itens) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="flex shrink-0 overflow-x-auto border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
         {nav.map((item) => (
           <NavLink
             key={item.para}
