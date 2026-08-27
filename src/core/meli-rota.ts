@@ -12,6 +12,8 @@ export interface PacoteRotaMeli {
   destinatario: string
   /** true = a página (de rota já encerrada) diz que este não foi entregue. */
   naoEntregue: boolean
+  /** Reclamações abertas pelo cliente neste pacote (claims do Meli). */
+  reclamacoes: number
 }
 
 export interface RotaMeliLida {
@@ -65,7 +67,8 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
     vistos.add(id)
     const inicio = matches[i].index ?? 0
     const fim = matches[i + 1]?.index ?? texto.length
-    const etiqueta = pega(texto.slice(inicio, fim), /"printedLabel":"([^"]*)"/)
+    const bloco = texto.slice(inicio, fim)
+    const etiqueta = pega(bloco, /"printedLabel":"([^"]*)"/)
     const info = recebedor.get(id)
     pacotes.push({
       numeracao: id,
@@ -74,6 +77,7 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
       endereco: info?.endereco ?? '',
       destinatario: info?.destinatario ?? '',
       naoEntregue: substatus === 'missing',
+      reclamacoes: Number(pega(bloco, /"claimsAmount":(\d+)/)) || 0,
     })
   }
   if (pacotes.length === 0) return null

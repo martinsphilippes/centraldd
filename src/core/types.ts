@@ -74,6 +74,10 @@ export interface Conferencia {
     cidade: string
     endereco: string
     destinatario: string
+    /** true = o documento (rota encerrada) diz que não foi entregue. */
+    naoEntregue?: boolean
+    /** Reclamações do cliente neste pacote, extraídas do documento. */
+    reclamacoes?: number
   }[]
   /** Numerações que o motorista enviou. null = ainda não enviou. */
   conferidos: string[] | null

@@ -101,6 +101,8 @@ export function Conferencia() {
             cidade: x.cidade,
             endereco: x.endereco,
             destinatario: x.destinatario,
+            naoEntregue: x.naoEntregue,
+            reclamacoes: x.reclamacoes,
           }))
         : [],
       arquivoDispatcher: arquivo,
