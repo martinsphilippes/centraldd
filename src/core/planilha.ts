@@ -1,6 +1,7 @@
 // Leitura das planilhas da operação: aceita texto colado do Excel/Sheets
 // (separado por TAB) ou arquivo CSV (; ou ,). Preserva os valores como estão.
 
+import { normalizarTexto } from './texto'
 import type { ProgramacaoItem, Rota } from './types'
 
 export type RotaImportada = Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>
@@ -329,4 +330,144 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
   }
   return { rotas: finais, ignoradas }
+}
+
+// ---------------------------------------------------------------------------
+// Importação da planilha de MOTORISTAS (cadastro em lote)
+// ---------------------------------------------------------------------------
+
+export interface MotoristaImportado {
+  nome: string
+  telefone: string
+  cidade: string
+  equipe: string
+  operacao: string
+  veiculo: string
+  ativo: boolean
+  cidadesPreferidas: string
+  cidadesBloqueadas: string
+  email: string
+  senha: string
+  /** Linha de origem na planilha, para o dispatcher achar o erro. */
+  linha: number
+}
+
+/** Cabeçalhos aceitos por campo — sem acento, minúsculo, sem pontuação. */
+const COLUNAS_MOTORISTA: Record<keyof Omit<MotoristaImportado, 'linha' | 'ativo'>, string[]> = {
+  nome: ['nome', 'nome completo', 'motorista', 'entregador'],
+  telefone: ['telefone', 'celular', 'whatsapp', 'fone', 'telefone whatsapp'],
+  cidade: ['cidade', 'municipio', 'cidade base'],
+  equipe: ['equipe', 'time', 'grupo'],
+  operacao: ['operacao', 'operacao logistica'],
+  veiculo: ['veiculo', 'tipo de veiculo', 'carro'],
+  cidadesPreferidas: ['cidades preferidas', 'cidade preferida', 'preferidas', 'prefiro'],
+  cidadesBloqueadas: ['cidades bloqueadas', 'cidade bloqueada', 'bloqueadas', 'nao atende'],
+  email: ['email', 'e mail', 'e-mail', 'login'],
+  senha: ['senha', 'password', 'senha inicial'],
+}
+const COLUNAS_ATIVO = ['ativo', 'situacao', 'status']
+
+/** Ordem usada quando a planilha vem SEM cabeçalho. */
+const ORDEM_PADRAO: (keyof MotoristaImportado)[] = [
+  'nome', 'telefone', 'cidade', 'equipe', 'operacao', 'veiculo', 'email', 'senha',
+]
+
+const chaveColuna = (s: string) => normalizarTexto(s).toLowerCase().trim()
+
+/** "Sim"/"Não"/"1"/"0"/"ativo"/"inativo" → boolean. Vazio = ativo. */
+function lerAtivo(valor: string): boolean {
+  const v = chaveColuna(valor)
+  if (!v) return true
+  return !['nao', 'n', '0', 'false', 'inativo', 'desativado', 'off'].includes(v)
+}
+
+/** Só os dígitos, como o cadastro manual grava. */
+function soDigitos(s: string): string {
+  return s.replace(/\D/g, '')
+}
+
+/**
+ * Lê a planilha de motoristas colada do Excel (TAB) ou de um CSV (; ou ,).
+ * O cabeçalho manda: as colunas podem vir em qualquer ordem e só `nome` é
+ * obrigatório. Sem cabeçalho reconhecível, vale a ORDEM_PADRAO.
+ */
+export function parsearPlanilhaMotoristas(texto: string): {
+  motoristas: MotoristaImportado[]
+  ignoradas: number
+  colunasReconhecidas: string[]
+} {
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim())
+  if (linhas.length === 0) return { motoristas: [], ignoradas: 0, colunasReconhecidas: [] }
+
+  // Separador: TAB (colagem do Excel) tem prioridade; senão ; e por fim ,
+  const primeira = linhas[0]
+  const sep = primeira.includes('\t') ? '\t' : primeira.includes(';') ? ';' : ','
+  /** Divide respeitando aspas: "Silva, Junior" continua sendo uma célula só. */
+  const celulas = (l: string) => {
+    const saida: string[] = []
+    let atual = ''
+    let dentroDeAspas = false
+    for (let i = 0; i < l.length; i++) {
+      const c = l[i]
+      if (c === '"') {
+        // Aspas dobradas ("") são uma aspa literal dentro do campo.
+        if (dentroDeAspas && l[i + 1] === '"') {
+          atual += '"'
+          i++
+        } else dentroDeAspas = !dentroDeAspas
+      } else if (c === sep && !dentroDeAspas) {
+        saida.push(atual)
+        atual = ''
+      } else atual += c
+    }
+    saida.push(atual)
+    return saida.map((c) => c.trim())
+  }
+
+  // O cabeçalho é reconhecido se pelo menos uma coluna conhecida aparecer.
+  const cab = celulas(primeira).map(chaveColuna)
+  const mapa = new Map<keyof MotoristaImportado | 'ativo', number>()
+  cab.forEach((titulo, i) => {
+    for (const [campo, nomes] of Object.entries(COLUNAS_MOTORISTA)) {
+      if (nomes.includes(titulo)) mapa.set(campo as keyof MotoristaImportado, i)
+    }
+    if (COLUNAS_ATIVO.includes(titulo)) mapa.set('ativo', i)
+  })
+  const temCabecalho = mapa.size > 0
+  if (!temCabecalho) ORDEM_PADRAO.forEach((campo, i) => mapa.set(campo, i))
+
+  const colunasReconhecidas = [...mapa.keys()].map(String)
+  const corpo = temCabecalho ? linhas.slice(1) : linhas
+  const motoristas: MotoristaImportado[] = []
+  let ignoradas = 0
+
+  corpo.forEach((linha, i) => {
+    const c = celulas(linha)
+    const pegar = (campo: keyof MotoristaImportado | 'ativo') => {
+      const idx = mapa.get(campo)
+      return idx === undefined ? '' : (c[idx] ?? '').trim()
+    }
+    const nome = pegar('nome')
+    // Linha sem nome não vira cadastro (rodapé, total, linha em branco no meio).
+    if (!nome || /^(total|nome)$/i.test(nome)) {
+      ignoradas++
+      return
+    }
+    motoristas.push({
+      nome,
+      telefone: soDigitos(pegar('telefone')),
+      cidade: pegar('cidade'),
+      equipe: pegar('equipe'),
+      operacao: pegar('operacao'),
+      veiculo: pegar('veiculo'),
+      ativo: lerAtivo(pegar('ativo')),
+      cidadesPreferidas: pegar('cidadesPreferidas'),
+      cidadesBloqueadas: pegar('cidadesBloqueadas'),
+      email: pegar('email').toLowerCase(),
+      senha: pegar('senha'),
+      linha: (temCabecalho ? 2 : 1) + i,
+    })
+  })
+
+  return { motoristas, ignoradas, colunasReconhecidas }
 }

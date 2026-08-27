@@ -9,6 +9,7 @@ import { formatarTelefone } from '../../core/comunicacao'
 import type { Motorista } from '../../core/types'
 import { Avatar, Badge, Button, Card, EmptyState, Input, Select } from '../../components/ui'
 import { ContactButtons } from '../../components/ContactButtons'
+import { ImportarMotoristasModal } from './ImportarMotoristasModal'
 
 
 export function MotoristasList() {
@@ -16,6 +17,7 @@ export function MotoristasList() {
   const { usuarioEmail } = useSessao()
   // Só o DONO da operação decide quem vira dispatcher.
   const souDono = EMAILS_DISPATCHER.includes((usuarioEmail ?? '').toLowerCase())
+  const [importar, setImportar] = useState(false)
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
   const [equipe, setEquipe] = useState('')
@@ -75,10 +77,17 @@ export function MotoristasList() {
             {db.motoristas.filter((m) => m.ativo).length} ativos na frota
           </p>
         </div>
-        <Link to="/motoristas/novo">
-          <Button variante="ml">➕ Cadastrar motorista</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button variante="secundario" onClick={() => setImportar(true)}>
+            📥 Importar planilha
+          </Button>
+          <Link to="/motoristas/novo">
+            <Button variante="ml">➕ Cadastrar motorista</Button>
+          </Link>
+        </div>
       </div>
+
+      <ImportarMotoristasModal aberto={importar} onFechar={() => setImportar(false)} />
 
       {pendentes.length > 0 && (
         <Card className="border-amber-300 bg-amber-50 p-4">

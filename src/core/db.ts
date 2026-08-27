@@ -211,6 +211,90 @@ export function salvarPreferenciasCidades(
   })
 }
 
+/** Resultado do cadastro em lote, para o dispatcher conferir o que aconteceu. */
+export interface ResultadoImportacaoMotoristas {
+  criados: number
+  atualizados: number
+  comLogin: number
+  erros: { linha: number; nome: string; motivo: string }[]
+}
+
+const ERROS_CONTA: Record<string, string> = {
+  'auth/email-already-in-use': 'e-mail já tem conta — cadastro salvo sem criar login',
+  'auth/invalid-email': 'e-mail inválido — cadastro salvo sem login',
+  'auth/weak-password': 'senha com menos de 6 caracteres — cadastro salvo sem login',
+}
+
+/**
+ * Cadastro de motoristas em lote a partir da planilha.
+ *
+ * Não duplica: quem já existe (mesmo telefone, ou mesmo nome quando não há
+ * telefone) é ATUALIZADO, e campo em branco na planilha não apaga o que já
+ * estava salvo. Com e-mail e senha na linha, cria também o login — e aí o id
+ * do cadastro passa a ser o uid da conta, como no cadastro manual.
+ */
+export async function importarMotoristas(
+  linhas: import('./planilha').MotoristaImportado[],
+): Promise<ResultadoImportacaoMotoristas> {
+  const r: ResultadoImportacaoMotoristas = { criados: 0, atualizados: 0, comLogin: 0, erros: [] }
+  const agora = new Date().toISOString()
+  const chaveNome = (n: string) => normalizarTexto(n)
+
+  for (const linha of linhas) {
+    // Procura sempre no estado mais recente: duas linhas da mesma pessoa na
+    // planilha caem no mesmo cadastro em vez de virarem dois.
+    const anterior =
+      (linha.telefone && state.motoristas.find((m) => m.telefone === linha.telefone)) ||
+      state.motoristas.find((m) => chaveNome(m.nome) === chaveNome(linha.nome))
+
+    let id = anterior?.id ?? uid()
+    let criouLogin = false
+    if (!anterior && linha.email && linha.senha) {
+      try {
+        const { criarContaMotorista, salvarPerfilMotorista } = await import('./firebase')
+        id = await criarContaMotorista(linha.email, linha.senha)
+        await salvarPerfilMotorista(id, linha.email)
+        criouLogin = true
+      } catch (err) {
+        const codigo = (err as { code?: string }).code ?? ''
+        r.erros.push({
+          linha: linha.linha,
+          nome: linha.nome,
+          motivo: ERROS_CONTA[codigo] ?? `não consegui criar o login (${codigo || 'erro'})`,
+        })
+      }
+    }
+
+    // Valor em branco na planilha preserva o que já estava no cadastro.
+    const ou = (novo: string, velho?: string) => (novo.trim() ? novo.trim() : velho ?? '')
+    const motorista: Motorista = {
+      ...anterior,
+      id,
+      nome: linha.nome,
+      telefone: ou(linha.telefone, anterior?.telefone),
+      cidade: ou(linha.cidade, anterior?.cidade),
+      equipe: ou(linha.equipe, anterior?.equipe),
+      operacao: ou(linha.operacao, anterior?.operacao),
+      veiculo: ou(linha.veiculo, anterior?.veiculo),
+      ativo: linha.ativo,
+      // Cadastro feito pelo Dispatcher já nasce aprovado.
+      aprovado: anterior?.aprovado ?? true,
+      cidadesPreferidas: ou(linha.cidadesPreferidas, anterior?.cidadesPreferidas),
+      cidadesBloqueadas: ou(linha.cidadesBloqueadas, anterior?.cidadesBloqueadas),
+      criadoEm: anterior?.criadoEm ?? agora,
+    }
+    try {
+      await setDoc(doc(firestore, 'motoristas', id), motorista)
+      if (anterior) r.atualizados++
+      else r.criados++
+      if (criouLogin) r.comLogin++
+    } catch {
+      r.erros.push({ linha: linha.linha, nome: linha.nome, motivo: 'não consegui salvar o cadastro' })
+    }
+  }
+  return r
+}
+
 export function removerMotorista(id: string) {
   void deleteDoc(doc(firestore, 'motoristas', id))
 }
