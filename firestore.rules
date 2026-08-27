@@ -73,10 +73,12 @@ service cloud.firestore {
          request.resource.data.aprovado == false &&
          request.resource.data.ativo == false);
       allow update, delete: if ehDispatcher();
-      // O motorista ajusta as próprias preferências de cidade — e só elas.
+      // O motorista ajusta as próprias preferências de cidade e os próprios
+      // dados de contato. Situação (ativo/aprovado/função) segue só do Dispatcher.
       allow update: if logado() && id == meuMotoristaId() &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['cidadesPreferidas', 'cidadesPossiveis']);
+          .hasOnly(['cidadesPreferidas', 'cidadesPossiveis',
+                    'nome', 'telefone', 'cidade', 'veiculo']);
     }
 
     match /chamadas/{id} {

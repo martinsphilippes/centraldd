@@ -15,6 +15,7 @@ import { MinhasCidades } from '../modules/motoristas/MinhasCidades'
 import { DispatchersList } from '../modules/motoristas/DispatchersList'
 import { Conferencia } from '../modules/conferencia/Conferencia'
 import { MinhaConferencia } from '../modules/conferencia/MinhaConferencia'
+import { MeuPerfil } from '../modules/motoristas/MeuPerfil'
 import { PlanejamentoList } from '../modules/planejamento/PlanejamentoList'
 import { PlanejamentoDetail } from '../modules/planejamento/PlanejamentoDetail'
 import { MeuPlanejamento } from '../modules/planejamento/MeuPlanejamento'
@@ -97,6 +98,7 @@ export default function App() {
             <Route path="/minhas-rotas" element={<MinhasRotas />} />
             <Route path="/minha-conferencia" element={<MinhaConferencia />} />
             <Route path="/minhas-cidades" element={<MinhasCidades />} />
+            <Route path="/meu-perfil" element={<MeuPerfil />} />
             <Route path="/minha-disponibilidade" element={<MinhaDisponibilidade />} />
             <Route path="/meu-planejamento" element={<MeuPlanejamento />} />
             <Route path="/notificacoes" element={<Notificacoes />} />

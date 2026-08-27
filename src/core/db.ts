@@ -310,6 +310,17 @@ export function removerConferencia(id: string) {
   void deleteDoc(doc(firestore, 'conferencias', id))
 }
 
+/**
+ * O MOTORISTA edita os próprios dados de contato — só os campos que as
+ * regras de segurança liberam para a conta dele.
+ */
+export function salvarMeuPerfilMotorista(
+  motoristaId: string,
+  dados: { nome: string; telefone: string; cidade: string; veiculo: string },
+) {
+  return updateDoc(doc(firestore, 'motoristas', motoristaId), dados)
+}
+
 /** O DISPATCHER tira UMA numeração da conferência (pacote fora da carga). */
 export function removerPacoteConferencia(id: string, numeracao: string) {
   const c = state.conferencias.find((x) => x.id === id)

@@ -47,6 +47,7 @@ const NAV_MOTORISTA: ItemNav[] = [
   { para: '/minha-conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Meu dia', passo: 4 },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },
+  { para: '/meu-perfil', rotulo: 'Meu perfil', icone: '👤', curto: 'Perfil', grupo: 'Minhas preferências' },
 ]
 
 export function Layout({ children }: { children: ReactNode }) {

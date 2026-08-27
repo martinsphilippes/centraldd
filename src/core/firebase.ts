@@ -4,6 +4,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth'
 import {
   deleteDoc,
@@ -25,6 +28,19 @@ export const auth = getAuth(app)
 export const firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 })
+
+/**
+ * Troca a senha da PRÓPRIA conta logada. O Firebase exige login recente para
+ * isso, então a senha atual reautentica antes — e de quebra prova que é o
+ * dono da conta quem está trocando.
+ */
+export async function trocarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+  const usuario = auth.currentUser
+  if (!usuario?.email) throw new Error('sem-sessao')
+  const credencial = EmailAuthProvider.credential(usuario.email, senhaAtual)
+  await reauthenticateWithCredential(usuario, credencial)
+  await updatePassword(usuario, novaSenha)
+}
 
 /** Grava o perfil de acesso de um motorista (papel + vínculo com o cadastro). */
 export async function salvarPerfilMotorista(uid: string, email: string) {
