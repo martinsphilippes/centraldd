@@ -118,6 +118,10 @@ export function Conferencia() {
             lat: x.lat,
             lng: x.lng,
             ordemMeli: x.ordemMeli,
+            comercial: x.comercial,
+            abre: x.abre,
+            fecha: x.fecha,
+            sempreAberto: x.sempreAberto,
           }))
         : [],
       arquivoDispatcher: arquivo,

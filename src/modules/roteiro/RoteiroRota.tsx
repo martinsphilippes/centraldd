@@ -13,10 +13,13 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { salvarRoteiroConferencia } from '../../core/db'
 import {
+  estadoFuncionamento,
   kmDaOrdem,
   linksNavegacao,
+  minutosParaFechar,
   montarParadas,
   ordemMeli,
+  otimizarComRelogio,
   otimizarRoteiro,
   type Parada,
   type Ponto,
@@ -125,6 +128,9 @@ function MapaParadas({
         `<strong>${i + 1}º · ${p.endereco || 'Endereço não informado'}</strong><br/>` +
           `${p.cidade}${p.destinatario ? ` · ${capitaliza(p.destinatario)}` : ''}<br/>` +
           `📦 ${p.pacotes.map((x) => x.etiqueta || x.numeracao).join(', ')}` +
+          (p.comercial
+            ? `<br/>🏪 <strong>Comercial</strong>${p.sempreAberto ? ' · sempre aberto' : p.abre && p.fecha ? ` · ${p.abre}–${p.fecha}` : ''}`
+            : '') +
           (aoTocar && !entregue ? '<br/><em>toque no ponto de novo para fazer esta AGORA</em>' : ''),
       )
       if (aoTocar && !entregue) {
@@ -164,6 +170,15 @@ export function RoteiroRota({ c, editavel }: Props) {
   const progresso = c.roteiro ?? { entregues: [], proximaId: null, atualizadoEm: '' }
   /** A decisão do motorista: seguir a nossa rota ou a ordem do Meli. */
   const seguir = progresso.seguir ?? 'otimizada'
+  const avisoMin = progresso.avisoFechamentoMin ?? 60
+  const priorizarComercio = progresso.priorizarComercio ?? false
+
+  // Relógio vivo: o estado aberto/fechado dos comerciais se atualiza sozinho.
+  const [agora, setAgora] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setAgora(new Date()), 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
   const entregues = useMemo(() => new Set(progresso.entregues), [progresso.entregues])
 
   // Posição atual = última parada entregue (ou a base, no começo do dia).
@@ -186,10 +201,23 @@ export function RoteiroRota({ c, editavel }: Props) {
       : null
     // O motorista escolheu uma parada específica? A partir dela o SISTEMA
     // recalcula a melhor forma de fazer o resto — vale nas duas ordens.
-    if (proxima) return otimizarRoteiro(inicio, pendentes, proxima)
-    // Sem escolha pontual: segue a ordem que ele decidiu usar.
-    return seguir === 'meli' ? ordemMeli(pendentes) : otimizarRoteiro(inicio, pendentes, null)
-  }, [pendentes, posicaoAtual, progresso.proximaId, seguir])
+    if (proxima) {
+      const escolhida = pendentes.find((p) => p.id === proxima)!
+      const demais = pendentes.filter((p) => p.id !== proxima)
+      return [
+        escolhida,
+        ...(priorizarComercio && seguir === 'otimizada'
+          ? otimizarComRelogio(escolhida, demais)
+          : otimizarRoteiro(escolhida, demais, null)),
+      ]
+    }
+    // Sem escolha pontual: segue a ordem que ele decidiu usar — com os
+    // comerciais puxados para o fechamento, se ele ligou o relógio.
+    if (seguir === 'meli') return ordemMeli(pendentes)
+    return priorizarComercio
+      ? otimizarComRelogio(inicio, pendentes)
+      : otimizarRoteiro(inicio, pendentes, null)
+  }, [pendentes, posicaoAtual, progresso.proximaId, seguir, priorizarComercio])
 
   // Comparação da rota completa desde a base: a ordem do Meli × o caminho
   // REAL de hoje (entregues na ordem em que foram feitas + pendentes na ordem
@@ -239,6 +267,8 @@ export function RoteiroRota({ c, editavel }: Props) {
       entregues: novos,
       proximaId: progresso.proximaId === p.id ? null : progresso.proximaId,
       seguir,
+      avisoFechamentoMin: avisoMin,
+      priorizarComercio,
     })
   }
   const desfazerEntregue = (p: Parada) => {
@@ -246,14 +276,28 @@ export function RoteiroRota({ c, editavel }: Props) {
       entregues: progresso.entregues.filter((id) => id !== p.id),
       proximaId: progresso.proximaId,
       seguir,
+      avisoFechamentoMin: avisoMin,
+      priorizarComercio,
     })
   }
+  const salvarPreferencias = (mudancas: { avisoFechamentoMin?: number; priorizarComercio?: boolean }) => {
+    salvarRoteiroConferencia(c.id, {
+      entregues: progresso.entregues,
+      proximaId: progresso.proximaId,
+      seguir,
+      avisoFechamentoMin: mudancas.avisoFechamentoMin ?? avisoMin,
+      priorizarComercio: mudancas.priorizarComercio ?? priorizarComercio,
+    })
+  }
+
   /** Um toque desfaz a escolha avulsa: volta a valer a rota sugerida. */
   const voltarSugerida = () => {
     salvarRoteiroConferencia(c.id, {
       entregues: progresso.entregues,
       proximaId: null,
       seguir,
+      avisoFechamentoMin: avisoMin,
+      priorizarComercio,
     })
   }
 
@@ -263,6 +307,8 @@ export function RoteiroRota({ c, editavel }: Props) {
       // Trocar de ordem limpa a escolha pontual: a nova ordem assume inteira.
       proximaId: null,
       seguir: novo,
+      avisoFechamentoMin: avisoMin,
+      priorizarComercio,
     })
   }
 
@@ -271,6 +317,8 @@ export function RoteiroRota({ c, editavel }: Props) {
       entregues: progresso.entregues,
       proximaId: progresso.proximaId === p.id ? null : p.id,
       seguir,
+      avisoFechamentoMin: avisoMin,
+      priorizarComercio,
     })
   }
 
@@ -338,6 +386,79 @@ export function RoteiroRota({ c, editavel }: Props) {
         <p className="text-[11px] text-slate-500">
           🕒 Último andamento {formatarQuandoCurto(progresso.atualizadoEm)}
         </p>
+      )}
+
+      {/* 🏪 Alertas dos comerciais: automáticos, com a antecedência que o
+          motorista escolher. Fechado/não-abriu aparece sempre. */}
+      {(() => {
+        const comerciais = pendentes.filter((p) => p.comercial)
+        if (comerciais.length === 0) return null
+        const fechados = comerciais.filter((p) => estadoFuncionamento(p, agora) === 'ja-fechou')
+        const naoAbriram = comerciais.filter((p) => estadoFuncionamento(p, agora) === 'ainda-nao-abriu')
+        const fechando = avisoMin > 0
+          ? comerciais.filter((p) => {
+              const falta = minutosParaFechar(p, agora)
+              return falta !== null && falta <= avisoMin
+            })
+          : []
+        if (fechados.length === 0 && naoAbriram.length === 0 && fechando.length === 0) return null
+        return (
+          <div className="space-y-1.5">
+            {fechados.map((p) => (
+              <p key={p.id} className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                🏪 <strong>{p.endereco}</strong> ({p.cidade}) — comercial <strong>JÁ FECHOU</strong>{' '}
+                às {p.fecha}. Reabre {p.abre ? `às ${p.abre}` : 'amanhã'}.
+              </p>
+            ))}
+            {naoAbriram.map((p) => (
+              <p key={p.id} className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
+                🏪 <strong>{p.endereco}</strong> ({p.cidade}) — comercial <strong>ainda não abriu</strong>;
+                abre às {p.abre}.
+              </p>
+            ))}
+            {fechando.map((p) => {
+              const falta = minutosParaFechar(p, agora)!
+              return (
+                <p key={p.id} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                  ⏰ <strong>{p.endereco}</strong> ({p.cidade}) fecha às {p.fecha} —{' '}
+                  <strong>faltam {falta >= 60 ? `${Math.floor(falta / 60)}h${String(falta % 60).padStart(2, '0')}` : `${falta} min`}</strong>.
+                </p>
+              )
+            })}
+          </div>
+        )
+      })()}
+
+      {/* Preferências do motorista sobre os comerciais */}
+      {editavel && paradas.some((p) => p.comercial) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <label className="flex items-center gap-2 font-semibold text-slate-700">
+            🔔 Avisar fechamento com
+            <select
+              value={String(avisoMin)}
+              onChange={(e) => salvarPreferencias({ avisoFechamentoMin: Number(e.target.value) })}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1"
+            >
+              <option value="0">sem aviso</option>
+              <option value="30">30 min</option>
+              <option value="60">1 hora</option>
+              <option value="120">2 horas</option>
+              <option value="180">3 horas</option>
+            </select>
+            de antecedência
+          </label>
+          <label className="flex items-center gap-2 font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={priorizarComercio}
+              disabled={seguir === 'meli'}
+              onChange={(e) => salvarPreferencias({ priorizarComercio: e.target.checked })}
+            />
+            ⏰ Comerciais antes do fechamento
+            {seguir === 'meli' && <span className="font-normal text-slate-400">(só na nossa rota)</span>}
+          </label>
+        </div>
       )}
 
       {/* Mapa com as duas rotas: comparar e ESCOLHER direto nele */}
@@ -464,6 +585,23 @@ export function RoteiroRota({ c, editavel }: Props) {
                   {p.destinatario && ` · ${p.destinatario}`}
                   {p.pacotes.length > 0 && ` · 📦 ${p.pacotes.map((x) => x.etiqueta || x.numeracao).join(', ')}`}
                 </span>
+                {p.comercial && (
+                  <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                    <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                      🏪 Comercial{p.sempreAberto ? ' · sempre aberto' : p.abre && p.fecha ? ` · ${p.abre}–${p.fecha}` : ''}
+                    </span>
+                    {estadoFuncionamento(p, agora) === 'ja-fechou' && (
+                      <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                        FECHADO agora
+                      </span>
+                    )}
+                    {estadoFuncionamento(p, agora) === 'ainda-nao-abriu' && (
+                      <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                        ainda não abriu
+                      </span>
+                    )}
+                  </span>
+                )}
               </span>
               {entregue ? (
                 <span className="flex items-center gap-1.5">

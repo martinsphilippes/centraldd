@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { removerPacoteConferencia } from '../../core/db'
+import { estadoFuncionamento } from '../../core/roteiro'
 import { chaveNumeracao } from '../../core/conferencia'
 import { normalizarTexto } from '../../core/texto'
 import type { Conferencia } from '../../core/types'
@@ -27,6 +28,7 @@ function ordemEtiqueta(e: string): number {
 export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExcluir?: boolean }) {
   const [busca, setBusca] = useState('')
   const [soFaltas, setSoFaltas] = useState(false)
+  const [soComercios, setSoComercios] = useState(false)
   const [aba, setAba] = useState<'pacotes' | 'roteiro'>('pacotes')
   const temRoteiro = (c.pacotes ?? []).some((p) => p.lat != null)
 
@@ -52,6 +54,10 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
           cidade: p?.cidade ?? '',
           endereco: p?.endereco ?? '',
           destinatario: p?.destinatario ?? '',
+          comercial: p?.comercial ?? false,
+          abre: p?.abre ?? null,
+          fecha: p?.fecha ?? null,
+          sempreAberto: p?.sempreAberto ?? false,
           situacao: situacaoDe(numeracao),
         }
       })
@@ -63,9 +69,11 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
     (v) => !c.esperados.some((e) => chaveNumeracao(e) === chaveNumeracao(v)),
   )
 
+  const totalComerciais = linhas.filter((l) => l.comercial).length
   const chaveBusca = normalizarTexto(busca)
   const visiveis = linhas.filter((l) => {
     if (soFaltas && l.situacao !== 'falta') return false
+    if (soComercios && !l.comercial) return false
     if (!chaveBusca) return true
     return normalizarTexto(
       `${l.numeracao} ${l.etiqueta} ${l.cidade} ${l.endereco} ${l.destinatario}`,
@@ -144,6 +152,19 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
             ➕ {aMais.length} fora da lista
           </Badge>
         )}
+        {totalComerciais > 0 && (
+          <button
+            onClick={() => setSoComercios((v) => !v)}
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+              soComercios
+                ? 'border-indigo-400 bg-indigo-100 text-indigo-800'
+                : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+            }`}
+            title="Mostrar só os pontos comerciais"
+          >
+            🏪 {totalComerciais} comercial(is){soComercios ? ' ✓' : ''}
+          </button>
+        )}
         <Input
           placeholder="🔎 numeração, CD, cidade, endereço, nome…"
           value={busca}
@@ -162,6 +183,7 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
               <th className="px-2 py-1.5">Cidade</th>
               <th className="px-2 py-1.5">Endereço</th>
               <th className="px-2 py-1.5">Destinatário</th>
+              {totalComerciais > 0 && <th className="px-2 py-1.5">🏪 Funciona</th>}
               <th className="px-2 py-1.5">Situação</th>
               {podeExcluir && <th className="px-2 py-1.5" />}
             </tr>
@@ -177,6 +199,23 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
                 <td className="px-2 py-1 text-slate-600">{l.cidade || '—'}</td>
                 <td className="px-2 py-1 text-slate-600">{l.endereco || '—'}</td>
                 <td className="px-2 py-1 capitalize text-slate-600">{l.destinatario || '—'}</td>
+                {totalComerciais > 0 && (
+                  <td className="px-2 py-1">
+                    {l.comercial ? (
+                      <span className="whitespace-nowrap text-indigo-700">
+                        🏪 {l.sempreAberto ? 'sempre aberto' : l.abre && l.fecha ? `${l.abre}–${l.fecha}` : 'sem horário'}
+                        {estadoFuncionamento(l, new Date()) === 'ja-fechou' && (
+                          <strong className="ml-1 text-red-600">fechado agora</strong>
+                        )}
+                        {estadoFuncionamento(l, new Date()) === 'ainda-nao-abriu' && (
+                          <strong className="ml-1 text-slate-500">não abriu</strong>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-2 py-1">
                   <span className={`whitespace-nowrap rounded-full border px-2 py-0.5 font-semibold ${SELO[l.situacao].cor}`}>
                     {SELO[l.situacao].texto}
@@ -204,7 +243,7 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
             ))}
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={podeExcluir ? 7 : 6} className="px-2 py-4 text-center text-slate-400">
+                <td colSpan={(podeExcluir ? 7 : 6) + (totalComerciais > 0 ? 1 : 0)} className="px-2 py-4 text-center text-slate-400">
                   Nada encontrado com esse filtro.
                 </td>
               </tr>

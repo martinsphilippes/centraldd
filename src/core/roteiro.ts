@@ -29,6 +29,12 @@ export interface Parada extends Ponto {
   pacotes: PacoteParada[]
   /** Menor ordem do Meli entre os pacotes da parada. */
   ordemMeli: number | null
+  /** true = ponto COMERCIAL (business no Meli). */
+  comercial: boolean
+  /** Horário de funcionamento (HH:MM), quando o Meli informa. */
+  abre: string | null
+  fecha: string | null
+  sempreAberto: boolean
 }
 
 /** Distância em km entre dois pontos (haversine). */
@@ -52,6 +58,10 @@ interface PacoteComDados {
   lat?: number | null
   lng?: number | null
   ordemMeli?: number | null
+  comercial?: boolean
+  abre?: string | null
+  fecha?: string | null
+  sempreAberto?: boolean
 }
 
 /** Agrupa os pacotes com coordenada em paradas (mesmo endereço = uma parada). */
@@ -69,8 +79,16 @@ export function montarParadas(pacotes: PacoteComDados[]): Parada[] {
       destinatario: p.destinatario ?? '',
       pacotes: [],
       ordemMeli: null,
+      comercial: false,
+      abre: null,
+      fecha: null,
+      sempreAberto: false,
     }
     parada.pacotes.push({ numeracao: p.numeracao, etiqueta: p.etiqueta ?? '' })
+    if (p.comercial) parada.comercial = true
+    if (p.abre && !parada.abre) parada.abre = p.abre
+    if (p.fecha && !parada.fecha) parada.fecha = p.fecha
+    if (p.sempreAberto) parada.sempreAberto = true
     if (p.ordemMeli != null)
       parada.ordemMeli = parada.ordemMeli === null ? p.ordemMeli : Math.min(parada.ordemMeli, p.ordemMeli)
     mapa.set(id, parada)
@@ -172,4 +190,60 @@ export function linksNavegacao(p: Ponto): { googleMaps: string; waze: string } {
     googleMaps: `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`,
     waze: `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`,
   }
+}
+
+
+/** Minutos desde a meia-noite de um "HH:MM"; null se inválido. */
+function minutosDe(hhmm: string | null): number | null {
+  if (!hhmm) return null
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+
+export type EstadoFuncionamento = 'aberto' | 'ainda-nao-abriu' | 'ja-fechou' | null
+
+/**
+ * Situação do ponto comercial NESTE momento, pelos horários do Meli.
+ * null = não é comercial ou não tem horário (nada a alertar).
+ */
+export function estadoFuncionamento(
+  p: { comercial?: boolean; abre?: string | null; fecha?: string | null; sempreAberto?: boolean },
+  agora: Date,
+): EstadoFuncionamento {
+  if (!p.comercial) return null
+  if (p.sempreAberto) return 'aberto'
+  const abre = minutosDe(p.abre ?? null)
+  const fecha = minutosDe(p.fecha ?? null)
+  if (abre === null || fecha === null) return null
+  const min = agora.getHours() * 60 + agora.getMinutes()
+  if (min < abre) return 'ainda-nao-abriu'
+  if (min >= fecha) return 'ja-fechou'
+  return 'aberto'
+}
+
+/** Minutos que faltam para o fechamento (null = sem horário / já fechou). */
+export function minutosParaFechar(
+  p: { comercial?: boolean; fecha?: string | null; sempreAberto?: boolean },
+  agora: Date,
+): number | null {
+  if (!p.comercial || p.sempreAberto) return null
+  const fecha = minutosDe(p.fecha ?? null)
+  if (fecha === null) return null
+  const falta = fecha - (agora.getHours() * 60 + agora.getMinutes())
+  return falta > 0 ? falta : null
+}
+
+/**
+ * Otimização respeitando o relógio dos comerciais: os pontos comerciais com
+ * horário de fechamento vêm PRIMEIRO, na ordem de quem fecha mais cedo, e o
+ * restante segue otimizado a partir do último comercial. Facultativo — o
+ * motorista liga e desliga.
+ */
+export function otimizarComRelogio(partida: Ponto, paradas: Parada[]): Parada[] {
+  const comFechamento = paradas
+    .filter((p) => p.comercial && !p.sempreAberto && minutosDe(p.fecha) !== null)
+    .sort((a, b) => (minutosDe(a.fecha) ?? 9999) - (minutosDe(b.fecha) ?? 9999))
+  const demais = paradas.filter((p) => !comFechamento.includes(p))
+  const ultimaComercial = comFechamento[comFechamento.length - 1] ?? partida
+  return [...comFechamento, ...otimizarRoteiro(ultimaComercial, demais)]
 }

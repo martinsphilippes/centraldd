@@ -335,7 +335,13 @@ export function removerPacoteConferencia(id: string, numeracao: string) {
 /** O MOTORISTA registra o andamento do roteiro (entregues + próxima escolhida). */
 export function salvarRoteiroConferencia(
   id: string,
-  roteiro: { entregues: string[]; proximaId: string | null; seguir?: 'otimizada' | 'meli' },
+  roteiro: {
+    entregues: string[]
+    proximaId: string | null
+    seguir?: 'otimizada' | 'meli'
+    avisoFechamentoMin?: number
+    priorizarComercio?: boolean
+  },
 ) {
   updateDoc(doc(firestore, 'conferencias', id), {
     roteiro: { ...roteiro, atualizadoEm: new Date().toISOString() },

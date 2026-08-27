@@ -19,6 +19,13 @@ export interface PacoteRotaMeli {
   lng: number | null
   /** Posição desta parada na sequência planejada pelo Meli (1, 2, 3…). */
   ordemMeli: number | null
+  /** true = endereço COMERCIAL (business) segundo o Meli. */
+  comercial: boolean
+  /** Horário de funcionamento informado pelo Meli (HH:MM), quando houver. */
+  abre: string | null
+  fecha: string | null
+  /** true = o Meli marca o local como aberto o tempo todo. */
+  sempreAberto: boolean
 }
 
 export interface RotaMeliLida {
@@ -82,6 +89,27 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
     return atual
   }
 
+  // Horário de funcionamento: vem no pedido, logo ANTES do bloco do pacote —
+  // vale o último 'locationHours' aberto antes da posição.
+  const horarios = [
+    ...texto.matchAll(
+      /"locationHours":\{"isOpenAllTime":(true|false),"isClosed":(true|false),"openHoursRanges":\{"from":(null|"[0-9:]+"),"to":(null|"[0-9:]+")\}\}/g,
+    ),
+  ].map((m) => ({
+    posicao: m.index ?? 0,
+    sempreAberto: m[1] === 'true',
+    abre: m[3] === 'null' ? null : m[3].slice(1, -1),
+    fecha: m[4] === 'null' ? null : m[4].slice(1, -1),
+  }))
+  const horarioEm = (posicao: number) => {
+    let atual: (typeof horarios)[number] | null = null
+    for (const h of horarios) {
+      if (h.posicao > posicao) break
+      atual = h
+    }
+    return atual
+  }
+
   // Cada pacote aparece como relatedEntity; a etiqueta (CD-n) vem logo depois,
   // no mesmo bloco do transporte — por isso a associação é por posição.
   const pacotes: PacoteRotaMeli[] = []
@@ -109,6 +137,10 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
       lat: info?.lat ?? null,
       lng: info?.lng ?? null,
       ordemMeli: sequenciaEm(inicio),
+      comercial: pega(bloco, /"addressType":"([a-z_]+)"/) === 'business',
+      abre: horarioEm(inicio)?.abre ?? null,
+      fecha: horarioEm(inicio)?.fecha ?? null,
+      sempreAberto: horarioEm(inicio)?.sempreAberto ?? false,
     })
   }
   if (pacotes.length === 0) return null

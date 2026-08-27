@@ -76,6 +76,10 @@ export interface Conferencia {
     proximaId: string | null
     /** Qual ordem o MOTORISTA decidiu seguir: a nossa otimizada ou a do Meli. */
     seguir?: 'otimizada' | 'meli'
+    /** Aviso de fechamento dos comerciais: minutos de antecedência (0 = desligado). */
+    avisoFechamentoMin?: number
+    /** true = puxar os comerciais para antes do fechamento na rota otimizada. */
+    priorizarComercio?: boolean
     atualizadoEm: string
   }
   /**
@@ -98,6 +102,11 @@ export interface Conferencia {
     lng?: number | null
     /** Posição na sequência planejada pelo Meli. */
     ordemMeli?: number | null
+    /** true = ponto COMERCIAL, com o horário de funcionamento quando houver. */
+    comercial?: boolean
+    abre?: string | null
+    fecha?: string | null
+    sempreAberto?: boolean
   }[]
   /** Numerações que o motorista enviou. null = ainda não enviou. */
   conferidos: string[] | null
