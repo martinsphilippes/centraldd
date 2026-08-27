@@ -6,7 +6,7 @@ import type { DB, Motorista, ParametrosAlocacao, ProgramacaoItem, Rota } from '.
 import { cidadesDoTexto } from './planilha'
 import { STATUS_DISPONIVEIS } from './constants'
 import { algumaCidadeBate, normalizarTexto } from './texto'
-import { hojeISO } from './dates'
+import { hojeISO, parseISODate } from './dates'
 
 export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   id: 'alocacao',
@@ -16,6 +16,8 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoRespeitarPlanoMeli: 5,
   pesoCidadesPreferidas: 6,
   pesoCidadePossivel: 2,
+  pesoPrioridadeDomingo: 5,
+  limiarRotasPrioridadeDomingo: 0,
   pesoRodizio: 5,
   janelaRodizioDias: 7,
   maxVezesSeguidasMesmaCidade: 0,
@@ -78,6 +80,27 @@ function parseEquivalencias(texto: string): Map<string, Set<string>> {
   return mapa
 }
 
+/**
+ * Quem ficou DISPONÍVEL no último domingo antes do dia. É a moeda da
+ * prioridade: trabalhou/segurou o domingo, sai na frente na semana seguinte
+ * (a janela vale até o domingo seguinte).
+ */
+export function disponiveisNoDomingoAnterior(db: DB, data: string): Set<string> {
+  const d = parseISODate(data)
+  if (Number.isNaN(d.getTime())) return new Set()
+  d.setDate(d.getDate() - (d.getDay() === 0 ? 7 : d.getDay()))
+  const domingo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const ids = new Set<string>()
+  for (const a of db.disponibilidade)
+    if (a.data === domingo && STATUS_DISPONIVEIS.includes(a.status)) ids.add(a.motoristaId)
+  return ids
+}
+
+/** true quando a prioridade do domingo vale para um dia com N rotas. */
+function prioridadeDomingoAtiva(p: ParametrosAlocacao, totalRotas: number): boolean {
+  return p.limiarRotasPrioridadeDomingo > 0 && p.pesoPrioridadeDomingo > 0 && totalRotas < p.limiarRotasPrioridadeDomingo
+}
+
 export interface Sugestao {
   item: ProgramacaoItem
   motorista: Motorista | null
@@ -136,6 +159,11 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       return datas.length >= p.maxVezesSeguidasMesmaCidade
     })
   }
+
+  // Dia fraco: quem segurou o domingo ganha prioridade nesta semana.
+  const comPrioridadeDomingo = prioridadeDomingoAtiva(p, itensDoDia.length)
+    ? disponiveisNoDomingoAnterior(db, data)
+    : new Set<string>()
 
   // Pontua cada par (rota do dia × candidato).
   interface Par {
@@ -203,6 +231,10 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       if (disponiveisHoje.has(m.id)) {
         pontos += p.exigirDisponibilidadeMarcada ? 0 : p.bonusDisponivelMarcado
         motivos.push('✅ disponível na disponibilidade')
+      }
+      if (comPrioridadeDomingo.has(m.id)) {
+        pontos += p.pesoPrioridadeDomingo
+        motivos.push('🙏 ficou disponível no domingo — prioridade da semana')
       }
 
       pares.push({ item, motorista: m, pontos, confianca: 0, motivos, alertas })
@@ -272,8 +304,13 @@ export function alocarMotoristasNasRotas(
   rotas: Rota[],
   candidatos: Motorista[],
   p: ParametrosAlocacao,
+  dataReferencia: string = hojeISO(),
 ): AlocacaoRota[] {
   const equivalencias = parseEquivalencias(p.equivalenciasVeiculo)
+  // Dia fraco: quem segurou o domingo ganha prioridade nesta semana.
+  const comPrioridadeDomingo = prioridadeDomingoAtiva(p, rotas.length)
+    ? disponiveisNoDomingoAnterior(db, dataReferencia)
+    : new Set<string>()
   const dataMinima = p.janelaHistoricoDias > 0 ? hojeISO(-p.janelaHistoricoDias) : '0000-01-01'
   const dataMinimaRodizio = hojeISO(-Math.max(1, p.janelaRodizioDias))
 
@@ -340,6 +377,10 @@ export function alocarMotoristasNasRotas(
       if (veiculoCompativel && aceitos && aceitos.size > 0) {
         pontos += 2
         motivos.push('🚐 veículo compatível')
+      }
+      if (comPrioridadeDomingo.has(m.id)) {
+        pontos += p.pesoPrioridadeDomingo
+        motivos.push('🙏 ficou disponível no domingo — prioridade da semana')
       }
       pares.push({ rota, motorista: m, pontos, motivos, preferida })
     }

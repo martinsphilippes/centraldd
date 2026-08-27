@@ -211,6 +211,13 @@ export interface ParametrosAlocacao {
   pesoCidadesPreferidas: number
   /** Bônus menor para cidade que o motorista marcou como "Posso fazer". */
   pesoCidadePossivel: number
+  /** Bônus de quem ficou disponível no domingo — vale na semana seguinte. */
+  pesoPrioridadeDomingo: number
+  /**
+   * A prioridade do domingo só entra em dia com MENOS rotas do que este
+   * número (dia fraco, em que não há trabalho para todos). 0 = desligada.
+   */
+  limiarRotasPrioridadeDomingo: number
   /** Penaliza quem foi muitas vezes à mesma cidade recentemente (força o rodízio). */
   pesoRodizio: number
   /** Janela (dias) usada para medir a repetição do rodízio. */

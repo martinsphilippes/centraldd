@@ -108,6 +108,25 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
             {num('bonusDisponivelMarcado', 0, 10)}
           </Item>
           <Item
+            titulo="🙏 Prioridade de quem ficou disponível no domingo"
+            explicacao={
+              p.limiarRotasPrioridadeDomingo > 0
+                ? `Quem marcou DISPONÍVEL no domingo ganha ${p.pesoPrioridadeDomingo} ponto(s) de prioridade na semana seguinte — mas só nos dias FRACOS, com menos de ${p.limiarRotasPrioridadeDomingo} rota(s). Em dia cheio, com trabalho para todos, a prioridade não é necessária e não entra.`
+                : 'Recompensa quem segura o domingo: na semana seguinte, ele sai na frente nos dias fracos (com menos rotas que o limiar). Preencha o limiar de rotas para ligar — 0 deixa desligada.'
+            }
+          >
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                Peso da prioridade
+                {num('pesoPrioridadeDomingo', 0, 10, 'w-20')}
+              </label>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                Vale em dia com menos de … rotas (0 = desligada)
+                {num('limiarRotasPrioridadeDomingo', 0, 200, 'w-20')}
+              </label>
+            </div>
+          </Item>
+          <Item
             titulo="📆 Janela do histórico (dias)"
             explicacao="Até onde no passado o sistema olha para medir a experiência de cada um. 0 = considera a história inteira."
           >
