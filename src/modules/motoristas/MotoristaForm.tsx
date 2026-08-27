@@ -31,7 +31,6 @@ export function MotoristaForm() {
   const veiculosOpcoes = [...new Set([...doSistema('veiculo', VEICULOS), veiculo].filter(Boolean))]
   const operacoesOpcoes = [...new Set([...doSistema('operacao', OPERACOES), operacao].filter(Boolean))]
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
-  const [cidadesBloqueadas, setCidadesBloqueadas] = useState(existente?.cidadesBloqueadas ?? '')
   const [cidadesPreferidas, setCidadesPreferidas] = useState(existente?.cidadesPreferidas ?? '')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -69,7 +68,6 @@ export function MotoristaForm() {
         ativo,
         // Cadastro feito pelo dispatcher já nasce aprovado; edição preserva o estado.
         aprovado: existente ? (existente.aprovado ?? true) : true,
-        cidadesBloqueadas: cidadesBloqueadas.trim(),
         cidadesPreferidas: cidadesPreferidas.trim(),
         criadoEm: existente?.criadoEm ?? new Date().toISOString(),
       })
@@ -123,13 +121,6 @@ export function MotoristaForm() {
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="🚫 Cidades bloqueadas pelo Dispatcher (não pode ir — separe por vírgula)">
-              <Input
-                value={cidadesBloqueadas}
-                onChange={(e) => setCidadesBloqueadas(e.target.value)}
-                placeholder="Ex.: Capinópolis, Ipiaçu"
-              />
-            </Field>
             <Field label="⭐ Cidades preferidas (rende melhor — separe por vírgula)">
               <Input
                 value={cidadesPreferidas}

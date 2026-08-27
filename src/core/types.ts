@@ -29,8 +29,6 @@ export interface Motorista {
    * ('coordenador' é o valor legado gravado antes da renomeação.)
    */
   funcao?: 'motorista' | 'dispatcher' | 'coordenador'
-  /** Cidades onde este motorista NÃO pode rodar (separadas por vírgula). */
-  cidadesBloqueadas?: string
   /** Cidades onde este motorista rende melhor (separadas por vírgula). */
   cidadesPreferidas?: string
   /** Cidades marcadas como "Posso fazer" pelo motorista (lista separada por vírgula). */

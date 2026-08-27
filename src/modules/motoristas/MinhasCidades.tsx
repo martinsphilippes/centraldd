@@ -3,9 +3,8 @@
 // "Prefiro" pontua alto, "Posso" pontua um pouco, "Não tenho preferência" é
 // neutro (nem ajuda nem atrapalha — é o estado padrão de toda cidade).
 //
-// Bloquear cidade NÃO é decisão do motorista: se ele não pode atender um
-// destino, quem registra isso no cadastro é o Dispatcher. Cidade bloqueada
-// aparece aqui só para leitura, para o motorista saber que existe.
+// Nenhuma das três opções impede nada: toda cidade da operação continua
+// disponível para todo motorista.
 
 import { useState } from 'react'
 import { useSessao } from '../../context/SessaoContext'
@@ -46,13 +45,10 @@ export function MinhasCidades() {
 
   const preferidas = lista(eu.cidadesPreferidas)
   const possiveis = lista(eu.cidadesPossiveis)
-  const bloqueadas = lista(eu.cidadesBloqueadas)
 
   // A lista vem do Dispatcher (tela Cidades da operação) — o motorista só
   // qualifica o que a operação atende, não inventa cidade.
   const cidades = db.cidades.map((c) => c.nome).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-
-  const bloqueada = (cidade: string) => bloqueadas.some((c) => chave(c) === chave(cidade))
 
   const preferenciaDe = (cidade: string): Preferencia => {
     // Só a primeira vale como preferida (cadastros antigos podiam ter várias).
@@ -62,7 +58,6 @@ export function MinhasCidades() {
   }
 
   const definir = (cidade: string, valor: Preferencia) => {
-    if (bloqueada(cidade)) return
     const semCidade = (arr: string[]) => arr.filter((c) => chave(c) !== chave(cidade))
     const anterior = preferidas[0]
     // ⭐ Prefiro é UMA só: escolher outra troca a estrela de lugar. A cidade que
@@ -116,8 +111,8 @@ export function MinhasCidades() {
             </>
           )}
           <br />
-          😐 “Não tenho preferência” <strong>não bloqueia</strong> nada: você continua podendo ser
-          direcionado para a cidade, só não ganha prioridade nela.
+          😐 Nenhuma opção <strong>impede</strong> nada: você continua podendo ser direcionado para
+          qualquer cidade — a preferência só decide quem tem prioridade em cada uma.
         </p>
 
         {cidades.length === 0 ? (
@@ -130,13 +125,10 @@ export function MinhasCidades() {
           <ul className="space-y-2">
             {cidades.map((cidade) => {
               const atual = preferenciaDe(cidade)
-              const travada = bloqueada(cidade)
               return (
                 <li
                   key={cidade}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-2.5 ${
-                    travada ? 'border-slate-200 bg-slate-50' : 'border-slate-200'
-                  }`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-2.5"
                 >
                   <span className="font-semibold text-slate-800">
                     {cidade}
@@ -144,25 +136,19 @@ export function MinhasCidades() {
                       <span className="ml-1 text-[11px] font-normal text-slate-400">• sua cidade</span>
                     )}
                   </span>
-                  {travada ? (
-                    <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
-                      🚫 Bloqueada no seu cadastro — fale com o Dispatcher
-                    </span>
-                  ) : (
-                    <div className="flex gap-1.5">
-                      {OPCOES.map((o) => (
-                        <button
-                          key={o.valor}
-                          onClick={() => definir(cidade, o.valor)}
-                          className={`rounded-lg border-2 px-2.5 py-1.5 text-xs font-bold transition-colors active:scale-95 ${
-                            atual === o.valor ? o.ativo : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          {o.emoji} {o.rotulo}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex gap-1.5">
+                    {OPCOES.map((o) => (
+                      <button
+                        key={o.valor}
+                        onClick={() => definir(cidade, o.valor)}
+                        className={`rounded-lg border-2 px-2.5 py-1.5 text-xs font-bold transition-colors active:scale-95 ${
+                          atual === o.valor ? o.ativo : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        {o.emoji} {o.rotulo}
+                      </button>
+                    ))}
+                  </div>
                 </li>
               )
             })}

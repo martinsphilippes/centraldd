@@ -155,8 +155,6 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       const alertas: string[] = []
 
       // ---- Travas (excluem o candidato) ----
-      const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
-      if (algumaCidadeBate(cidades, bloqueadas)) continue
       if (p.exigirDisponibilidadeMarcada && !disponiveisHoje.has(m.id)) continue
       if (marcaramHoje.has(m.id) && !disponiveisHoje.has(m.id)) continue // marcou indisponível/folga/férias
       if (p.exigirVeiculoCompativel) {
@@ -267,7 +265,7 @@ export interface AlocacaoRota {
  * Direciona motoristas (ex.: os disponíveis de uma chamada) para as rotas da
  * planilha de Rotas. Mesma lógica do motor da programação, adaptada à rota fixa:
  * pontua cidade do motorista, preferências, histórico e veículo; respeita
- * cidades bloqueadas e rodízio; combina 1 rota por motorista (melhores antes).
+ * cidades preferidas e rodízio; combina 1 rota por motorista (melhores antes).
  */
 export function alocarMotoristasNasRotas(
   db: DB,
@@ -310,8 +308,6 @@ export function alocarMotoristasNasRotas(
     if (cidades.length === 0 && rota.cidade.trim()) cidades.push(norm(rota.cidade))
     for (const m of candidatos) {
       const motivos: string[] = []
-      const bloqueadas = listaDeTexto(m.cidadesBloqueadas)
-      if (algumaCidadeBate(cidades, bloqueadas)) continue
       const aceitos = equivalencias.get(norm(rota.veiculo))
       const veiculoCompativel = !aceitos || aceitos.size === 0 || aceitos.has(norm(m.veiculo)) || norm(rota.veiculo) === norm(m.veiculo)
       if (p.exigirVeiculoCompativel && !veiculoCompativel) continue

@@ -40,18 +40,16 @@ export function CidadesOperacao() {
     setAviso(`✅ ${limpo} entrou na lista — já aparece para os motoristas qualificarem.`)
   }
 
-  /** Quantos motoristas preferem, fazem ou estão bloqueados na cidade. */
+  /** Quantos motoristas preferem ou fazem a cidade. */
   const contarMarcacoes = (nome: string) => {
     let preferem = 0
     let podem = 0
-    let bloqueados = 0
     for (const m of db.motoristas) {
       const lista = (t?: string) => (t ?? '').split(/[,;\n]/).map((c) => chave(c))
       if (lista(m.cidadesPreferidas).includes(chave(nome))) preferem++
       if (lista(m.cidadesPossiveis).includes(chave(nome))) podem++
-      if (lista(m.cidadesBloqueadas).includes(chave(nome))) bloqueados++
     }
-    return { preferem, podem, bloqueados }
+    return { preferem, podem }
   }
 
   return (
@@ -140,7 +138,7 @@ export function CidadesOperacao() {
           </p>
           <ul className="space-y-2">
             {cidades.map((c) => {
-              const { preferem, podem, bloqueados } = contarMarcacoes(c.nome)
+              const { preferem, podem } = contarMarcacoes(c.nome)
               return (
                 <li
                   key={c.id}
@@ -155,9 +153,6 @@ export function CidadesOperacao() {
                     )}
                     {podem > 0 && (
                       <Badge className="border-blue-200 bg-blue-100 text-blue-700">👍 {podem} fazem</Badge>
-                    )}
-                    {bloqueados > 0 && (
-                      <Badge className="border-red-200 bg-red-100 text-red-700">🚫 {bloqueados} bloqueados</Badge>
                     )}
                     <button
                       onClick={() => {

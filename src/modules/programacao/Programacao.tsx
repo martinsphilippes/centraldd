@@ -501,7 +501,7 @@ export function Programacao() {
                     {aderenciaGeral.taxa >= 0.7
                       ? '✅ A sugestão automática já acompanha bem as decisões do dispatcher — dá para confiar e revisar só as exceções.'
                       : aderenciaGeral.taxa >= 0.4
-                        ? '🟡 A automação está no caminho. Ajuste os ⚙️ Parâmetros e as cidades preferidas/bloqueadas para subir a aderência.'
+                        ? '🟡 A automação está no caminho. Ajuste os ⚙️ Parâmetros e as cidades preferidas para subir a aderência.'
                         : '🔴 Ainda há muito conhecimento seu fora dos parâmetros. Calibre os pesos e restrições para o sistema aprender suas regras.'}
                   </p>
                 </div>
@@ -858,7 +858,7 @@ export function Programacao() {
                 📌 Com o limite em 2: o motorista disponibilidade até 2 dias; quando trabalha um (a data passa),
                 libera vaga para marcar o próximo — reduz o risco de planejamento furado.
                 <br />💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
-                Cidades bloqueadas/preferidas de cada um ficam no cadastro do motorista.
+                As cidades preferidas de cada um ficam na tela dele.
               </p>
             </div>
 
