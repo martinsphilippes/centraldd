@@ -60,23 +60,19 @@ export const STATUS_RESPOSTA: Record<StatusResposta, StatusInfo> = {
   },
   outro: {
     label: 'Outro motivo',
-    emoji: '📝',
+    emoji: '💬',
     cor: 'bg-slate-100 text-slate-700 border-slate-200',
     dot: '#64748b',
     disponibilidade: 'nenhuma',
   },
 }
 
-export const ORDEM_STATUS: StatusResposta[] = [
-  'disponivel',
-  'apos_horario',
-  'meio_periodo',
-  'indisponivel',
-  'folga',
-  'atestado',
-  'ferias',
-  'outro',
-]
+/**
+ * Opções que o motorista pode ESCOLHER. Os demais status do STATUS_RESPOSTA
+ * (folga, férias, atestado, após horário, meio período) são legado: marcações
+ * antigas ainda renderizam, mas ninguém marca mais.
+ */
+export const ORDEM_STATUS: StatusResposta[] = ['disponivel', 'indisponivel', 'outro']
 
 /** Status que contam (total ou parcialmente) como disponíveis. */
 export const STATUS_DISPONIVEIS: StatusResposta[] = ['disponivel', 'apos_horario', 'meio_periodo']

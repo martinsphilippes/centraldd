@@ -5,7 +5,7 @@
 // com 1 dia de antecedência → a disponibilidade de amanhã fecha hoje às 21:00.
 //
 // Passado o prazo, só a declaração de DISPONIBILIDADE trava. Avisar que ficou
-// indisponível (folga, atestado, férias, imprevisto) continua liberado a
+// indisponível (ou deixar mensagem em Outro motivo) continua liberado a
 // qualquer hora — segurar essa informação só prejudicaria a operação.
 // O Dispatcher não é afetado: ele ajusta a disponibilidade de quem for preciso.
 

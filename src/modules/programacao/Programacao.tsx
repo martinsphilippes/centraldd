@@ -843,7 +843,7 @@ export function Programacao() {
                           : `de ${paramsEdit.diasAntecedenciaCorte} dias antes`}
                     </strong>
                     . Passado o prazo, ele não consegue mais se declarar disponível — mas continua
-                    podendo avisar indisponibilidade, folga, atestado ou férias a qualquer hora, e
+                    podendo marcar indisponível ou Outro motivo a qualquer hora, e
                     você segue livre para ajustar a disponibilidade dele por aqui.
                   </>
                 ) : (
@@ -857,7 +857,7 @@ export function Programacao() {
               <p className="text-[11px] text-slate-500">
                 📌 Com o limite em 2: o motorista disponibilidade até 2 dias; quando trabalha um (a data passa),
                 libera vaga para marcar o próximo — reduz o risco de planejamento furado.
-                <br />💡 Motorista que marcou <strong>indisponível/folga/atestado/férias</strong> no dia nunca é sugerido.
+                <br />💡 Motorista que marcou <strong>indisponível</strong> (ou Outro motivo) no dia nunca é sugerido.
                 As cidades preferidas de cada um ficam na tela dele.
               </p>
             </div>

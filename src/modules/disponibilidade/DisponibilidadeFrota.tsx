@@ -5,7 +5,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { calcularLimiteDoDia } from '../../core/limites'
 import { parametrosAtuais } from '../../core/alocacao'
 import { hojeISO, formatarData, formatarQuando, parseISODate, rotuloDia } from '../../core/dates'
-import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
+import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaDisponibilidade, Motorista, StatusResposta } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -271,9 +271,9 @@ export function DisponibilidadeFrota() {
               onChange={(e) => setStatusMassa(e.target.value as StatusResposta)}
               style={{ width: 'auto' }}
             >
-              {Object.entries(STATUS_RESPOSTA).map(([valor, info]) => (
+              {ORDEM_STATUS.map((valor) => (
                 <option key={valor} value={valor}>
-                  {info.emoji} {info.label}
+                  {STATUS_RESPOSTA[valor].emoji} {STATUS_RESPOSTA[valor].label}
                 </option>
               ))}
             </Select>

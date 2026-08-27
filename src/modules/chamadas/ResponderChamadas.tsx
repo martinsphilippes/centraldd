@@ -49,7 +49,7 @@ export function ResponderChamadas() {
     const prazo = prazoDe(c)
     if (STATUS_DISPONIVEIS.includes(status) && prazo.encerrado) {
       alert(
-        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}.\n\nVocê ainda pode avisar que está indisponível, de folga, atestado ou férias. Para entrar no dia, fale com o Dispatcher.`,
+        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}.\n\nVocê ainda pode marcar indisponível ou deixar uma mensagem em Outro motivo. Para entrar no dia, fale com o Dispatcher.`,
       )
       return
     }
@@ -199,13 +199,13 @@ export function ResponderChamadas() {
           </Field>
         )}
         {complemento?.status === 'outro' && (
-          <Field label="Escreva uma observação">
+          <Field label="💬 Mensagem para o Dispatcher">
             <textarea
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ml-azul focus:ring-2 focus:ring-ml-azul/20"
               rows={3}
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
-              placeholder="Ex.: veículo em manutenção até quinta"
+              placeholder="Ex.: veículo em manutenção até quinta, consulta médica, viagem…"
             />
           </Field>
         )}

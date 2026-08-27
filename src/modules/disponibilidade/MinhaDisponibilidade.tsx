@@ -42,7 +42,7 @@ export function MinhaDisponibilidade() {
   // Limite de dias marcados: só conta dias marcados como DISPONÍVEL cujo
   // ciclo ainda não fechou. Dia trabalhado (data passou) OU com a planejamento do
   // dia concluída sai da conta e libera nova marcação na hora.
-  // Indisponível, folga, atestado e férias são sempre livres.
+  // Indisponível e Outro motivo são sempre livres.
   const maxDiasMarcados = parametrosAtuais(db).maxDiasDisponiveis
   // "Dia concluído" = planejamento daquele dia concluída com ele, OU (para o dia de
   // hoje) todas as rotas direcionadas a ele já finalizadas/encerradas.
@@ -83,18 +83,18 @@ export function MinhaDisponibilidade() {
     const prazo = prazoDe(dataSelecionada)
     if (STATUS_DISPONIVEIS.includes(s) && prazo.encerrado) {
       setErroVaga(
-        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}. Você ainda pode avisar que está indisponível, de folga, atestado ou férias — para entrar no dia, fale com o Dispatcher.`,
+        `🔒 O prazo para se declarar disponível neste dia terminou em ${prazo.texto}. Você ainda pode marcar indisponível ou deixar uma mensagem em Outro motivo — para entrar no dia, fale com o Dispatcher.`,
       )
       return
     }
     if (STATUS_DISPONIVEIS.includes(s) && cotaEstourada(dataSelecionada)) {
       setErroVaga(
-        `📌 Você já tem ${maxDiasMarcados} dia(s) marcado(s) como DISPONÍVEL — esse é o limite. Quando o dia for trabalhado e o planejamento/rota for encerrado, a vaga é liberada na hora para marcar outro dia. Marcar indisponível, folga, atestado ou férias continua livre, em quantos dias quiser.`,
+        `📌 Você já tem ${maxDiasMarcados} dia(s) marcado(s) como DISPONÍVEL — esse é o limite. Quando o dia for trabalhado e o planejamento/rota for encerrado, a vaga é liberada na hora para marcar outro dia. Marcar indisponível ou Outro motivo continua livre, em quantos dias quiser.`,
       )
       return
     }
     if (STATUS_DISPONIVEIS.includes(s) && vagasEsgotadas(dataSelecionada)) {
-      setErroVaga('😕 As vagas de disponibilidade deste dia já foram preenchidas. Você ainda pode marcar indisponibilidade, folga, atestado ou férias.')
+      setErroVaga('😕 As vagas de disponibilidade deste dia já foram preenchidas. Você ainda pode marcar indisponível ou deixar uma mensagem em Outro motivo.')
       return
     }
     if (precisaComplemento(s)) {
@@ -148,8 +148,8 @@ export function MinhaDisponibilidade() {
           <span className="flex-1">
             Dias marcados como DISPONÍVEL: <strong>{meusDiasMarcados}/{maxDiasMarcados}</strong>
             {meusDiasMarcados >= maxDiasMarcados
-              ? ' — limite atingido. Quando o planejamento/rota de um dia marcado for encerrado, a vaga libera sozinha. Indisponível/folga seguem livres.'
-              : ` — você ainda pode marcar ${maxDiasMarcados - meusDiasMarcados} dia(s) disponível. Indisponível/folga são livres.`}
+              ? ' — limite atingido. Quando o planejamento/rota de um dia marcado for encerrado, a vaga libera sozinha. Indisponível segue livre.'
+              : ` — você ainda pode marcar ${maxDiasMarcados - meusDiasMarcados} dia(s) disponível. Indisponível é livre.`}
           </span>
         </div>
       )}
@@ -303,13 +303,13 @@ export function MinhaDisponibilidade() {
           </Field>
         )}
         {statusEscolhido === 'outro' && (
-          <Field label="Escreva uma observação">
+          <Field label="💬 Mensagem para o Dispatcher">
             <textarea
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ml-azul focus:ring-2 focus:ring-ml-azul/20"
               rows={3}
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
-              placeholder="Ex.: veículo em manutenção"
+              placeholder="Ex.: veículo em manutenção, consulta médica, viagem…"
             />
           </Field>
         )}
