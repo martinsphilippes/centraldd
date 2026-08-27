@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ehPapelDispatcher } from '../../core/papel'
 import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
 import { MelhoresMotoristas } from './MelhoresMotoristas'
+import { ParametrosAlocacaoModal } from '../programacao/ParametrosAlocacaoModal'
 import { ConferenciasCard, SatisfacaoClientes, TaxaSucessoRotas } from './SucessoESatisfacao'
 import { resumoChamada, serieDisponibilidade } from '../../core/stats'
 import { Badge, Button, Card, ProgressBar, StatCard, EmptyState } from '../../components/ui'
@@ -11,6 +13,7 @@ import { BarChart, Legenda } from '../../components/charts'
 export function Dashboard() {
   const db = useDB()
   const hoje = hojeISO()
+  const [paramsAbertos, setParamsAbertos] = useState(false)
 
   const chamadasHoje = db.chamadas.filter((c) => c.data === hoje)
   const resumosHoje = chamadasHoje.map((c) => resumoChamada(db, c))
@@ -43,10 +46,17 @@ export function Dashboard() {
           <h1 className="text-xl font-bold text-slate-900">📊 Painel da operação</h1>
           <p className="text-sm text-slate-500">{rotuloDia(hoje)}</p>
         </div>
-        <Link to="/programacao">
-          <Button variante="ml">📆 Programar o dia →</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button variante="secundario" onClick={() => setParamsAbertos(true)}>
+            ⚙️ Parametrização
+          </Button>
+          <Link to="/programacao">
+            <Button variante="ml">📆 Programar o dia →</Button>
+          </Link>
+        </div>
       </div>
+
+      <ParametrosAlocacaoModal aberto={paramsAbertos} onFechar={() => setParamsAbertos(false)} />
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">

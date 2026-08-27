@@ -5,7 +5,6 @@ import {
   importarProgramacao,
   registrarDiagnosticoOcr,
   removerProgramacaoItem,
-  salvarParametrosAlocacao,
   salvarProgramacaoItem,
   useDB,
 } from '../../core/db'
@@ -19,14 +18,14 @@ import {
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import {
   aderenciaHistorica,
-  PARAMETROS_PADRAO,
   parametrosAtuais,
   sugerirAlocacao,
   type Sugestao,
 } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
-import type { ParametrosAlocacao, ProgramacaoItem } from '../../core/types'
+import type { ProgramacaoItem } from '../../core/types'
 import { ResumoDiaCard } from './ResumoDiaCard'
+import { ParametrosAlocacaoModal } from './ParametrosAlocacaoModal'
 import { EsteiraDia } from '../dashboard/EsteiraDia'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard } from '../../components/ui'
@@ -62,7 +61,7 @@ export function Programacao() {
   const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
   const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
-  const [paramsEdit, setParamsEdit] = useState<ParametrosAlocacao | null>(null)
+  const [paramsAbertos, setParamsAbertos] = useState(false)
   const arquivoRef = useRef<HTMLInputElement>(null)
 
   const motoristas = db.motoristas
@@ -193,7 +192,7 @@ export function Programacao() {
   const autoAlocar = () => {
     const limite = parametrosAtuais(db).autoAplicarAcimaDe
     if (!limite) {
-      setParamsEdit({ ...parametrosAtuais(db) })
+      setParamsAbertos(true)
       return
     }
     const s = sugerirAlocacao(db, dataAtiva, parametrosAtuais(db))
@@ -311,7 +310,7 @@ export function Programacao() {
             valor={visao}
             onChange={setVisao}
           />
-          <Button variante="secundario" onClick={() => setParamsEdit({ ...parametrosAtuais(db) })}>
+          <Button variante="secundario" onClick={() => setParamsAbertos(true)}>
             ⚙️ Parâmetros
           </Button>
           <Button variante="secundario" onClick={() => setModalImportar(true)}>
@@ -764,195 +763,8 @@ export function Programacao() {
         </div>
       </Modal>
 
-      {/* Parametrização da sugestão automática */}
-      <Modal aberto={!!paramsEdit} titulo="⚙️ Parâmetros da alocação automática" onFechar={() => setParamsEdit(null)}>
-        {paramsEdit && (
-          <div className="space-y-4">
-            <p className="text-xs text-slate-500">
-              Pesos de 0 a 10 — quanto maior, mais o critério influencia. Zero desliga o critério.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="🏙️ Experiência na cidade">
-                <Input type="number" min={0} max={10} value={paramsEdit.pesoExperienciaCidade}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoExperienciaCidade: Number(e.target.value) })} />
-              </Field>
-              <Field label="🛣️ Experiência na rota">
-                <Input type="number" min={0} max={10} value={paramsEdit.pesoExperienciaRota}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoExperienciaRota: Number(e.target.value) })} />
-              </Field>
-              <Field label="📋 Respeitar plano Meli">
-                <Input type="number" min={0} max={10} value={paramsEdit.pesoRespeitarPlanoMeli}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoRespeitarPlanoMeli: Number(e.target.value) })} />
-              </Field>
-              <Field label="⭐ Cidades preferidas">
-                <Input type="number" min={0} max={10} value={paramsEdit.pesoCidadesPreferidas}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoCidadesPreferidas: Number(e.target.value) })} />
-              </Field>
-              <Field label="🔁 Força do rodízio (penalidade)">
-                <Input type="number" min={0} max={10} value={paramsEdit.pesoRodizio}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, pesoRodizio: Number(e.target.value) })} />
-              </Field>
-              <Field label="🔁 Janela do rodízio (dias)">
-                <Input type="number" min={1} max={60} value={paramsEdit.janelaRodizioDias}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, janelaRodizioDias: Number(e.target.value) })} />
-              </Field>
-              <Field label="✅ Bônus disponível na disponibilidade">
-                <Input type="number" min={0} max={10} value={paramsEdit.bonusDisponivelMarcado}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, bonusDisponivelMarcado: Number(e.target.value) })} />
-              </Field>
-              <Field label="📆 Janela do histórico (dias, 0=tudo)">
-                <Input type="number" min={0} max={365} value={paramsEdit.janelaHistoricoDias}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, janelaHistoricoDias: Number(e.target.value) })} />
-              </Field>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Travas (excluem o motorista)</p>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirDisponibilidadeMarcada}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirDisponibilidadeMarcada: e.target.checked })} />
-                Só sugerir quem marcou <strong>disponível</strong> na disponibilidade do dia
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="h-4 w-4" checked={paramsEdit.exigirVeiculoCompativel}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, exigirVeiculoCompativel: e.target.checked })} />
-                Exigir <strong>veículo compatível</strong> (equivalências abaixo)
-              </label>
-              <Field label="🚫 Trava de sequência: excluir quem já foi N vezes à mesma cidade no histórico recente (0 = desligada)">
-                <Input type="number" min={0} max={30} value={paramsEdit.maxVezesSeguidasMesmaCidade}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxVezesSeguidasMesmaCidade: Number(e.target.value) })} />
-              </Field>
-              <Field label="📌 Máximo de dias futuros que o motorista pode deixar marcados como disponível (0 = sem limite)">
-                <Input type="number" min={0} max={14} value={paramsEdit.maxDiasDisponiveis}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, maxDiasDisponiveis: Number(e.target.value) })} />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="🔒 Horário de corte da disponibilidade (vazio = sem corte)">
-                  <Input type="time" value={paramsEdit.horarioCorteDisponibilidade}
-                    onChange={(e) => setParamsEdit({ ...paramsEdit, horarioCorteDisponibilidade: e.target.value })} />
-                </Field>
-                <Field label="📆 Quantos dias antes o corte acontece">
-                  <Input type="number" min={0} max={7} value={paramsEdit.diasAntecedenciaCorte}
-                    onChange={(e) => setParamsEdit({ ...paramsEdit, diasAntecedenciaCorte: Number(e.target.value) })} />
-                </Field>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                🔒 {paramsEdit.horarioCorteDisponibilidade.trim() ? (
-                  <>
-                    Para entrar num dia, o motorista tem até as{' '}
-                    <strong>{paramsEdit.horarioCorteDisponibilidade}</strong>{' '}
-                    <strong>
-                      {paramsEdit.diasAntecedenciaCorte === 0
-                        ? 'do próprio dia'
-                        : paramsEdit.diasAntecedenciaCorte === 1
-                          ? 'do dia anterior'
-                          : `de ${paramsEdit.diasAntecedenciaCorte} dias antes`}
-                    </strong>
-                    . Passado o prazo, ele não consegue mais se declarar disponível — mas continua
-                    podendo marcar indisponível ou Outro motivo a qualquer hora, e
-                    você segue livre para ajustar a disponibilidade dele por aqui.
-                  </>
-                ) : (
-                  <>
-                    Sem corte: o motorista pode se declarar disponível a qualquer momento, até no
-                    próprio dia. Preencha o horário para fechar o dia com antecedência
-                    (ex.: 21:00 com 1 dia antes = a disponibilidade de amanhã fecha hoje às 21h).
-                  </>
-                )}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                📌 Com o limite em 2: o motorista disponibilidade até 2 dias; quando trabalha um (a data passa),
-                libera vaga para marcar o próximo — reduz o risco de planejamento furado.
-                <br />💡 Motorista que marcou <strong>indisponível</strong> (ou Outro motivo) no dia nunca é sugerido.
-                As cidades preferidas de cada um ficam na tela dele.
-              </p>
-            </div>
-
-            <Field label="🚐 Equivalências de veículo (uma por linha: veículo da rota = veículos do cadastro)">
-              <textarea
-                className="h-20 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-ml-azul"
-                value={paramsEdit.equivalenciasVeiculo}
-                onChange={(e) => setParamsEdit({ ...paramsEdit, equivalenciasVeiculo: e.target.value })}
-              />
-            </Field>
-
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="mb-2 text-sm font-bold text-slate-800">🎯 Limite de disponíveis por dia</p>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={paramsEdit.limiteAutomatico}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, limiteAutomatico: e.target.checked })}
-                />
-                Calcular pelo <strong>planejamento do dia</strong> (rotas do Meli, resumo ou roteirização)
-              </label>
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <Field label="Reserva sobre as rotas (%)">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={paramsEdit.limiteFolgaPercentual}
-                    onChange={(e) => setParamsEdit({ ...paramsEdit, limiteFolgaPercentual: Number(e.target.value) })}
-                  />
-                </Field>
-                <Field label="Reserva fixa (motoristas a mais)">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={50}
-                    value={paramsEdit.limiteFolgaFixa}
-                    onChange={(e) => setParamsEdit({ ...paramsEdit, limiteFolgaFixa: Number(e.target.value) })}
-                  />
-                </Field>
-              </div>
-              <p className="mt-1.5 text-[11px] text-slate-600">
-                Limite = <strong>rotas planejadas + reserva</strong>. Ex.: 55 rotas com 10% e +0 fixo → 61
-                disponíveis no máximo. A reserva cobre furo de última hora sem estourar o planejamento. Na Disponibilidade
-                dá para sobrescrever o limite de um dia específico à mão.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-ml-amarelo bg-yellow-50 p-3">
-              <Field label="⚡ Auto-alocação: aplicar sozinho as sugestões com confiança ≥ (%) — 0 desliga">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={paramsEdit.autoAplicarAcimaDe}
-                  onChange={(e) => setParamsEdit({ ...paramsEdit, autoAplicarAcimaDe: Number(e.target.value) })}
-                />
-              </Field>
-              <p className="mt-1.5 text-[11px] text-slate-600">
-                Com isso ativo, o botão <strong>⚡ Auto-alocar</strong> aplica de uma vez as rotas em que o sistema tem
-                alta confiança, deixando só as duvidosas para você revisar. Comece alto (ex.: 85%) e vá baixando
-                conforme a aderência da frota sobe.
-              </p>
-            </div>
-
-            <div className="flex justify-between gap-2">
-              <Button variante="fantasma" onClick={() => setParamsEdit({ ...PARAMETROS_PADRAO })}>
-                ↩️ Restaurar padrão
-              </Button>
-              <div className="flex gap-2">
-                <Button variante="secundario" onClick={() => setParamsEdit(null)}>
-                  Cancelar
-                </Button>
-                <Button
-                  variante="ml"
-                  onClick={() => {
-                    salvarParametrosAlocacao(paramsEdit)
-                    setParamsEdit(null)
-                  }}
-                >
-                  💾 Salvar parâmetros
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* Parametrização compartilhada com o Dashboard */}
+      <ParametrosAlocacaoModal aberto={paramsAbertos} onFechar={() => setParamsAbertos(false)} />
 
       {/* Edição completa de um item */}
       <Modal aberto={!!editando} titulo={editando ? `✏️ ${editando.rota} — ${rotuloDia(editando.data)}` : ''} onFechar={() => setEditando(null)}>
