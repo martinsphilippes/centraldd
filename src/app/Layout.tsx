@@ -69,7 +69,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:pl-60">
       {/* Sidebar desktop */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-ml-navy lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-ml-navy pt-[env(safe-area-inset-top)] lg:flex">
         <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ml-amarelo text-lg">🚚</span>
           <div>
@@ -125,7 +125,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Topbar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ml-amarelo">🚚</span>
