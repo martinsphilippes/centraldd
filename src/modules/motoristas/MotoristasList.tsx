@@ -20,20 +20,17 @@ export function MotoristasList() {
   const [importar, setImportar] = useState(false)
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
-  const [equipe, setEquipe] = useState('')
 
   const pendentes = db.motoristas
     .filter((m) => m.aprovado === false)
     .sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))
 
   const cidades = [...new Set(db.motoristas.map((m) => m.cidade))].sort()
-  const equipes = [...new Set(db.motoristas.map((m) => m.equipe))].sort()
 
   const filtrados = db.motoristas
     .filter((m) => m.aprovado !== false)
     .filter((m) => m.nome.toLowerCase().includes(busca.toLowerCase()) || m.telefone.includes(busca))
     .filter((m) => !cidade || m.cidade === cidade)
-    .filter((m) => !equipe || m.equipe === equipe)
     .sort((a, b) => a.nome.localeCompare(b.nome))
 
   const aprovar = (m: Motorista) => {
@@ -114,7 +111,7 @@ export function MotoristasList() {
                       📱 {formatarTelefone(m.telefone)} • 📍 {m.cidade}
                       {pedeDispatcher(m.funcao)
                         ? ' • ao aprovar, vira DISPATCHER com painel completo'
-                        : `${m.equipe ? ` • 👥 ${m.equipe}` : ''} • 🚐 ${m.veiculo} • ${m.operacao}`}
+                        : ` • 🚐 ${m.veiculo} • ${m.operacao}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -148,12 +145,6 @@ export function MotoristasList() {
             <option key={c}>{c}</option>
           ))}
         </Select>
-        <Select value={equipe} onChange={(e) => setEquipe(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">👥 Todas as equipes</option>
-          {equipes.map((e) => (
-            <option key={e}>{e}</option>
-          ))}
-        </Select>
       </div>
 
       {filtrados.length === 0 ? (
@@ -171,7 +162,6 @@ export function MotoristasList() {
                   <p className="text-xs text-slate-500">📱 {formatarTelefone(m.telefone)}</p>
                   <p className="mt-1 flex flex-wrap gap-1">
                     <Badge className="border-slate-200 bg-slate-100 text-slate-600">📍 {m.cidade}</Badge>
-                    <Badge className="border-slate-200 bg-slate-100 text-slate-600">👥 {m.equipe}</Badge>
                     <Badge className="border-slate-200 bg-slate-100 text-slate-600">🚐 {m.veiculo}</Badge>
                   </p>
                 </div>

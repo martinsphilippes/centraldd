@@ -273,7 +273,6 @@ export async function importarMotoristas(
       nome: linha.nome,
       telefone: ou(linha.telefone, anterior?.telefone),
       cidade: ou(linha.cidade, anterior?.cidade),
-      equipe: ou(linha.equipe, anterior?.equipe),
       operacao: ou(linha.operacao, anterior?.operacao),
       veiculo: ou(linha.veiculo, anterior?.veiculo),
       ativo: linha.ativo,

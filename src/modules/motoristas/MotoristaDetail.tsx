@@ -47,7 +47,7 @@ export function MotoristaDetail() {
                 {!motorista.ativo && <Badge className="border-red-200 bg-red-50 text-red-600">Inativo</Badge>}
               </h1>
               <p className="text-sm text-slate-500">
-                📱 {formatarTelefone(motorista.telefone)} • 📍 {motorista.cidade} • 👥 {motorista.equipe} • 🚐{' '}
+                📱 {formatarTelefone(motorista.telefone)} • 📍 {motorista.cidade} • 🚐{' '}
                 {motorista.veiculo} • {motorista.operacao}
               </p>
             </div>

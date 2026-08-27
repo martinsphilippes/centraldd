@@ -340,7 +340,6 @@ export interface MotoristaImportado {
   nome: string
   telefone: string
   cidade: string
-  equipe: string
   operacao: string
   veiculo: string
   ativo: boolean
@@ -357,7 +356,6 @@ const COLUNAS_MOTORISTA: Record<keyof Omit<MotoristaImportado, 'linha' | 'ativo'
   nome: ['nome', 'nome completo', 'motorista', 'entregador'],
   telefone: ['telefone', 'celular', 'whatsapp', 'fone', 'telefone whatsapp'],
   cidade: ['cidade', 'municipio', 'cidade base'],
-  equipe: ['equipe', 'time', 'grupo'],
   operacao: ['operacao', 'operacao logistica'],
   veiculo: ['veiculo', 'tipo de veiculo', 'carro'],
   cidadesPreferidas: ['cidades preferidas', 'cidade preferida', 'preferidas', 'prefiro'],
@@ -369,7 +367,7 @@ const COLUNAS_ATIVO = ['ativo', 'situacao', 'status']
 
 /** Ordem usada quando a planilha vem SEM cabeçalho. */
 const ORDEM_PADRAO: (keyof MotoristaImportado)[] = [
-  'nome', 'telefone', 'cidade', 'equipe', 'operacao', 'veiculo', 'email', 'senha',
+  'nome', 'telefone', 'cidade', 'operacao', 'veiculo', 'email', 'senha',
 ]
 
 const chaveColuna = (s: string) => normalizarTexto(s).toLowerCase().trim()
@@ -457,7 +455,6 @@ export function parsearPlanilhaMotoristas(texto: string): {
       nome,
       telefone: soDigitos(pegar('telefone')),
       cidade: pegar('cidade'),
-      equipe: pegar('equipe'),
       operacao: pegar('operacao'),
       veiculo: pegar('veiculo'),
       ativo: lerAtivo(pegar('ativo')),

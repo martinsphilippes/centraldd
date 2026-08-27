@@ -26,7 +26,6 @@ export function DisponibilidadeFrota() {
   const dias = useMemo(() => Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i)), [])
   const [diaSelecionado, setDiaSelecionado] = useState(dias[0])
   const [cidade, setCidade] = useState('')
-  const [equipe, setEquipe] = useState('')
   const [editandoLimite, setEditandoLimite] = useState(false)
   const [novoLimite, setNovoLimite] = useState(40)
   const [avisoSimulacao, setAvisoSimulacao] = useState('')
@@ -67,11 +66,9 @@ export function DisponibilidadeFrota() {
   const frota = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
     .filter((m) => !cidade || m.cidade === cidade)
-    .filter((m) => !equipe || m.equipe === equipe)
     .sort((a, b) => a.nome.localeCompare(b.nome))
 
   const cidades = [...new Set(db.motoristas.map((m) => m.cidade))].sort()
-  const equipes = [...new Set(db.motoristas.map((m) => m.equipe))].filter(Boolean).sort()
 
   const marcacaoDe = (m: Motorista, data: string) =>
     db.disponibilidade.find((a) => a.motoristaId === m.id && a.data === data)
@@ -95,12 +92,11 @@ export function DisponibilidadeFrota() {
 
   const tabelaDia = (): Tabela => ({
     titulo: `Disponibilidade da frota ${formatarData(diaSelecionado)}`,
-    colunas: ['Motorista', 'Telefone', 'Cidade', 'Equipe', 'Veículo', 'Vai trabalhar?', 'Status', 'Detalhe'],
+    colunas: ['Motorista', 'Telefone', 'Cidade', 'Veículo', 'Vai trabalhar?', 'Status', 'Detalhe'],
     linhas: [...trabalham, ...naoTrabalham, ...semMarcacao].map(({ motorista: m, marcacao }) => [
       m.nome,
       formatarTelefone(m.telefone),
       m.cidade,
-      m.equipe,
       m.veiculo,
       marcacao ? (STATUS_DISPONIVEIS.includes(marcacao.status) ? 'SIM' : 'NÃO') : 'Não informou',
       marcacao ? STATUS_RESPOSTA[marcacao.status].label : '—',
@@ -153,7 +149,7 @@ export function DisponibilidadeFrota() {
           {m.nome}
         </Link>
         <p className="truncate text-[11px] text-slate-500">
-          {m.cidade} • {m.equipe} • {m.veiculo}
+          {m.cidade} • {m.veiculo}
         </p>
         {a && (
           <p className="truncate text-[11px] text-slate-400">
@@ -390,14 +386,8 @@ export function DisponibilidadeFrota() {
             <option key={c}>{c}</option>
           ))}
         </Select>
-        <Select value={equipe} onChange={(e) => setEquipe(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">👥 Todas as equipes</option>
-          {equipes.map((e) => (
-            <option key={e}>{e}</option>
-          ))}
-        </Select>
-        {(cidade || equipe) && (
-          <Button variante="fantasma" onClick={() => { setCidade(''); setEquipe('') }}>
+        {cidade && (
+          <Button variante="fantasma" onClick={() => setCidade('')}>
             Limpar
           </Button>
         )}

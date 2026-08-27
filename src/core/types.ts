@@ -18,7 +18,6 @@ export interface Motorista {
   nome: string
   telefone: string
   cidade: string
-  equipe: string
   operacao: string
   veiculo: string
   ativo: boolean

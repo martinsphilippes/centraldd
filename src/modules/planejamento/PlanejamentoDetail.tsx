@@ -56,13 +56,12 @@ export function PlanejamentoDetail() {
 
   const tabela = (): Tabela => ({
     titulo: planejamento.nome,
-    colunas: ['#', 'Motorista', 'Telefone', 'Cidade', 'Equipe', 'Veículo'],
+    colunas: ['#', 'Motorista', 'Telefone', 'Cidade', 'Veículo'],
     linhas: incluidos.map((m, i) => [
       i + 1,
       m.nome,
       formatarTelefone(m.telefone),
       m.cidade,
-      m.equipe,
       m.veiculo,
     ]),
   })
@@ -148,7 +147,7 @@ export function PlanejamentoDetail() {
                       {m.nome}
                     </Link>
                     <p className="text-[11px] text-slate-500">
-                      {m.cidade} • {m.equipe} • {m.veiculo} • 📱 {formatarTelefone(m.telefone)}
+                      {m.cidade} • {m.veiculo} • 📱 {formatarTelefone(m.telefone)}
                     </p>
                   </div>
                   <ContactButtons motorista={m} mensagem={mensagemPlanejamento(m, planejamento, chamada)} compacto />

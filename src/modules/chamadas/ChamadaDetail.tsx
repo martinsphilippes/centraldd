@@ -12,13 +12,13 @@ import { DonutChart } from '../../components/charts'
 import { StatusPill } from '../../components/StatusPill'
 import { ContactButtons } from '../../components/ContactButtons'
 
-type Filtro = { cidade: string; equipe: string; status: string }
+type Filtro = { cidade: string; status: string }
 
 export function ChamadaDetail() {
   const { id } = useParams()
   const db = useDB()
   const navigate = useNavigate()
-  const [filtro, setFiltro] = useState<Filtro>({ cidade: '', equipe: '', status: '' })
+  const [filtro, setFiltro] = useState<Filtro>({ cidade: '', status: '' })
   const [modalPlanejamento, setModalPlanejamento] = useState(false)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
 
@@ -45,12 +45,10 @@ export function ChamadaDetail() {
   )
 
   const cidades = [...new Set(db.motoristas.map((m) => m.cidade))].sort()
-  const equipes = [...new Set(db.motoristas.map((m) => m.equipe))].sort()
 
   const aplicaFiltro = (m: Motorista | undefined, r?: Resposta) => {
     if (!m) return false
     if (filtro.cidade && m.cidade !== filtro.cidade) return false
-    if (filtro.equipe && m.equipe !== filtro.equipe) return false
     if (filtro.status && r?.status !== filtro.status) return false
     return true
   }
@@ -88,7 +86,7 @@ export function ChamadaDetail() {
 
   const tabelaExport = (): Tabela => ({
     titulo: `Chamada ${formatarData(chamada.data)} - ${chamada.titulo}`,
-    colunas: ['Motorista', 'Telefone', 'Cidade', 'Equipe', 'Veículo', 'Status', 'Detalhe', 'Respondida em'],
+    colunas: ['Motorista', 'Telefone', 'Cidade', 'Veículo', 'Status', 'Detalhe', 'Respondida em'],
     linhas: [
       ...respostas.map((r) => {
         const m = porId.get(r.motoristaId)
@@ -105,7 +103,6 @@ export function ChamadaDetail() {
           m?.nome ?? '—',
           m ? formatarTelefone(m.telefone) : '—',
           m?.cidade ?? '—',
-          m?.equipe ?? '—',
           m?.veiculo ?? '—',
           info.label,
           detalhe,
@@ -116,7 +113,6 @@ export function ChamadaDetail() {
         m.nome,
         formatarTelefone(m.telefone),
         m.cidade,
-        m.equipe,
         m.veiculo,
         'Sem resposta',
         '',
@@ -134,7 +130,7 @@ export function ChamadaDetail() {
             {m.nome}
           </Link>
           <p className="truncate text-[11px] text-slate-500">
-            {m.cidade} • {m.equipe} • {m.veiculo}
+            {m.cidade} • {m.veiculo}
           </p>
         </div>
       </div>
@@ -287,12 +283,6 @@ export function ChamadaDetail() {
             <option key={c}>{c}</option>
           ))}
         </Select>
-        <Select value={filtro.equipe} onChange={(e) => setFiltro({ ...filtro, equipe: e.target.value })} style={{ width: 'auto' }}>
-          <option value="">👥 Todas as equipes</option>
-          {equipes.map((e) => (
-            <option key={e}>{e}</option>
-          ))}
-        </Select>
         <Select value={filtro.status} onChange={(e) => setFiltro({ ...filtro, status: e.target.value })} style={{ width: 'auto' }}>
           <option value="">🏷️ Todos os status</option>
           {ORDEM_STATUS.map((s) => (
@@ -301,8 +291,8 @@ export function ChamadaDetail() {
             </option>
           ))}
         </Select>
-        {(filtro.cidade || filtro.equipe || filtro.status) && (
-          <Button variante="fantasma" onClick={() => setFiltro({ cidade: '', equipe: '', status: '' })}>
+        {(filtro.cidade || filtro.status) && (
+          <Button variante="fantasma" onClick={() => setFiltro({ cidade: '', status: '' })}>
             Limpar
           </Button>
         )}

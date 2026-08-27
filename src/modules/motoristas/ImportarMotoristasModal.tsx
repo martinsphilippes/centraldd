@@ -14,7 +14,6 @@ const CABECALHO_MODELO = [
   'Nome',
   'Telefone',
   'Cidade',
-  'Equipe',
   'Operação',
   'Veículo',
   'E-mail',
@@ -25,8 +24,8 @@ const CABECALHO_MODELO = [
 ]
 
 const EXEMPLO = [
-  ['Carlos Silva', '34 99876-5432', 'Ituiutaba', 'Equipe A', 'Mercado Livre', '3/4', 'carlos@email.com', 'senha123', 'Gurinhatã', '', 'Sim'],
-  ['Ana Souza', '34 98765-4321', 'Capinópolis', 'Equipe B', 'Mercado Livre', 'VUC', '', '', '', 'Ipiaçu', 'Sim'],
+  ['Carlos Silva', '34 99876-5432', 'Ituiutaba', 'Mercado Livre', '3/4', 'carlos@email.com', 'senha123', 'Gurinhatã', '', 'Sim'],
+  ['Ana Souza', '34 98765-4321', 'Capinópolis', 'Mercado Livre', 'VUC', '', '', '', 'Ipiaçu', 'Sim'],
 ]
 
 export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {

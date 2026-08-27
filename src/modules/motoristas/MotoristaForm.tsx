@@ -21,7 +21,6 @@ export function MotoristaForm() {
   const [nome, setNome] = useState(existente?.nome ?? '')
   const [telefone, setTelefone] = useState(existente?.telefone ?? '')
   const [cidade, setCidade] = useState(existente?.cidade ?? '')
-  const [equipe, setEquipe] = useState(existente?.equipe ?? '')
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
   const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
   // Opções cadastradas pelo dispatcher (Tipos) + o valor atual do motorista.
@@ -65,7 +64,6 @@ export function MotoristaForm() {
         nome: nome.trim(),
         telefone: telefone.replace(/\D/g, ''),
         cidade: cidade.trim(),
-        equipe: equipe.trim(),
         operacao,
         veiculo,
         ativo,
@@ -106,9 +104,6 @@ export function MotoristaForm() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="📍 Cidade">
               <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
-            </Field>
-            <Field label="👥 Equipe">
-              <Input value={equipe} onChange={(e) => setEquipe(e.target.value)} required placeholder="Ex.: Equipe Alfa" />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">

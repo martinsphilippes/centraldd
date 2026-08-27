@@ -53,11 +53,10 @@ export function Relatorios() {
 
   const tabelaMotoristas = (): Tabela => ({
     titulo: `Motoristas ${PERIODOS[periodo].rotulo}`,
-    colunas: ['Motorista', 'Cidade', 'Equipe', 'Chamadas', 'Respondidas', 'Taxa de resposta', 'Disponível', 'Indisponível', 'Taxa de disponibilidade'],
+    colunas: ['Motorista', 'Cidade', 'Chamadas', 'Respondidas', 'Taxa de resposta', 'Disponível', 'Indisponível', 'Taxa de disponibilidade'],
     linhas: estatisticas.map((e) => [
       e.motorista.nome,
       e.motorista.cidade,
-      e.motorista.equipe,
       e.totalChamadas,
       e.respondidas,
       `${Math.round(e.taxaResposta * 100)}%`,
@@ -189,7 +188,6 @@ export function Relatorios() {
               <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="py-2 pr-2">Motorista</th>
                 <th className="px-2 py-2">Cidade</th>
-                <th className="px-2 py-2">Equipe</th>
                 <th className="px-2 py-2 text-center">Respondidas</th>
                 <th className="px-2 py-2 text-center">Taxa resposta</th>
                 <th className="px-2 py-2 text-center">Disponível</th>
@@ -208,7 +206,6 @@ export function Relatorios() {
                       </Link>
                     </td>
                     <td className="px-2 py-2 text-slate-600">{e.motorista.cidade}</td>
-                    <td className="px-2 py-2 text-slate-600">{e.motorista.equipe}</td>
                     <td className="px-2 py-2 text-center">{e.respondidas}/{e.totalChamadas}</td>
                     <td className="px-2 py-2 text-center font-semibold">{Math.round(e.taxaResposta * 100)}%</td>
                     <td className="px-2 py-2 text-center">{e.disponiveis}</td>
