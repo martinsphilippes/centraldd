@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore'
 import { firestore } from './firebase'
 import { normalizarTexto, parecidoCom } from './texto'
+import { chaveNumeracao } from './conferencia'
 import type {
   DB,
   Chamada,
@@ -307,6 +308,17 @@ export function salvarConferencia(c: Conferencia) {
 
 export function removerConferencia(id: string) {
   void deleteDoc(doc(firestore, 'conferencias', id))
+}
+
+/** O DISPATCHER tira UMA numeração da conferência (pacote fora da carga). */
+export function removerPacoteConferencia(id: string, numeracao: string) {
+  const c = state.conferencias.find((x) => x.id === id)
+  if (!c) return
+  const chave = chaveNumeracao(numeracao)
+  void updateDoc(doc(firestore, 'conferencias', id), {
+    esperados: c.esperados.filter((v) => chaveNumeracao(v) !== chave),
+    pacotes: (c.pacotes ?? []).filter((p) => chaveNumeracao(p.numeracao) !== chave),
+  })
 }
 
 /** O MOTORISTA limpa a conferência da tela dele — o histórico não muda. */

@@ -175,36 +175,35 @@ export function Conferencia() {
           {lista.map((c) => (
             <Card key={c.id} className="p-4">
               {/* Cabeçalho clicável: um toque abre o detalhe pacote a pacote. */}
+              {/* Fechado é UMA linha; tudo o mais só aparece ao abrir. */}
               <button
-                className="-m-1 flex w-full flex-wrap items-center justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-slate-50"
+                className="-m-1 flex w-full items-center justify-between gap-2 rounded-lg p-1 text-left transition-colors hover:bg-slate-50"
                 onClick={() => setAberta((a) => (a === c.id ? null : c.id))}
               >
-                <div>
-                  <h2 className="font-bold text-slate-900">
-                    {c.titulo}
-                    <span className="ml-2 text-sm font-semibold text-slate-500">
-                      🚚 {nomeDe(c.motoristaId)}
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-500">📅 {rotuloDia(c.data)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {c.ocultaMotorista && (
-                    <Badge className="border-slate-200 bg-slate-100 text-slate-500" >
+                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <span className="font-bold text-slate-900">{c.titulo}</span>
+                  <span className="truncate text-sm font-semibold text-slate-500">
+                    🚚 {nomeDe(c.motoristaId)}
+                  </span>
+                  <span className="text-xs text-slate-400">📅 {rotuloDia(c.data)}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  {c.ocultaMotorista && aberta === c.id && (
+                    <Badge className="border-slate-200 bg-slate-100 text-slate-500">
                       🧹 limpa pelo motorista
                     </Badge>
                   )}
                   <SeloSituacao c={c} />
                   <span className="text-slate-400">{aberta === c.id ? '▲' : '▼'}</span>
-                </div>
+                </span>
               </button>
-              <div className="mt-2 space-y-2">
-                <ResultadoConferencia c={c} />
-                <CarimbosConferencia c={c} />
-              </div>
               {aberta === c.id && (
                 <>
-                  <DetalheConferencia c={c} />
+                  <div className="mt-2 space-y-2">
+                    <ResultadoConferencia c={c} />
+                    <CarimbosConferencia c={c} />
+                  </div>
+                  <DetalheConferencia c={c} podeExcluir />
                   <div className="mt-2 flex justify-end">
                     <Button variante="fantasma" onClick={() => apagar(c)}>
                       🗑️ Apagar conferência

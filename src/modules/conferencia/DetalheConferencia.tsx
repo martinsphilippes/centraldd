@@ -3,6 +3,7 @@
 // Abre dentro do próprio card — um toque mostra, outro esconde.
 
 import { useMemo, useState } from 'react'
+import { removerPacoteConferencia } from '../../core/db'
 import { chaveNumeracao } from '../../core/conferencia'
 import { normalizarTexto } from '../../core/texto'
 import type { Conferencia } from '../../core/types'
@@ -22,7 +23,7 @@ function ordemEtiqueta(e: string): number {
   return n ? Number(n) : 9999
 }
 
-export function DetalheConferencia({ c }: { c: Conferencia }) {
+export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExcluir?: boolean }) {
   const [busca, setBusca] = useState('')
   const [soFaltas, setSoFaltas] = useState(false)
 
@@ -139,6 +140,7 @@ export function DetalheConferencia({ c }: { c: Conferencia }) {
               <th className="px-2 py-1.5">Endereço</th>
               <th className="px-2 py-1.5">Destinatário</th>
               <th className="px-2 py-1.5">Situação</th>
+              {podeExcluir && <th className="px-2 py-1.5" />}
             </tr>
           </thead>
           <tbody>
@@ -157,11 +159,29 @@ export function DetalheConferencia({ c }: { c: Conferencia }) {
                     {SELO[l.situacao].texto}
                   </span>
                 </td>
+                {podeExcluir && (
+                  <td className="px-2 py-1 text-right">
+                    <button
+                      className="rounded px-1.5 py-0.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Excluir esta linha da conferência"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Excluir o pacote ${l.numeracao}${l.etiqueta ? ` (${l.etiqueta})` : ''} desta conferência?\n\nEle sai da lista esperada — deixa de contar como falta.`,
+                          )
+                        )
+                          removerPacoteConferencia(c.id, l.numeracao)
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {visiveis.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-2 py-4 text-center text-slate-400">
+                <td colSpan={podeExcluir ? 7 : 6} className="px-2 py-4 text-center text-slate-400">
                   Nada encontrado com esse filtro.
                 </td>
               </tr>
