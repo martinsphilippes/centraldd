@@ -13,6 +13,8 @@ import { MotoristaForm } from '../modules/motoristas/MotoristaForm'
 import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
 import { MinhasCidades } from '../modules/motoristas/MinhasCidades'
 import { DispatchersList } from '../modules/motoristas/DispatchersList'
+import { Conferencia } from '../modules/conferencia/Conferencia'
+import { MinhaConferencia } from '../modules/conferencia/MinhaConferencia'
 import { PlanejamentoList } from '../modules/planejamento/PlanejamentoList'
 import { PlanejamentoDetail } from '../modules/planejamento/PlanejamentoDetail'
 import { MeuPlanejamento } from '../modules/planejamento/MeuPlanejamento'
@@ -75,6 +77,7 @@ export default function App() {
             <Route path="/chamadas/:id" element={<ChamadaDetail />} />
             <Route path="/disponibilidade" element={<DisponibilidadeFrota />} />
             <Route path="/rotas" element={<Rotas />} />
+            <Route path="/conferencia" element={<Conferencia />} />
             <Route path="/cidades" element={<CidadesOperacao />} />
             <Route path="/tipos" element={<TiposOperacao />} />
             <Route path="/programacao" element={<Programacao />} />
@@ -92,6 +95,7 @@ export default function App() {
           <>
             <Route path="/responder" element={<ResponderChamadas />} />
             <Route path="/minhas-rotas" element={<MinhasRotas />} />
+            <Route path="/minha-conferencia" element={<MinhaConferencia />} />
             <Route path="/minhas-cidades" element={<MinhasCidades />} />
             <Route path="/minha-disponibilidade" element={<MinhaDisponibilidade />} />
             <Route path="/meu-planejamento" element={<MeuPlanejamento />} />

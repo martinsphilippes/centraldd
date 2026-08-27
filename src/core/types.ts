@@ -38,6 +38,30 @@ export interface Motorista {
   cdId?: string
 }
 
+/**
+ * Conferência de pacotes de uma rota: o Dispatcher sobe a lista do que deve
+ * sair (fica em stand-by) e o motorista sobe a lista do que ele tem. O
+ * resultado é calculado na hora a partir das duas listas.
+ */
+export interface Conferencia {
+  id: string
+  data: string
+  motoristaId: string
+  /** Rota a que a conferência se refere, quando houver. */
+  rotaId?: string | null
+  titulo: string
+  /** Numerações que o Dispatcher espera. */
+  esperados: string[]
+  arquivoDispatcher: string
+  /** ISO — quando o Dispatcher subiu o documento. */
+  enviadaEm: string
+  /** Numerações que o motorista enviou. null = ainda não enviou. */
+  conferidos: string[] | null
+  arquivoMotorista: string
+  /** ISO — quando o motorista subiu o CSV. */
+  conferidaEm: string | null
+}
+
 export type StatusChamada = 'aberta' | 'encerrada'
 
 export interface Chamada {
@@ -291,6 +315,7 @@ export interface DB {
   perfis: Perfil[]
   modelos: ModeloAprendido[]
   notificacoes: Notificacao[]
+  conferencias: Conferencia[]
 }
 
 /** Papel da conta. 'coordenador' era o nome antigo de dispatcher — ver core/papel.ts. */

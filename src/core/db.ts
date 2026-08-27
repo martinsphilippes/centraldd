@@ -29,6 +29,7 @@ import type {
   ProgramacaoItem,
   Resposta,
   ResumoDia,
+  Conferencia,
   Rota,
 } from './types'
 
@@ -48,6 +49,7 @@ const VAZIO: DB = {
   perfis: [],
   modelos: [],
   notificacoes: [],
+  conferencias: [],
 }
 
 let state: DB = VAZIO
@@ -144,6 +146,7 @@ export function iniciarSincronizacao(migrar = false) {
     'perfis',
     'modelos',
     'notificacoes',
+    'conferencias',
   ]
   const chegaram = new Set<string>()
   for (const nome of colecoes) {
@@ -291,6 +294,31 @@ export async function importarMotoristas(
     }
   }
   return r
+}
+
+// ---- Conferência de pacotes ----
+
+/** O DISPATCHER cria/atualiza a conferência (a lista do que deve sair). */
+export function salvarConferencia(c: Conferencia) {
+  void setDoc(doc(firestore, 'conferencias', c.id), c)
+}
+
+export function removerConferencia(id: string) {
+  void deleteDoc(doc(firestore, 'conferencias', id))
+}
+
+/**
+ * O MOTORISTA envia a lista dele. Só esses três campos mudam — é o que as
+ * regras de segurança permitem para a conta dele.
+ */
+export function enviarConferenciaMotorista(id: string, conferidos: string[], arquivo: string) {
+  updateDoc(doc(firestore, 'conferencias', id), {
+    conferidos,
+    arquivoMotorista: arquivo,
+    conferidaEm: new Date().toISOString(),
+  }).catch(() => {
+    alert('❌ Não consegui enviar sua conferência. Tente de novo; se continuar, avise o Dispatcher.')
+  })
 }
 
 export function removerMotorista(id: string) {

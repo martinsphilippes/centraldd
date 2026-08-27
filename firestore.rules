@@ -120,6 +120,19 @@ service cloud.firestore {
         (logado() && resource.data.motoristaId == meuMotoristaId());
     }
 
+    // Conferência de pacotes: o Dispatcher cria e mantém; o motorista da
+    // conferência preenche APENAS o lado dele (a lista que enviou e o
+    // carimbo de hora) — nunca a lista esperada nem a de outra pessoa.
+    match /conferencias/{id} {
+      allow read: if logado();
+      allow write: if ehDispatcher();
+      allow update: if logado() &&
+        resource.data.motoristaId == meuMotoristaId() &&
+        request.resource.data.motoristaId == resource.data.motoristaId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['conferidos', 'arquivoMotorista', 'conferidaEm']);
+    }
+
     match /rotas/{id} {
       allow read: if logado();
       allow write: if ehDispatcher();

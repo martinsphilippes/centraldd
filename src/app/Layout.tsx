@@ -31,6 +31,7 @@ const NAV_DISPATCHER: ItemNav[] = [
   { para: '/chamadas', rotulo: 'Chamadas', icone: '⏰', grupo: 'Fluxo do dia', passo: 2 },
   { para: '/planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Fluxo do dia', passo: 3 },
   { para: '/rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Fluxo do dia', passo: 4 },
+  { para: '/conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Fluxo do dia', passo: 5 },
   { para: '/motoristas', rotulo: 'Motoristas', icone: '🚚', grupo: 'Cadastro e análise' },
   { para: '/dispatchers', rotulo: 'Dispatchers', curto: 'Dispatch.', icone: '🧑', grupo: 'Cadastro e análise', soDono: true },
   { para: '/cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Cadastro e análise' },
@@ -43,6 +44,7 @@ const NAV_MOTORISTA: ItemNav[] = [
   { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Meu dia', passo: 1 },
   { para: '/meu-planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Meu dia', passo: 2 },
   { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia', passo: 3 },
+  { para: '/minha-conferencia', rotulo: 'Conferência', icone: '🔍', curto: 'Confer.', grupo: 'Meu dia', passo: 4 },
   { para: '/notificacoes', rotulo: 'Avisos', icone: '🔔', grupo: 'Meu dia' },
   { para: '/minhas-cidades', rotulo: 'Cidades', icone: '📍', grupo: 'Minhas preferências' },
 ]
