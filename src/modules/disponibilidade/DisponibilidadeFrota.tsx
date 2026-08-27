@@ -125,7 +125,7 @@ export function DisponibilidadeFrota() {
 
   const tabelaDia = (): Tabela => ({
     titulo: `Disponibilidade da frota ${formatarData(diaSelecionado)}`,
-    colunas: ['Motorista', 'Telefone', 'Cidade', 'Veículo', 'Vai trabalhar?', 'Status', 'Detalhe'],
+    colunas: ['Motorista', 'Telefone', 'Cidade', 'Veículo', 'Disponível?', 'Status', 'Detalhe'],
     linhas: [...trabalham, ...naoTrabalham, ...semMarcacao].map(({ motorista: m, marcacao }) => [
       m.nome,
       formatarTelefone(m.telefone),
@@ -159,6 +159,9 @@ export function DisponibilidadeFrota() {
   const doPlanejamentoDoDia = new Set(
     db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.motoristaIds),
   )
+  const naEsperaDoDia = new Set(
+    db.planejamento.filter((e) => e.data === diaSelecionado).flatMap((e) => e.esperaIds ?? []),
+  )
   // Ciclo do dia FECHADO: planejamento do dia concluída com o motorista, ou (hoje)
   // todas as rotas direcionadas a ele finalizadas/encerradas — interligado
   // com as telas de Rotas e Planejamento.
@@ -188,8 +191,12 @@ export function DisponibilidadeFrota() {
       {concluidosDoDia.has(m.id) ? (
         <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>
       ) : (
-        doPlanejamentoDoDia.has(m.id) && (
-          <Badge className="border-blue-200 bg-blue-100 text-blue-800">📋 no planejamento</Badge>
+        doPlanejamentoDoDia.has(m.id) ? (
+          <Badge className="border-blue-200 bg-blue-100 text-blue-800">🚚 vai trabalhar</Badge>
+        ) : (
+          naEsperaDoDia.has(m.id) && (
+            <Badge className="border-amber-300 bg-amber-100 text-amber-800">🕐 fila de espera</Badge>
+          )
         )
       )}
       {a ? (
@@ -445,17 +452,35 @@ export function DisponibilidadeFrota() {
         </div>
       </Card>
 
-      {/* Indicadores do dia */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Indicadores do dia. DISPONÍVEL é quem se ofereceu; VAI TRABALHAR é
+          quem entrou no planejamento — os números podem (e devem) diferir. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           icone="✅"
           valor={limiteDoDia ? `${trabalham.length}/${limiteDoDia.maxDisponiveis}` : trabalham.length}
-          rotulo="Vão trabalhar"
+          rotulo="Disponíveis (vagas)"
+        />
+        <StatCard
+          icone="🚚"
+          valor={doPlanejamentoDoDia.size > 0 ? doPlanejamentoDoDia.size : '—'}
+          rotulo={doPlanejamentoDoDia.size > 0 ? 'Vão trabalhar (no planejamento)' : 'Vão trabalhar (monte o planejamento)'}
           destaque
         />
-        <StatCard icone="❌" valor={naoTrabalham.length} rotulo="Não vão trabalhar" />
-        <StatCard icone="❔" valor={semMarcacao.length} rotulo="Não informaram" />
+        <StatCard
+          icone="🕐"
+          valor={naEsperaDoDia.size}
+          rotulo="Fila de espera"
+        />
+        <StatCard icone="❌" valor={naoTrabalham.length} rotulo="Indisponíveis" />
       </div>
+      {doPlanejamentoDoDia.size > 0 && trabalham.length > doPlanejamentoDoDia.size && (
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          ℹ️ <strong>{trabalham.length} disponíveis</strong>, mas{' '}
+          <strong>{doPlanejamentoDoDia.size} vão trabalhar</strong> — os{' '}
+          {trabalham.length - doPlanejamentoDoDia.size} além da meta{' '}
+          {naEsperaDoDia.size > 0 ? 'estão na fila de espera do planejamento' : 'ficaram fora do planejamento'}.
+        </p>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
@@ -476,7 +501,7 @@ export function DisponibilidadeFrota() {
       {/* Listas do dia */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4">
-          <h2 className="mb-3 font-bold text-emerald-700">✅ Vão trabalhar ({trabalham.length})</h2>
+          <h2 className="mb-3 font-bold text-emerald-700">✅ Disponíveis ({trabalham.length})</h2>
           {trabalham.length === 0 ? (
             <EmptyState icone="🕐" titulo="Ninguém confirmado ainda" />
           ) : (
@@ -488,7 +513,7 @@ export function DisponibilidadeFrota() {
           )}
         </Card>
         <Card className="p-4">
-          <h2 className="mb-3 font-bold text-red-600">❌ Não vão trabalhar ({naoTrabalham.length})</h2>
+          <h2 className="mb-3 font-bold text-red-600">❌ Indisponíveis ({naoTrabalham.length})</h2>
           {naoTrabalham.length === 0 ? (
             <EmptyState icone="🎉" titulo="Nenhuma ausência marcada" />
           ) : (
