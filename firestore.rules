@@ -130,7 +130,7 @@ service cloud.firestore {
         resource.data.motoristaId == meuMotoristaId() &&
         request.resource.data.motoristaId == resource.data.motoristaId &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['conferidos', 'arquivoMotorista', 'conferidaEm']);
+          .hasOnly(['conferidos', 'arquivoMotorista', 'conferidaEm', 'ocultaMotorista']);
     }
 
     match /rotas/{id} {

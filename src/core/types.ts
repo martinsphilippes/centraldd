@@ -84,6 +84,11 @@ export interface Conferencia {
   arquivoMotorista: string
   /** ISO — quando o motorista subiu o CSV. */
   conferidaEm: string | null
+  /**
+   * true = o motorista limpou esta conferência da tela dele (para receber a
+   * próxima). Não apaga nada: o Dispatcher segue vendo o histórico completo.
+   */
+  ocultaMotorista?: boolean
 }
 
 export type StatusChamada = 'aberta' | 'encerrada'

@@ -3,7 +3,7 @@ import { ehPapelDispatcher } from '../../core/papel'
 import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
 import { MelhoresMotoristas } from './MelhoresMotoristas'
-import { SatisfacaoClientes, TaxaSucessoRotas } from './SucessoESatisfacao'
+import { ConferenciasCard, SatisfacaoClientes, TaxaSucessoRotas } from './SucessoESatisfacao'
 import { resumoChamada, serieDisponibilidade } from '../../core/stats'
 import { Badge, Button, Card, ProgressBar, StatCard, EmptyState } from '../../components/ui'
 import { BarChart, Legenda } from '../../components/charts'
@@ -67,6 +67,8 @@ export function Dashboard() {
         <TaxaSucessoRotas />
         <SatisfacaoClientes />
       </div>
+
+      <ConferenciasCard />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <MelhoresMotoristas />

@@ -3,7 +3,7 @@
 // resposta que o Dispatcher vê do outro lado.
 
 import { useState } from 'react'
-import { enviarConferenciaMotorista, useDB } from '../../core/db'
+import { enviarConferenciaMotorista, ocultarConferenciaMotorista, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
@@ -55,8 +55,9 @@ export function MinhaConferencia() {
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
+  // O que o motorista limpou sai da tela DELE; o Dispatcher segue com tudo.
   const minhas = db.conferencias
-    .filter((c) => c.motoristaId === motoristaId)
+    .filter((c) => c.motoristaId === motoristaId && !c.ocultaMotorista)
     .sort((a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm))
 
   return (
@@ -90,9 +91,24 @@ export function MinhaConferencia() {
               {c.conferidos === null || refazer === c.id ? (
                 <Envio c={c} />
               ) : (
-                <Button variante="secundario" onClick={() => setRefazer(c.id)}>
-                  🔄 Conferir de novo
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variante="secundario" onClick={() => setRefazer(c.id)}>
+                    🔄 Conferir de novo
+                  </Button>
+                  <Button
+                    variante="fantasma"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          'Limpar esta conferência da sua tela?\n\nEla sai daqui para você receber a próxima — o Dispatcher continua vendo o resultado no histórico.',
+                        )
+                      )
+                        ocultarConferenciaMotorista(c.id)
+                    }}
+                  >
+                    🧹 Limpar da tela
+                  </Button>
+                </div>
               )}
             </div>
           </Card>

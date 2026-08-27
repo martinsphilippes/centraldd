@@ -28,6 +28,8 @@ export function Conferencia() {
   const db = useDB()
   const [novo, setNovo] = useState(false)
   const [aberta, setAberta] = useState<string | null>(null)
+  const [busca, setBusca] = useState('')
+  const [filtroMotorista, setFiltroMotorista] = useState('')
   const [motoristaId, setMotoristaId] = useState('')
   const [data, setData] = useState(hojeISO())
   const [titulo, setTitulo] = useState('')
@@ -41,9 +43,17 @@ export function Conferencia() {
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   const nomeDe = (id: string) => db.motoristas.find((m) => m.id === id)?.nome ?? '—'
 
-  const lista = [...db.conferencias].sort(
-    (a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm),
-  )
+  // Histórico completo, sempre acessível — o que o motorista limpou da tela
+  // dele continua aqui, apenas com o selo 🧹.
+  const chaveBusca = normalizarTexto(busca)
+  const lista = [...db.conferencias]
+    .filter((c) => !filtroMotorista || c.motoristaId === filtroMotorista)
+    .filter(
+      (c) =>
+        !chaveBusca ||
+        normalizarTexto(`${c.titulo} ${nomeDe(c.motoristaId)} ${c.data}`).includes(chaveBusca),
+    )
+    .sort((a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm))
   const rotasDoDia = db.rotas.filter((r) => !r.finalizadaEm)
 
   const abrir = () => {
@@ -134,10 +144,30 @@ export function Conferencia() {
         </Button>
       </div>
 
+      {db.conferencias.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filtroMotorista} onChange={(e) => setFiltroMotorista(e.target.value)} style={{ width: 'auto' }}>
+            <option value="">🚚 Todos os motoristas</option>
+            {motoristas.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome}
+              </option>
+            ))}
+          </Select>
+          <Input
+            placeholder="🔎 Buscar por rota, motorista ou data…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-72 max-w-full"
+          />
+          <span className="text-xs text-slate-500">{lista.length} conferência(s)</span>
+        </div>
+      )}
+
       {lista.length === 0 ? (
         <EmptyState
           icone="🔍"
-          titulo="Nenhuma conferência ainda"
+          titulo={db.conferencias.length === 0 ? 'Nenhuma conferência ainda' : 'Nada com esse filtro'}
           descricao="Crie uma conferência com a lista de numerações que devem sair. O motorista recebe na tela dele e envia o CSV do que tem em mãos."
         />
       ) : (
@@ -159,6 +189,11 @@ export function Conferencia() {
                   <p className="text-xs text-slate-500">📅 {rotuloDia(c.data)}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {c.ocultaMotorista && (
+                    <Badge className="border-slate-200 bg-slate-100 text-slate-500" >
+                      🧹 limpa pelo motorista
+                    </Badge>
+                  )}
                   <SeloSituacao c={c} />
                   <span className="text-slate-400">{aberta === c.id ? '▲' : '▼'}</span>
                 </div>

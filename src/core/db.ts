@@ -309,8 +309,15 @@ export function removerConferencia(id: string) {
   void deleteDoc(doc(firestore, 'conferencias', id))
 }
 
+/** O MOTORISTA limpa a conferência da tela dele — o histórico não muda. */
+export function ocultarConferenciaMotorista(id: string) {
+  updateDoc(doc(firestore, 'conferencias', id), { ocultaMotorista: true }).catch(() => {
+    alert('❌ Não consegui limpar. Tente de novo; se continuar, avise o Dispatcher.')
+  })
+}
+
 /**
- * O MOTORISTA envia a lista dele. Só esses três campos mudam — é o que as
+ * O MOTORISTA envia a lista dele. Só esses campos mudam — é o que as
  * regras de segurança permitem para a conta dele.
  */
 export function enviarConferenciaMotorista(id: string, conferidos: string[], arquivo: string) {

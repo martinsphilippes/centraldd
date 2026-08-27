@@ -4,13 +4,14 @@
 
 import { useMemo, useState } from 'react'
 import { useDB } from '../../core/db'
+import { compararConferencia } from '../../core/conferencia'
 import { hojeISO, parseISODate } from '../../core/dates'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
 import { normalizarTexto } from '../../core/texto'
 import type { DB, Motorista } from '../../core/types'
 import { Avatar, Card, Input, Select } from '../../components/ui'
 
-type Criterio = 'disponiveis' | 'rotas' | 'domingos' | 'respostas' | 'planejamentos'
+type Criterio = 'disponiveis' | 'rotas' | 'domingos' | 'respostas' | 'planejamentos' | 'conferencias'
 
 interface DefCriterio {
   rotulo: string
@@ -74,6 +75,19 @@ const CRITERIOS: Record<Criterio, DefCriterio> = {
     valorDe: (db, m, inicio) =>
       db.respostas.filter((r) => r.motoristaId === m.id && r.respondidaEm.slice(0, 10) >= inicio)
         .length,
+  },
+  conferencias: {
+    rotulo: '🔍 Mais conferências batidas',
+    unidade: 'conferência(s) batida(s)',
+    descricao: 'Conferências de pacotes que bateram sem nenhuma divergência.',
+    valorDe: (db, m, inicio) =>
+      db.conferencias.filter(
+        (c) =>
+          c.motoristaId === m.id &&
+          c.data >= inicio &&
+          c.conferidos !== null &&
+          compararConferencia(c.esperados, c.conferidos).bateu,
+      ).length,
   },
   planejamentos: {
     rotulo: '📋 Mais entram no planejamento',
