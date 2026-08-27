@@ -279,7 +279,6 @@ export async function importarMotoristas(
       // Cadastro feito pelo Dispatcher já nasce aprovado.
       aprovado: anterior?.aprovado ?? true,
       cidadesPreferidas: ou(linha.cidadesPreferidas, anterior?.cidadesPreferidas),
-      cidadesBloqueadas: ou(linha.cidadesBloqueadas, anterior?.cidadesBloqueadas),
       criadoEm: anterior?.criadoEm ?? agora,
     }
     try {

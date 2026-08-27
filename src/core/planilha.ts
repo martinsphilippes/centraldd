@@ -344,7 +344,6 @@ export interface MotoristaImportado {
   veiculo: string
   ativo: boolean
   cidadesPreferidas: string
-  cidadesBloqueadas: string
   email: string
   senha: string
   /** Linha de origem na planilha, para o dispatcher achar o erro. */
@@ -359,7 +358,6 @@ const COLUNAS_MOTORISTA: Record<keyof Omit<MotoristaImportado, 'linha' | 'ativo'
   operacao: ['operacao', 'operacao logistica'],
   veiculo: ['veiculo', 'tipo de veiculo', 'carro'],
   cidadesPreferidas: ['cidades preferidas', 'cidade preferida', 'preferidas', 'prefiro'],
-  cidadesBloqueadas: ['cidades bloqueadas', 'cidade bloqueada', 'bloqueadas', 'nao atende'],
   email: ['email', 'e mail', 'e-mail', 'login'],
   senha: ['senha', 'password', 'senha inicial'],
 }
@@ -459,7 +457,6 @@ export function parsearPlanilhaMotoristas(texto: string): {
       veiculo: pegar('veiculo'),
       ativo: lerAtivo(pegar('ativo')),
       cidadesPreferidas: pegar('cidadesPreferidas'),
-      cidadesBloqueadas: pegar('cidadesBloqueadas'),
       email: pegar('email').toLowerCase(),
       senha: pegar('senha'),
       linha: (temCabecalho ? 2 : 1) + i,
