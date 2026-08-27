@@ -569,6 +569,7 @@ export function ResumoDiaCard({
             <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               <span className="w-32">Veículo</span>
               <span className="w-24 text-ml-azul">Quantidade ✏️</span>
+              <span className="w-20 text-ml-azul">Posições ✏️</span>
             </div>
             <div className="space-y-2">
               {rascunho.mm.map((m, i) => (
@@ -581,7 +582,14 @@ export function ResumoDiaCard({
                     inputMode="numeric"
                     className="w-24 border-ml-azul bg-blue-50/40 font-bold"
                   />
-                  <span className="text-xs text-slate-400">× {m.posicoesPorUnidade} posições cada</span>
+                  <Input
+                    placeholder="Posições"
+                    value={m.posicoesPorUnidade}
+                    onChange={(e) => setM(i, 'posicoesPorUnidade', e.target.value)}
+                    inputMode="numeric"
+                    className="w-20 text-center"
+                  />
+                  <span className="text-xs text-slate-400">posições cada</span>
                 </div>
               ))}
             </div>
