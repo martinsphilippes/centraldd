@@ -161,7 +161,7 @@ export function DisponibilidadeFrota() {
   )
   // Ciclo do dia FECHADO: planejamento do dia concluída com o motorista, ou (hoje)
   // todas as rotas direcionadas a ele finalizadas/encerradas — interligado
-  // com as telas de Rotas e Escalas.
+  // com as telas de Rotas e Planejamento.
   const concluidosDoDia = new Set<string>(
     db.planejamento
       .filter((e) => e.data === diaSelecionado && e.status === 'concluida')

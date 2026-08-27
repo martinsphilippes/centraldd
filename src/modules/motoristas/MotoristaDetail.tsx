@@ -123,7 +123,7 @@ export function MotoristaDetail() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-3 font-bold text-slate-900">📋 Escalas</h2>
+          <h2 className="mb-3 font-bold text-slate-900">📋 Planejamentos</h2>
           {planejamento.length === 0 ? (
             <EmptyState icone="📋" titulo="Nenhuma planejamento até agora" />
           ) : (

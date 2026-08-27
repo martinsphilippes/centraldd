@@ -70,7 +70,7 @@ export function Dashboard() {
         <StatCard icone="✅" valor={disponiveisHoje} rotulo="Disponíveis hoje" />
         <StatCard icone="❌" valor={indisponiveisHoje} rotulo="Indisponíveis hoje" />
         <StatCard icone="⏳" valor={pendentesHoje} rotulo="Pendentes de resposta" />
-        <StatCard icone="📋" valor={planejamentosConcluidos} rotulo="Escalas concluídas" />
+        <StatCard icone="📋" valor={planejamentosConcluidos} rotulo="Planejamentos concluídos" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -159,7 +159,7 @@ export function Dashboard() {
           )}
         </Card>
 
-        {/* Escalas em andamento */}
+        {/* Planejamentos em andamento */}
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-slate-900">📍 Rotas e planejamento em andamento</h2>

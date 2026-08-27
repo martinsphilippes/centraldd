@@ -121,7 +121,7 @@ export function Relatorios() {
         <StatCard icone="⏰" valor={serie.length} rotulo="Chamadas no período" />
         <StatCard icone="💬" valor={`${Math.round(taxaRespostaGeral * 100)}%`} rotulo="Taxa de resposta média" destaque />
         <StatCard icone="✅" valor={serie.reduce((s, p) => s + p.disponiveis, 0)} rotulo="Disponibilidades registradas" />
-        <StatCard icone="📋" valor={planejamentosPeriodo.length} rotulo="Escalas no período" />
+        <StatCard icone="📋" valor={planejamentosPeriodo.length} rotulo="Planejamentos no período" />
       </div>
 
       <Card className="p-4">
