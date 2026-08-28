@@ -179,15 +179,23 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      {/* Menu inferior mobile (rolável quando há muitos itens) */}
-      <nav className="flex shrink-0 overflow-x-auto border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      {/*
+        Menu inferior do celular. Antes era uma fila só, rolando de lado: com 12
+        itens de 60px numa tela de 390px, metade ficava fora da vista atrás de
+        uma rolagem lateral que ninguém descobre — na prática, telas escondidas.
+        Agora é uma grade que quebra em linhas e mostra TODAS de uma vez.
+      */}
+      <nav
+        className="grid shrink-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{ gridTemplateColumns: `repeat(${Math.min(nav.length, 6)}, minmax(0, 1fr))` }}
+      >
         {nav.map((item) => (
           <NavLink
             key={item.para}
             to={item.para}
             end={item.para === '/'}
             className={({ isActive }) =>
-              `relative flex min-w-15 shrink-0 grow flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-medium ${
+              `relative flex flex-col items-center gap-0.5 px-0.5 py-1.5 text-[10px] font-medium ${
                 isActive ? 'text-ml-azul' : 'text-slate-500'
               }`
             }
