@@ -795,16 +795,29 @@ export function parsearPlanilhaRotas(
   rotas: RotaImportada[]
   ignoradas: number
   avisos: string[]
-  /** O que foi descartado e o motivo — nada some sem explicação. */
-  descartadas: { conteudo: string; motivo: string }[]
+  /**
+   * O que foi descartado, o motivo e a linha como ela foi lida — assim o
+   * Dispatcher consegue INCLUIR a linha à mão e completar o que faltou, em vez
+   * de perder os dados que estavam certos nela.
+   */
+  descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[]
 } {
   const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
-  const descartadas: { conteudo: string; motivo: string }[] = []
-  const descartar = (conteudo: string, motivo: string) => {
+  const descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[] = []
+  const vazia = (): RotaImportada => {
+    const r = {} as RotaImportada
+    for (const c of COLUNAS) r[c] = ''
+    return r
+  }
+  const descartar = (conteudo: string, motivo: string, linha?: RotaImportada) => {
     ignoradas++
     // Só o que tem alguma substância vira relatório; linha em branco não.
     if (conteudo.replace(/[\t;,\s]+/g, ' ').trim().length > 1) {
-      descartadas.push({ conteudo: conteudo.replace(/\t/g, ' · ').trim().slice(0, 120), motivo })
+      descartadas.push({
+        conteudo: conteudo.replace(/\t/g, ' · ').trim().slice(0, 120),
+        motivo,
+        linha: linha ?? vazia(),
+      })
     }
   }
   // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
@@ -859,6 +872,7 @@ export function parsearPlanilhaRotas(
           rota.rotaExpedicao
             ? `"${rota.rotaExpedicao}" não tem número, então não é código de rota`
             : 'ficou sem código de rota — nesta linha nenhuma foto trouxe a coluna Rota expedição',
+          { ...rota, rotaOriginal: repararRotaOriginal(rota.rotaOriginal) },
         )
         continue
       }
@@ -930,6 +944,7 @@ export function parsearPlanilhaRotas(
       descartar(
         `${r.rotaExpedicao} ${r.rotaOriginal}`,
         `"${r.rotaExpedicao}" é uma rota ORIGINAL, não um código de expedição — as colunas escorregaram nesta linha`,
+        { ...r, rotaExpedicao: '' },
       )
     }
     return !ehOriginal

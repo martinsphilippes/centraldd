@@ -17,6 +17,36 @@ import { xlsxComoTexto } from '../../core/xlsx'
 import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
 
+/**
+ * As colunas de TEXTO da rota, na ordem da planilha, para a tabela de revisão.
+ * (RotaImportada também tem campos de encerramento, que não se editam aqui.)
+ */
+type CampoTexto =
+  | 'cidade'
+  | 'rotaExpedicao'
+  | 'rotaOriginal'
+  | 'base'
+  | 'veiculo'
+  | 'km'
+  | 'dps'
+  | 'ocupacao'
+  | 'transportadora'
+
+const CABECALHOS: { campo: CampoTexto; rotulo: string }[] = [
+  { campo: 'cidade', rotulo: 'Cidade' },
+  { campo: 'rotaExpedicao', rotulo: 'Rota expedição *' },
+  { campo: 'rotaOriginal', rotulo: 'Rota original' },
+  { campo: 'base', rotulo: 'Base' },
+  { campo: 'veiculo', rotulo: 'Veículo' },
+  { campo: 'km', rotulo: 'Km' },
+  { campo: 'dps', rotulo: 'DPS' },
+  { campo: 'ocupacao', rotulo: 'Ocup. %' },
+  { campo: 'transportadora', rotulo: 'Transportadora' },
+]
+
+const LINHA_VAZIA = (): RotaImportada =>
+  Object.fromEntries(CABECALHOS.map((c) => [c.campo, ''])) as RotaImportada
+
 export function ImportarRotasModal({
   aberto,
   onFechar,
@@ -41,8 +71,13 @@ export function ImportarRotasModal({
     rotas: RotaImportada[]
     ignoradas: number
     avisos: string[]
-    descartadas: { conteudo: string; motivo: string }[]
+    descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[]
   } | null>(null)
+  // Linhas que o Dispatcher decidiu incluir à mão (as que a leitura descartou).
+  const [manuais, setManuais] = useState<RotaImportada[]>([])
+  // Correções à mão nas rotas lidas, guardadas pelo código original da rota.
+  const [edicoes, setEdicoes] = useState<Record<string, Partial<RotaImportada>>>({})
+  const [mostrarTabela, setMostrarTabela] = useState(false)
   const [importando, setImportando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
@@ -193,16 +228,30 @@ export function ImportarRotasModal({
     })()
   }
 
+  /** O que vai ser importado: o que foi lido, com as correções, mais as manuais. */
+  const rotasFinais: RotaImportada[] = [
+    ...(previa?.rotas ?? []).map((r) => ({ ...r, ...edicoes[r.rotaExpedicao] })),
+    ...manuais,
+  ].filter((r) => r.rotaExpedicao.trim())
+
+  const editar = (chave: string, campo: CampoTexto, valor: string) =>
+    setEdicoes((e) => ({ ...e, [chave]: { ...e[chave], [campo]: valor } }))
+
+  const editarManual = (i: number, campo: CampoTexto, valor: string) =>
+    setManuais((m) => m.map((r, j) => (j === i ? { ...r, [campo]: valor } : r)))
+
   const confirmarImportacao = async () => {
-    if (!previa || previa.rotas.length === 0) return
+    if (rotasFinais.length === 0) return
     setImportando(true)
     try {
-      await importarRotas(previa.rotas, data)
+      await importarRotas(rotasFinais, data)
       setTextoColado('')
       setPedacos([])
       setFotos([])
       setAvisosFotos([])
       setForcarBlocoNovo(false)
+      setManuais([])
+      setEdicoes({})
       setPrevia(null)
       onFechar()
     } finally {
@@ -318,6 +367,16 @@ export function ImportarRotasModal({
                 <span className="font-mono font-semibold">{d.conteudo || '(linha vazia)'}</span>
                 <br />
                 <span className="text-red-700">↳ {d.motivo}</span>
+                <button
+                  className="ml-2 rounded-lg border border-red-300 bg-white px-2 py-0.5 text-[11px] font-bold text-red-700 hover:bg-red-100"
+                  title="Traz esta linha para a lista e abre para você completar o código da rota"
+                  onClick={() => {
+                    setManuais((m) => [...m, { ...d.linha }])
+                    setMostrarTabela(true)
+                  }}
+                >
+                  ➕ Incluir e completar
+                </button>
               </li>
             ))}
           </ul>
@@ -336,6 +395,101 @@ export function ImportarRotasModal({
       {erroArquivo && (
         <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
       )}
+      {rotasFinais.length > 0 && (
+        <div className="mt-3">
+          <button
+            onClick={() => setMostrarTabela((v) => !v)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {mostrarTabela ? '▾' : '▸'} ✏️ Revisar e editar as {rotasFinais.length} rota(s)
+            {manuais.length > 0 && ` · ${manuais.length} incluída(s) à mão`}
+            {Object.keys(edicoes).length > 0 && ` · ${Object.keys(edicoes).length} corrigida(s)`}
+          </button>
+          {mostrarTabela && (
+            <>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Toda célula é editável. A <strong>Rota expedição</strong> é a única obrigatória — é
+                por ela que a rota é identificada na importação. Linha sem código fica de fora.
+              </p>
+              <div className="mt-1 max-h-80 overflow-auto rounded-lg border border-slate-200">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="sticky top-0 z-10 bg-slate-100 text-slate-600">
+                    <tr>
+                      <th className="px-1 py-1">#</th>
+                      {CABECALHOS.map((c) => (
+                        <th key={c.campo} className="px-1 py-1 font-semibold">
+                          {c.rotulo}
+                        </th>
+                      ))}
+                      <th className="px-1 py-1" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previa?.rotas ?? []).map((original, i) => {
+                      const r = { ...original, ...edicoes[original.rotaExpedicao] }
+                      return (
+                        <tr key={`lida-${i}`} className="border-t border-slate-100">
+                          <td className="px-1 py-0.5 text-slate-400">{i + 1}</td>
+                          {CABECALHOS.map((c) => (
+                            <td key={c.campo} className="px-0.5 py-0.5">
+                              <input
+                                value={r[c.campo]}
+                                onChange={(e) => editar(original.rotaExpedicao, c.campo, e.target.value)}
+                                className={`w-full rounded border px-1 py-0.5 text-[11px] outline-none focus:border-ml-azul ${
+                                  c.campo === 'rotaExpedicao' && !r[c.campo].trim()
+                                    ? 'border-red-400 bg-red-50'
+                                    : 'border-slate-200'
+                                }`}
+                              />
+                            </td>
+                          ))}
+                          <td />
+                        </tr>
+                      )
+                    })}
+                    {manuais.map((r, i) => (
+                      <tr key={`manual-${i}`} className="border-t border-slate-100 bg-amber-50/60">
+                        <td className="px-1 py-0.5 text-amber-600" title="Incluída à mão">
+                          ➕
+                        </td>
+                        {CABECALHOS.map((c) => (
+                          <td key={c.campo} className="px-0.5 py-0.5">
+                            <input
+                              value={r[c.campo]}
+                              onChange={(e) => editarManual(i, c.campo, e.target.value)}
+                              placeholder={c.campo === 'rotaExpedicao' ? 'ex.: D8_AM1' : ''}
+                              className={`w-full rounded border px-1 py-0.5 text-[11px] outline-none focus:border-ml-azul ${
+                                c.campo === 'rotaExpedicao' && !r[c.campo].trim()
+                                  ? 'border-red-400 bg-red-50'
+                                  : 'border-slate-200'
+                              }`}
+                            />
+                          </td>
+                        ))}
+                        <td className="px-1 py-0.5">
+                          <button
+                            className="rounded px-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Tirar esta linha"
+                            onClick={() => setManuais((m) => m.filter((_, j) => j !== i))}
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                onClick={() => setManuais((m) => [...m, LINHA_VAZIA()])}
+                className="mt-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                ➕ Acrescentar uma rota em branco
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <p className="mt-3 text-[11px] text-slate-500">
         💡 Reimportar a planilha <strong>atualiza</strong> as rotas existentes (pela Rota expedição) sem duplicar
         e sem perder os motoristas já direcionados.
@@ -344,8 +498,8 @@ export function ImportarRotasModal({
         <Button variante="secundario" onClick={onFechar}>
           Cancelar
         </Button>
-        <Button variante="ml" onClick={() => void confirmarImportacao()} disabled={!previa || previa.rotas.length === 0 || importando}>
-          {importando ? 'Importando…' : `📥 Importar ${previa?.rotas.length ?? 0} rota(s)`}
+        <Button variante="ml" onClick={() => void confirmarImportacao()} disabled={rotasFinais.length === 0 || importando}>
+          {importando ? 'Importando…' : `📥 Importar ${rotasFinais.length} rota(s)`}
         </Button>
       </div>
     </Modal>
