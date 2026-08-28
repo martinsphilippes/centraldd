@@ -39,6 +39,7 @@ export function ImportarRotasModal({
     rotas: RotaImportada[]
     ignoradas: number
     avisos: string[]
+    descartadas: { conteudo: string; motivo: string }[]
   } | null>(null)
   const [importando, setImportando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState('')
@@ -279,6 +280,22 @@ export function ImportarRotasModal({
           <ul className="mt-1 list-inside list-disc text-xs text-amber-800">
             {avisosFotos.map((a) => (
               <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {previa && previa.descartadas.length > 0 && (
+        <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <p className="text-xs font-bold text-red-900">
+            🚫 {previa.ignoradas} linha(s) ficaram de fora — e por quê:
+          </p>
+          <ul className="mt-1 space-y-1">
+            {previa.descartadas.map((d, i) => (
+              <li key={i} className="text-xs text-red-800">
+                <span className="font-mono font-semibold">{d.conteudo || '(linha vazia)'}</span>
+                <br />
+                <span className="text-red-700">↳ {d.motivo}</span>
+              </li>
             ))}
           </ul>
         </div>

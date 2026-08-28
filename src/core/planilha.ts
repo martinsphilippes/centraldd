@@ -538,12 +538,18 @@ function mapearPeloConteudo(
       mapa.set(i, 'base')
   }
 
-  // Km e Ocupação são os dois decimais; o DPS fica entre eles na planilha, e é
-  // essa vizinhança que diz qual é qual sem precisar de cabeçalho.
+  // Km e Ocupação são os dois decimais. Na planilha o DPS fica ENTRE eles, e
+  // essa vizinhança resolve sem cabeçalho. Se as duas caírem do mesmo lado do
+  // DPS (ou não houver DPS na foto), vale a ordem da planilha: Km vem antes.
   const posDps = [...mapa.entries()].find(([, c]) => c === 'dps')?.[0]
-  for (const i of numericas) {
-    if (posDps === undefined) mapa.set(i, 'km')
-    else mapa.set(i, i < posDps ? 'km' : 'ocupacao')
+  const ordenadas = [...numericas].sort((a, b) => a - b)
+  const antes = ordenadas.filter((i) => posDps !== undefined && i < posDps)
+  const depois = ordenadas.filter((i) => posDps === undefined || i > posDps)
+  if (antes.length === 1 && depois.length === 1) {
+    mapa.set(antes[0], 'km')
+    mapa.set(depois[0], 'ocupacao')
+  } else {
+    ordenadas.forEach((i, n) => mapa.set(i, n === 0 ? 'km' : 'ocupacao'))
   }
 
   return mapa.size > 0 ? mapa : null
@@ -700,11 +706,13 @@ export function juntarFotosPorColuna(
   grupos.forEach((blocos, iGrupo) => {
     const rotulo = grupos.length > 1 ? `bloco ${iGrupo + 1}: ` : ''
 
-    // Dentro do bloco, todas as fotos precisam ter as MESMAS linhas.
-    const alturas = [...new Set(blocos.map((b) => b.linhas.length))]
-    if (alturas.length > 1) {
+    // Dentro do bloco, todas as fotos precisam ter as MESMAS linhas. Quando
+    // uma leu menos, ela é a culpada — e é ela que precisa ser refeita.
+    const cheia = Math.max(...blocos.map((b) => b.linhas.length))
+    const curtas = blocos.filter((b) => b.linhas.length < cheia)
+    for (const b of curtas) {
       avisos.push(
-        `${rotulo}as fotos têm quantidades de linhas diferentes (${alturas.join(', ')}) — confira se alguma ficou cortada, porque as linhas podem ter se encaixado trocadas`,
+        `${rotulo}a Foto ${b.foto + 1} leu ${b.linhas.length} linha(s) e as outras deste bloco leram ${cheia} — alguma linha ficou de fora dela. Refaça SÓ essa foto (🗑️ ao lado dela), senão as linhas se encaixam trocadas a partir da que faltou.`,
       )
     }
 
@@ -780,8 +788,22 @@ export function parsearPlanilhaRotas(
   texto: string,
   /** O que a operação já conhece: prefixos de rota, cidades e veículos. */
   ctx: ContextoLeitura = {},
-): { rotas: RotaImportada[]; ignoradas: number; avisos: string[] } {
+): {
+  rotas: RotaImportada[]
+  ignoradas: number
+  avisos: string[]
+  /** O que foi descartado e o motivo — nada some sem explicação. */
+  descartadas: { conteudo: string; motivo: string }[]
+} {
   const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
+  const descartadas: { conteudo: string; motivo: string }[] = []
+  const descartar = (conteudo: string, motivo: string) => {
+    ignoradas++
+    // Só o que tem alguma substância vira relatório; linha em branco não.
+    if (conteudo.replace(/[\t;,\s]+/g, ' ').trim().length > 1) {
+      descartadas.push({ conteudo: conteudo.replace(/\t/g, ' · ').trim().slice(0, 120), motivo })
+    }
+  }
   // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
   // trim comia a tabulação e todas as colunas escorregavam uma casa para a
   // esquerda — a rota original acabava lida como código de expedição.
@@ -829,7 +851,12 @@ export function parsearPlanilhaRotas(
         }
       }
       if (!rota.rotaExpedicao || !/\d/.test(rota.rotaExpedicao)) {
-        ignoradas++
+        descartar(
+          linha,
+          rota.rotaExpedicao
+            ? `"${rota.rotaExpedicao}" não tem número, então não é código de rota`
+            : 'ficou sem código de rota — nesta linha nenhuma foto trouxe a coluna Rota expedição',
+        )
         continue
       }
       rota.rotaExpedicao = repararComHistorico(repararRotaExpedicao(rota.rotaExpedicao), conhecidos)
@@ -848,7 +875,7 @@ export function parsearPlanilhaRotas(
     // Precisa de pelo menos cidade + rota expedição — e um código de rota
     // sempre tem número, então "Rota expedição" lido da foto não vira linha.
     if (celulas.length < 2 || !celulas[0] || !celulas[1] || !/\d/.test(celulas[1])) {
-      ignoradas++
+      descartar(linha, 'não reconheci cidade + código de rota nesta linha')
       continue
     }
     const rota = {} as Record<(typeof COLUNAS)[number], string>
@@ -894,8 +921,16 @@ export function parsearPlanilhaRotas(
   // Uma rota ORIGINAL ("PM1_21") nunca é um código de expedição. Se sobrou
   // alguma na coluna errada — encaixe de foto que escorregou, coluna trocada —
   // ela sai aqui, em vez de virar rota inventada no dia.
-  const validas = finais.filter((r) => !CARA_DE_ORIGINAL.test(r.rotaExpedicao.replace(/_/g, ' ')))
-  ignoradas += finais.length - validas.length
+  const validas = finais.filter((r) => {
+    const ehOriginal = CARA_DE_ORIGINAL.test(r.rotaExpedicao.replace(/_/g, ' '))
+    if (ehOriginal) {
+      descartar(
+        `${r.rotaExpedicao} ${r.rotaOriginal}`,
+        `"${r.rotaExpedicao}" é uma rota ORIGINAL, não um código de expedição — as colunas escorregaram nesta linha`,
+      )
+    }
+    return !ehOriginal
+  })
   conferirColuna(validas)
   ajustarPorColuna(validas, ctx)
   // Código repetido = uma das linhas teve o código mal lido e a máquina não
@@ -925,7 +960,7 @@ export function parsearPlanilhaRotas(
       }
     }
   }
-  return { rotas: validas, ignoradas, avisos }
+  return { rotas: validas, ignoradas, avisos, descartadas }
 }
 
 /**
