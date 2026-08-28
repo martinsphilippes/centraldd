@@ -10,6 +10,7 @@ import {
   ocultarConferenciaMotorista,
   useDB,
 } from '../../core/db'
+import { chaveNumeracao } from '../../core/conferencia'
 import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
@@ -62,6 +63,17 @@ export function MinhaConferencia() {
   const [roteiroAberto, setRoteiroAberto] = useState<string | null>(null)
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
+
+  /**
+   * Quantos pacotes da lista do Dispatcher ainda não foram bipados. Enquanto
+   * faltar algum, a conferência é trabalho em aberto — e trabalho em aberto não
+   * pode sair da tela do motorista.
+   */
+  const faltando = (c: (typeof db.conferencias)[number]) => {
+    if (c.conferidos === null) return c.esperados.length
+    const bipados = new Set(c.conferidos.map(chaveNumeracao))
+    return c.esperados.filter((e) => !bipados.has(chaveNumeracao(e))).length
+  }
 
   const porData = (a: { data: string; enviadaEm: string }, b: { data: string; enviadaEm: string }) =>
     b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm)
@@ -134,19 +146,28 @@ export function MinhaConferencia() {
                   <Button variante="fantasma" onClick={() => setRefazer(c.id)}>
                     🔄 Enviar outro arquivo
                   </Button>
-                  <Button
-                    variante="fantasma"
-                    onClick={() => {
-                      if (
-                        confirm(
-                          'Tirar esta conferência da sua tela?\n\nEla sai daqui para liberar espaço — o Dispatcher continua com o resultado, e você pode trazer de volta no fim desta tela.',
+                  {/* Só sai da tela o que já FECHOU. Com pacote faltando, a
+                      conferência é trabalho em aberto: sumir com ela foi o que
+                      deixou uma motorista sem como enviar o arquivo certo. */}
+                  {faltando(c) === 0 ? (
+                    <Button
+                      variante="fantasma"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            'Tirar esta conferência da sua tela?\n\nEla já fechou — sai daqui só para liberar espaço, e você pode trazer de volta no fim desta tela.',
+                          )
                         )
-                      )
-                        ocultarConferenciaMotorista(c.id)
-                    }}
-                  >
-                    👁️ Tirar da minha tela
-                  </Button>
+                          ocultarConferenciaMotorista(c.id)
+                      }}
+                    >
+                      👁️ Tirar da minha tela
+                    </Button>
+                  ) : (
+                    <span className="self-center text-xs text-slate-500">
+                      Faltam {faltando(c)} pacote(s) — esta conferência fica na sua tela até fechar.
+                    </span>
+                  )}
                 </div>
               )}
             </div>
