@@ -766,7 +766,7 @@ export async function importarRotas(
         cidade: ou(cidadeOficial(n.cidade), anterior?.cidade),
         rotaOriginal: ou(n.rotaOriginal, anterior?.rotaOriginal),
         base: ou(n.base, anterior?.base),
-        veiculo: ou(n.veiculo, anterior?.veiculo),
+        veiculo: nomeOficialVeiculo(ou(n.veiculo, anterior?.veiculo), state),
         km: ou(n.km, anterior?.km),
         dps: ou(n.dps, anterior?.dps),
         ocupacao: ou(n.ocupacao, anterior?.ocupacao),

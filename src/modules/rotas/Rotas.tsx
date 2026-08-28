@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
+import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
-import { VEICULOS } from '../../core/constants'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
-const VEICULOS_ROTA = ['Utilitários', 'Vuc', 'Veículo de Passeio', ...VEICULOS]
 
 export function Rotas() {
   const db = useDB()
@@ -37,9 +36,10 @@ export function Rotas() {
 
   const cidades = [...new Set(rotasDoDia.map((r) => r.cidade))].filter(Boolean).sort()
   const transportadoras = [...new Set(rotasDoDia.map((r) => r.transportadora))].filter(Boolean).sort()
-  const veiculosOpcoes = [...new Set([...VEICULOS_ROTA, ...rotasDoDia.map((r) => r.veiculo)])]
-    .filter(Boolean)
-    .sort()
+  // As opções do veículo vêm de 🏷️ Opções de cadastro, e só de lá. Uma lista
+  // fixa no código mostrava oito escolhas para uma operação que tem três, e
+  // ainda repetia o mesmo veículo em duas grafias ("Vuc" e "VUC").
+  const veiculosOpcoes = opcoesDeVeiculo(db)
 
   const rotas = rotasDoDia
     .filter(
@@ -443,11 +443,11 @@ export function Rotas() {
                   <td className={CELULA}>
                     <select
                       className={SELETOR}
-                      value={r.veiculo}
+                      value={nomeOficialVeiculo(r.veiculo, db)}
                       onChange={(e) => salvarRota({ ...r, veiculo: e.target.value })}
                       title="Trocar o tipo de veículo"
                     >
-                      {[...new Set([r.veiculo, ...veiculosOpcoes])].filter(Boolean).map((v) => (
+                      {opcoesDeVeiculo(db, r.veiculo).map((v) => (
                         <option key={v}>{v}</option>
                       ))}
                     </select>
@@ -535,8 +535,15 @@ export function Rotas() {
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Veículo (livre)">
-                <Input value={editando.veiculo} onChange={(e) => setEditando({ ...editando, veiculo: e.target.value })} />
+              <Field label="Veículo">
+                <Select
+                  value={nomeOficialVeiculo(editando.veiculo, db)}
+                  onChange={(e) => setEditando({ ...editando, veiculo: e.target.value })}
+                >
+                  {opcoesDeVeiculo(db, editando.veiculo).map((v) => (
+                    <option key={v}>{v}</option>
+                  ))}
+                </Select>
               </Field>
               <Field label="Transportadora">
                 <Input

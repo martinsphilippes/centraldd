@@ -25,8 +25,28 @@ export function veiculosOficiais(db: DB): string[] {
 export function nomeOficialVeiculo(valor: string | undefined | null, db: DB): string {
   const limpo = (valor ?? '').trim()
   if (!limpo) return ''
-  const chave = normalizarTexto(limpo)
-  return veiculosOficiais(db).find((v) => normalizarTexto(v) === chave) ?? limpo
+  return veiculosOficiais(db).find((v) => mesmoVeiculo(v, limpo)) ?? limpo
+}
+
+/**
+ * Dois nomes falam do mesmo veículo?
+ *
+ * Além de acento e caixa, o plural conta: a planilha do Meli escreve
+ * "Utilitários" e o cadastro tem "Utilitário". Sem isto, o seletor mostrava as
+ * duas — e cada rota casava com metade da frota.
+ */
+export function mesmoVeiculo(a: string, b: string): boolean {
+  const x = normalizarTexto(a)
+  const y = normalizarTexto(b)
+  if (!x || !y) return false
+  if (x === y) return true
+  // Plural: "utilitarios" = "utilitario"; "vans" = "van".
+  if (x === `${y}s` || y === `${x}s` || x === `${y}es` || y === `${x}es`) return true
+  // Um contido no outro só vale com nome longo — "van" dentro de "vanguarda"
+  // não é o mesmo veículo.
+  const menor = x.length <= y.length ? x : y
+  const maior = x.length <= y.length ? y : x
+  return menor.length >= 5 && maior.includes(menor)
 }
 
 /**
@@ -34,12 +54,9 @@ export function nomeOficialVeiculo(valor: string | undefined | null, db: DB): st
  * repetir variação. Quem estiver com 'Utilitario' vê uma única "Utilitário".
  */
 export function opcoesDeVeiculo(db: DB, atual?: string): string[] {
-  const vistos = new Set<string>()
   const saida: string[] = []
   for (const v of [...veiculosOficiais(db), (atual ?? '').trim()]) {
-    const chave = normalizarTexto(v)
-    if (!chave || vistos.has(chave)) continue
-    vistos.add(chave)
+    if (!v.trim() || saida.some((j) => mesmoVeiculo(j, v))) continue
     saida.push(v)
   }
   return saida
