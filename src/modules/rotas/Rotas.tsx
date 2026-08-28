@@ -279,6 +279,17 @@ export function Rotas() {
         </div>
       </div>
 
+      {rotasDoDia.some((r) => !r.rotaExpedicao.trim()) && (
+        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          ⚠️ <strong>
+            {rotasDoDia.filter((r) => !r.rotaExpedicao.trim()).length} rota(s) sem código de
+            expedição
+          </strong>{' '}
+          — vieram de linhas que a leitura não conseguiu completar. Clique em{' '}
+          <strong>⚠️ sem código</strong> na linha para preencher: sem o código não dá para
+          direcionar motorista nem reimportar a planilha sem duplicar a rota.
+        </p>
+      )}
       {avisoAuto && (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
           {avisoAuto}
@@ -363,7 +374,22 @@ export function Rotas() {
               {rotas.map((r) => (
                 <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className={CELULA}>{r.cidade}</td>
-                  <td className={`${CELULA} font-bold text-slate-900`}>{r.rotaExpedicao}</td>
+                  <td className={`${CELULA} font-bold text-slate-900`}>
+                    {r.rotaExpedicao.trim() ? (
+                      r.rotaExpedicao
+                    ) : (
+                      // Rota que entrou pela importação sem código (a foto não
+                      // trouxe a coluna). Sem ele não dá para direcionar nem
+                      // reimportar sem duplicar, então ela pede para ser aberta.
+                      <button
+                        onClick={() => setEditando(r)}
+                        className="rounded-lg border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700 hover:bg-red-100"
+                        title="Esta rota entrou sem código. Clique para completar."
+                      >
+                        ⚠️ sem código — completar
+                      </button>
+                    )}
+                  </td>
                   <td className={`${CELULA} bg-yellow-50`}>
                     <div className="flex items-center justify-between gap-1.5">
                       <span>{r.rotaOriginal}</span>
