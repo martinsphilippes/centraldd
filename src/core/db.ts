@@ -754,13 +754,24 @@ export async function importarRotas(
       // diferentes, e a importação de um dia nunca sobrescreve a de outro.
       const id = `${data}_${(n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')}`
       const anterior = existentes.get(id)
+      // Campo VAZIO na leitura quer dizer "não veio nesta importação", e nunca
+      // "apague o que está lá". O texto colado costuma trazer só parte das
+      // colunas (um bloco vem com Km e sem DPS, outro o contrário), e uma
+      // reimportação assim zerava em silêncio o que já estava certo.
+      const ou = (novo: string, salvo: string | undefined) => (novo.trim() ? novo : (salvo ?? ''))
       const rota: Rota = {
         ...n,
         id,
         data,
-        cidade: cidadeOficial(n.cidade),
-        // Leitura vazia não apaga a já salva; rota nova fica com a mais comum.
-        transportadora: n.transportadora || anterior?.transportadora || maisComum,
+        cidade: ou(cidadeOficial(n.cidade), anterior?.cidade),
+        rotaOriginal: ou(n.rotaOriginal, anterior?.rotaOriginal),
+        base: ou(n.base, anterior?.base),
+        veiculo: ou(n.veiculo, anterior?.veiculo),
+        km: ou(n.km, anterior?.km),
+        dps: ou(n.dps, anterior?.dps),
+        ocupacao: ou(n.ocupacao, anterior?.ocupacao),
+        // Rota nova sem transportadora fica com a mais comum da operação.
+        transportadora: ou(n.transportadora, anterior?.transportadora) || maisComum,
         motoristaId: anterior?.motoristaId ?? null,
         finalizadaEm: anterior?.finalizadaEm ?? null,
         resultadoFinalizacao: anterior?.resultadoFinalizacao ?? null,

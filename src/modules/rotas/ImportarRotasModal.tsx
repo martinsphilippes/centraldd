@@ -42,6 +42,7 @@ export function ImportarRotasModal({
     ignoradas: number
     avisos: string[]
     descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[]
+    colunasVazias: string[]
   } | null>(null)
   // Linhas que o Dispatcher decidiu incluir à mão (as que a leitura descartou).
   const [manuais, setManuais] = useState<RotaImportada[]>([])
@@ -315,6 +316,13 @@ export function ImportarRotasModal({
             ))}
           </ul>
         </div>
+      )}
+      {previa && previa.colunasVazias.length > 0 && (
+        <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          ℹ️ O que você colou não trouxe <strong>{previa.colunasVazias.join(', ')}</strong> — essas
+          colunas ficam em branco, e tudo bem. Se depois você importar de novo com esses dados, eles
+          entram sem apagar o que já está salvo.
+        </p>
       )}
       {previa && previa.descartadas.length > 0 && (
         <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">

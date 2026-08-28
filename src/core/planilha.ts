@@ -905,6 +905,8 @@ export function parsearPlanilhaRotas(
    * de perder os dados que estavam certos nela.
    */
   descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[]
+  /** Colunas que NENHUMA linha trouxe — ficam em branco, e isso é esperado. */
+  colunasVazias: string[]
 } {
   const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
   const descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[] = []
@@ -1133,7 +1135,12 @@ export function parsearPlanilhaRotas(
       }
     }
   }
-  return { rotas: validas, ignoradas, avisos, descartadas }
+  // Coluna que ninguém preencheu não é erro: o texto colado simplesmente não
+  // a trouxe. Dizer isso evita o Dispatcher procurar defeito onde não há.
+  const colunasVazias = COLUNAS.filter(
+    (c) => c !== 'rotaExpedicao' && validas.length > 0 && validas.every((r) => !r[c].trim()),
+  ).map((c) => ROTULO_COLUNA[c])
+  return { rotas: validas, ignoradas, avisos, descartadas, colunasVazias }
 }
 
 /**
