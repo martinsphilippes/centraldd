@@ -32,6 +32,8 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   limiteAutomatico: true,
   limiteFolgaPercentual: 10,
   limiteFolgaFixa: 0,
+  respeitarFrotaDoDia: true,
+  rodizioPorVeiculo: true,
   atualizadoEm: '',
 }
 
@@ -70,7 +72,7 @@ function listaDeTexto(texto?: string): string[] {
 }
 
 /** "VUC = HR, Van" (uma por linha) → mapa veículo-da-rota → veículos aceitos. */
-function parseEquivalencias(texto: string): Map<string, Set<string>> {
+export function parseEquivalencias(texto: string): Map<string, Set<string>> {
   const mapa = new Map<string, Set<string>>()
   for (const linha of texto.split(/\n/)) {
     const [rota, cadastro] = linha.split('=')

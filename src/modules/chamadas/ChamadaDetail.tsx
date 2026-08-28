@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarPlanejamento, uid, useDB, enviarNotificacao } from '../../core/db'
-import { formatarData, formatarQuandoCurto, hojeISO, rotuloDia } from '../../core/dates'
+import { formatarData, formatarQuandoCurto, hojeISO, parseISODate, rotuloDia } from '../../core/dates'
 import { respostasDaChamada, resumoChamada, sugerirPlanejamento, veioDaDisponibilidade } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
+import { parametrosAtuais } from '../../core/alocacao'
+import { frotaDoDia, historicoDeTrabalho, serveNaVaga } from '../../core/vagas'
+import { PainelFrota } from '../../components/PainelFrota'
 import type { Motorista, Resposta } from '../../core/types'
 import { mensagemCobranca, formatarTelefone } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
@@ -25,6 +28,13 @@ export function ChamadaDetail() {
 
   const chamada = db.chamadas.find((c) => c.id === id)
   const resumo = useMemo(() => (chamada ? resumoChamada(db, chamada) : null), [db, chamada])
+  const p = parametrosAtuais(db)
+  const frota = useMemo(() => frotaDoDia(db, chamada?.data ?? ''), [db, chamada?.data])
+  // Há quantos dias cada um não trabalha — é o que explica a ordem do rodízio.
+  const ultimoTrabalho = useMemo(
+    () => historicoDeTrabalho(db, chamada?.data ?? ''),
+    [db, chamada?.data],
+  )
 
   if (!chamada || !resumo) {
     return <EmptyState icone="🔍" titulo="Chamada não encontrada" />
@@ -60,6 +70,20 @@ export function ChamadaDetail() {
   const pendentesFiltrados = filtro.status ? [] : resumo.pendentes.filter((m) => aplicaFiltro(m))
   const disponiveis = respostasFiltradas.filter((r) => STATUS_DISPONIVEIS.includes(r.status))
   const indisponiveis = respostasFiltradas.filter((r) => !STATUS_DISPONIVEIS.includes(r.status))
+
+  // "há N dias sem trabalhar" — o número que justifica a ordem do rodízio.
+  const descanso = (mid: string): string => {
+    const ultimo = ultimoTrabalho.get(mid)?.ultimo
+    if (!ultimo) return 'nunca trabalhou'
+    const dias = Math.round(
+      (parseISODate(chamada.data).getTime() - parseISODate(ultimo).getTime()) / 86400000,
+    )
+    return dias <= 0 ? 'trabalhou hoje' : dias === 1 ? 'trabalhou ontem' : `${dias} dias sem trabalhar`
+  }
+
+  // O dia pede o veículo dele? Se não pede, entrar no planejamento é furar o modelo.
+  const temVaga = (m: Motorista) =>
+    frota.livres > 0 || frota.vagas.some((v) => serveNaVaga(v.tipo, m.veiculo, p))
 
   const abrirMontagem = () => {
     // A sugestão já vem dividida pela parametrização: a meta entra, o
@@ -368,7 +392,21 @@ export function ChamadaDetail() {
           A sugestão preenche a <strong>meta</strong> com os melhores pela parametrização; quem
           sobra vai para a <strong>🕐 fila de espera</strong>, pronto para cobrir falta. Toque em
           alguém para trocar: ☑️ entra → 🕐 espera → ⬜ fora.
+          {p.respeitarFrotaDoDia && frota.total > 0 && (
+            <>
+              {' '}
+              O mix por veículo vem do <strong>{frota.fonte}</strong>: cada veículo só leva quantos
+              couberem nas vagas dele.
+            </>
+          )}
         </p>
+        <div className="mb-3">
+          <PainelFrota
+            frota={frota}
+            selecionados={[...selecionados].map((mid) => porId.get(mid)).filter((m): m is Motorista => !!m)}
+            p={p}
+          />
+        </div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
           <span className="font-semibold text-slate-700">
             ☑️ {selecionados.size}/{chamada.qtdNecessaria} no planejamento · 🕐 {espera.size} na espera
@@ -425,8 +463,18 @@ export function ChamadaDetail() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{m.nome}</span>
                       <span className="text-[11px] text-slate-500">
-                        {pendente ? '🚧 rota em andamento — finalize para entrar' : `${m.cidade} • ${m.veiculo}`}
+                        {pendente
+                          ? '🚧 rota em andamento — finalize para entrar'
+                          : `${m.cidade} • ${m.veiculo || 'sem veículo'}`}
+                        {!pendente && p.rodizioPorVeiculo && (
+                          <span className="ml-1 text-slate-400">• 🔁 {descanso(m.id)}</span>
+                        )}
                       </span>
+                      {!pendente && p.respeitarFrotaDoDia && frota.total > 0 && !temVaga(m) && (
+                        <span className="mt-0.5 block text-[11px] font-semibold text-amber-700">
+                          ⚠️ o dia não tem vaga de {m.veiculo || 'veículo definido'}
+                        </span>
+                      )}
                     </span>
                     <StatusPill resposta={r} />
                   </button>

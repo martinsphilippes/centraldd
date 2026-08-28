@@ -11,6 +11,9 @@ import {
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
 import { normalizarTexto } from '../../core/texto'
+import { parametrosAtuais } from '../../core/alocacao'
+import { frotaDoDia } from '../../core/vagas'
+import { PainelFrota } from '../../components/PainelFrota'
 import { Avatar, Badge, Button, Card, EmptyState, Input, Modal } from '../../components/ui'
 import { ContactButtons } from '../../components/ContactButtons'
 
@@ -61,7 +64,7 @@ export function PlanejamentoDetail() {
 
   const publicar = () => {
     salvarPlanejamento({ ...planejamento, status: 'publicada' })
-    for (const m of incluidos) {
+    for (const m of incluidosTodos) {
       enviarNotificacao({
         motoristaId: m.id,
         chamadaId: planejamento.chamadaId,
@@ -74,7 +77,7 @@ export function PlanejamentoDetail() {
   const tabela = (): Tabela => ({
     titulo: planejamento.nome,
     colunas: ['#', 'Motorista', 'Telefone', 'Cidade', 'Veículo'],
-    linhas: incluidos.map((m, i) => [
+    linhas: incluidosTodos.map((m, i) => [
       i + 1,
       m.nome,
       formatarTelefone(m.telefone),
@@ -83,7 +86,7 @@ export function PlanejamentoDetail() {
     ]),
   })
 
-  const textoGrupo = textoPlanejamentoParaGrupo(planejamento, chamada, incluidos)
+  const textoGrupo = textoPlanejamentoParaGrupo(planejamento, chamada, incluidosTodos)
 
   return (
     <div className="space-y-5">
@@ -120,7 +123,7 @@ export function PlanejamentoDetail() {
           <Button variante="secundario" onClick={() => exportarExcel(tabela())}>⬇️ Excel</Button>
           <Button variante="secundario" onClick={() => exportarPDF(tabela(), rotuloDia(planejamento.data))}>🖨️ PDF</Button>
           {planejamento.status === 'rascunho' && (
-            <Button variante="ml" onClick={publicar} disabled={incluidos.length === 0}>
+            <Button variante="ml" onClick={publicar} disabled={incluidosTodos.length === 0}>
               📢 Publicar e notificar
             </Button>
           )}
@@ -147,6 +150,13 @@ export function PlanejamentoDetail() {
           </Button>
         </div>
       </div>
+
+      {/* A frota do dia ao vivo: mexeu em quem entra, o mix muda na hora. */}
+      <PainelFrota
+        frota={frotaDoDia(db, planejamento.data)}
+        selecionados={incluidosTodos}
+        p={parametrosAtuais(db)}
+      />
 
       {/* Busca única: filtra planejamento, fila de espera e disponíveis fora. */}
       <div className="flex flex-wrap items-center gap-2">
@@ -322,7 +332,7 @@ export function PlanejamentoDetail() {
           <Button
             variante="secundario"
             onClick={() => {
-              for (const m of incluidos) {
+              for (const m of incluidosTodos) {
                 enviarNotificacao({
                   motoristaId: m.id,
                   chamadaId: planejamento.chamadaId,
@@ -338,7 +348,7 @@ export function PlanejamentoDetail() {
         </div>
         <h3 className="mb-2 mt-4 text-sm font-bold text-slate-700">Enviar individualmente:</h3>
         <ul className="max-h-40 space-y-1 overflow-y-auto">
-          {incluidos.map((m) => (
+          {incluidosTodos.map((m) => (
             <li key={m.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
               <span className="truncate font-medium">{m.nome}</span>
               <a

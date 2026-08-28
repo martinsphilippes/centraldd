@@ -288,6 +288,17 @@ export interface ParametrosAlocacao {
   limiteFolgaPercentual: number
   /** Reserva fixa somada ao limite (ex.: 2 motoristas de retaguarda). */
   limiteFolgaFixa: number
+  /**
+   * Monta o planejamento respeitando a QUANTIDADE DE CADA VEÍCULO do dia: se o
+   * modelo tem 2 VUC, só 2 motoristas de VUC entram e o resto vai para a fila.
+   */
+  respeitarFrotaDoDia: boolean
+  /**
+   * Rodízio da frota: em veículo com mais gente que vaga, quem está há mais
+   * tempo sem trabalhar entra primeiro — o que faz a turma revezar em dias
+   * alternados em vez de sempre os mesmos.
+   */
+  rodizioPorVeiculo: boolean
   atualizadoEm: string
 }
 

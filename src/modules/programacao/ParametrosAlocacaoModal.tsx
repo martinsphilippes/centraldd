@@ -5,6 +5,8 @@
 import { useState, type ReactNode } from 'react'
 import { parametrosAtuais, PARAMETROS_PADRAO } from '../../core/alocacao'
 import { salvarParametrosAlocacao, useDB } from '../../core/db'
+import { hojeISO } from '../../core/dates'
+import { frotaDoDia } from '../../core/vagas'
 import type { ParametrosAlocacao } from '../../core/types'
 import { Button, Input, Modal } from '../../components/ui'
 
@@ -30,6 +32,9 @@ function Item({
 export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
   const db = useDB()
   const [p, setP] = useState<ParametrosAlocacao | null>(null)
+  // A frota de hoje entra na explicação: o operador lê a regra já com o número
+  // do dia dele na frente, em vez de um exemplo genérico.
+  const frota = frotaDoDia(db, hojeISO())
 
   // Carrega os valores salvos quando o modal abre (e zera ao fechar).
   if (aberto && p === null) setP(parametrosAtuais(db))
@@ -213,6 +218,47 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
                 </Button>
               )}
             </div>
+          </Item>
+        </div>
+
+        {/* ───────── Frota do dia ───────── */}
+        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+          Frota do dia — quantos de cada veículo entram
+        </p>
+        <div className="space-y-3">
+          <Item
+            titulo="🚐 Respeitar a quantidade de cada veículo"
+            explicacao={
+              frota.total > 0
+                ? `Ligada: o planejamento leva no máximo o que o dia comporta de CADA veículo, e o excedente vai para a fila de espera. Hoje o ${frota.fonte} tem ${frota.vagas
+                    .map((v) => `${v.vagas} ${v.tipo}`)
+                    .join(' · ')}${frota.livres > 0 ? ` · ${frota.livres} sem veículo definido` : ''} — é exatamente esse mix que o planejamento vai respeitar. Desligada: entram os melhores da meta, seja qual for o veículo.`
+                : 'Ligada: o planejamento leva no máximo o que o dia comporta de CADA veículo (ex.: modelo com 2 VUC = só 2 motoristas de VUC entram, o resto vai para a fila de espera). A conta vem do modelo do dia, da programação do Meli ou da roteirização — o que existir. Hoje ainda não há nenhum dos três carregado, então a regra fica em espera.'
+            }
+          >
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={p.respeitarFrotaDoDia}
+                onChange={(e) => setP({ ...p, respeitarFrotaDoDia: e.target.checked })}
+              />
+              {p.respeitarFrotaDoDia ? 'Ligada' : 'Desligada'}
+            </label>
+          </Item>
+          <Item
+            titulo="🔁 Rodízio da frota — trabalhar em dias alternados"
+            explicacao="Ligada: quando um veículo tem mais motoristas que vagas, entra primeiro quem está há mais tempo sem trabalhar (quem nunca trabalhou vem na frente de todos). É o que faz, por exemplo, os motoristas de VUC se revezarem nos dias de pouca vaga em vez de serem sempre os mesmos dois. Desligada: a ordem segue só pelos outros critérios, e quem responde sempre primeiro tende a repetir."
+          >
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={p.rodizioPorVeiculo}
+                onChange={(e) => setP({ ...p, rodizioPorVeiculo: e.target.checked })}
+              />
+              {p.rodizioPorVeiculo ? 'Ligada' : 'Desligada'}
+            </label>
           </Item>
         </div>
 

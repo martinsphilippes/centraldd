@@ -2,7 +2,9 @@
 
 import type { Chamada, DB, Motorista, Resposta, StatusResposta } from './types'
 import { STATUS_DISPONIVEIS } from './constants'
+import { hojeISO } from './dates'
 import { disponiveisNoDomingoAnterior, parametrosAtuais } from './alocacao'
+import { compararRodizio, distribuirPorFrota, frotaDoDia, historicoDeTrabalho, type DistribuicaoFrota } from './vagas'
 
 export interface ResumoChamada {
   chamada: Chamada
@@ -138,7 +140,7 @@ export function serieDisponibilidade(db: DB, dataIni: string, dataFim: string): 
 export function sugerirPlanejamento(
   db: DB,
   chamada: Chamada,
-): { escolhidos: Motorista[]; espera: Motorista[] } {
+): { escolhidos: Motorista[]; espera: Motorista[]; frota: DistribuicaoFrota } {
   const respostas = respostasDaChamada(db, chamada.id)
   const hist = new Map(
     estatisticasMotoristas(db, '0000-01-01', '9999-12-31').map((e) => [e.motorista.id, e]),
@@ -150,6 +152,12 @@ export function sugerirPlanejamento(
     chamada.qtdNecessaria < p.limiarRotasPrioridadeDomingo
       ? disponiveisNoDomingoAnterior(db, chamada.data)
       : new Set<string>()
+  // Rodízio: quem está há mais tempo sem trabalhar sobe na lista. É o que faz
+  // a frota alternar quando há menos vaga que gente — sem isso, os mesmos
+  // nomes entrariam todo dia e os outros nunca.
+  const rodizio = p.rodizioPorVeiculo
+    ? historicoDeTrabalho(db, chamada.data, hojeISO(-Math.max(1, p.janelaRodizioDias) * 4))
+    : new Map()
   const peso = (s: StatusResposta) => (s === 'disponivel' ? 0 : STATUS_DISPONIVEIS.includes(s) ? 1 : 2)
   const candidatos = respostas
     .filter((r) => STATUS_DISPONIVEIS.includes(r.status))
@@ -158,6 +166,10 @@ export function sugerirPlanejamento(
       if (pp !== 0) return pp
       const d = Number(comDomingo.has(b.motoristaId)) - Number(comDomingo.has(a.motoristaId))
       if (d !== 0) return d
+      if (p.rodizioPorVeiculo) {
+        const rod = compararRodizio(a.motoristaId, b.motoristaId, rodizio)
+        if (rod !== 0) return rod
+      }
       const ha = hist.get(a.motoristaId)?.taxaDisponibilidade ?? 0
       const hb = hist.get(b.motoristaId)?.taxaDisponibilidade ?? 0
       if (hb !== ha) return hb - ha
@@ -167,8 +179,13 @@ export function sugerirPlanejamento(
   const ordenados = candidatos
     .map((r) => porId.get(r.motoristaId))
     .filter((m): m is Motorista => !!m)
-  return {
-    escolhidos: ordenados.slice(0, chamada.qtdNecessaria),
-    espera: ordenados.slice(chamada.qtdNecessaria),
-  }
+  // A frota do dia manda no MIX: cada veículo só leva quantos couberem nas
+  // vagas dele; o excedente vai para a fila de espera com a ordem preservada.
+  const frota = distribuirPorFrota(
+    p.respeitarFrotaDoDia ? frotaDoDia(db, chamada.data) : { vagas: [], livres: 0, total: 0, fonte: '', divergencia: '' },
+    ordenados,
+    chamada.qtdNecessaria,
+    p,
+  )
+  return { escolhidos: frota.escolhidos, espera: frota.espera, frota }
 }
