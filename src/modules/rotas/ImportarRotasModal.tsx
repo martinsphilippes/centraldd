@@ -32,6 +32,9 @@ export function ImportarRotasModal({
   const [pedacos, setPedacos] = useState<string[]>([])
   const [fotos, setFotos] = useState<FotoColuna[]>([])
   const [avisosFotos, setAvisosFotos] = useState<string[]>([])
+  // Índices em que o Dispatcher mandou começar um bloco de linhas novo, para
+  // quando ele fotografa a MESMA coluna de outro pedaço da planilha.
+  const [quebras, setQuebras] = useState<number[]>([])
   const [previa, setPrevia] = useState<{
     rotas: RotaImportada[]
     ignoradas: number
@@ -65,7 +68,7 @@ export function ImportarRotasModal({
   }
 
   /** Recompõe a tabela a partir de tudo que já entrou (fotos + texto colado). */
-  const recalcular = (novosPedacos: string[], novoTexto: string) => {
+  const recalcular = (novosPedacos: string[], novoTexto: string, novasQuebras = quebras) => {
     const partes = [...novosPedacos, novoTexto].filter((t) => t.trim())
     if (partes.length === 0) {
       setPrevia(null)
@@ -73,11 +76,47 @@ export function ImportarRotasModal({
       setAvisosFotos([])
       return
     }
-    const junto = juntarFotosPorColuna(partes, contexto)
+    const junto = juntarFotosPorColuna(partes, contexto, novasQuebras)
     setFotos(junto.fotos.slice(0, novosPedacos.length))
     setAvisosFotos(junto.avisos)
     setPrevia(parsearPlanilhaRotas(junto.texto, contexto))
   }
+
+  /** O cartão de uma foto: o que ela trouxe e o botão de tirar da montagem. */
+  const LINHA_FOTO = (f: FotoColuna, i: number) => (
+    <div
+      className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+        f.reconhecida
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          : 'border-amber-300 bg-amber-50 text-amber-800'
+      }`}
+    >
+      <span className="font-bold">📸 Foto {i + 1}</span>
+      {f.reconhecida ? (
+        <span>
+          {f.colunas.join(' · ')} — {f.linhas} linha(s)
+        </span>
+      ) : (
+        <span>
+          não reconheci as colunas desta foto — ela entrou como linha solta. Tente de novo, mais de
+          perto.
+        </span>
+      )}
+      <button
+        className="ml-auto rounded px-1.5 text-slate-500 hover:bg-white hover:text-red-600"
+        title="Tirar esta foto da montagem"
+        onClick={() => {
+          const restantes = pedacos.filter((_, j) => j !== i)
+          const novasQuebras = quebras.filter((q) => q !== i).map((q) => (q > i ? q - 1 : q))
+          setPedacos(restantes)
+          setQuebras(novasQuebras)
+          recalcular(restantes, textoColado, novasQuebras)
+        }}
+      >
+        🗑️
+      </button>
+    </div>
+  )
 
   const atualizarPrevia = (texto: string) => {
     setTextoColado(texto)
@@ -111,7 +150,7 @@ export function ImportarRotasModal({
         }
         const todos = [...pedacos, ...novos.filter((t) => t.trim())]
         setPedacos(todos)
-        recalcular(todos, textoColado)
+        recalcular(todos, textoColado, quebras)
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
         setErroArquivo(
@@ -132,6 +171,7 @@ export function ImportarRotasModal({
       setPedacos([])
       setFotos([])
       setAvisosFotos([])
+      setQuebras([])
       setPrevia(null)
       onFechar()
     } finally {
@@ -156,10 +196,15 @@ export function ImportarRotasModal({
       <p className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
         📸 <strong>Foto por partes:</strong> em vez de afastar para pegar a planilha inteira (e
         perder nitidez), fotografe <strong>2 ou 3 colunas de cada vez, de perto</strong>, e mande
-        uma foto de cada. O app encaixa lado a lado sozinho. Duas regras:{' '}
-        <strong>a linha de título tem que aparecer</strong> em toda foto — é por ela que o app sabe
-        de que coluna é — e <strong>as mesmas linhas, na mesma ordem</strong>, em todas. Repetir a
-        coluna <strong>Rota expedição</strong> em cada foto deixa o app conferir o encaixe.
+        uma foto de cada — o app reconhece as colunas sozinho e encaixa lado a lado. A única regra
+        é <strong>as mesmas linhas, na mesma ordem</strong>, dentro de cada rodada.
+        <br />
+        <strong>Acabou uma parte da planilha?</strong> Role para as próximas linhas e continue
+        mandando fotos: elas viram um <strong>bloco novo</strong> e as rotas{' '}
+        <strong>somam</strong> às anteriores — nada é substituído. O app abre bloco novo sozinho
+        quando uma coluna se repete; se as colunas forem outras, avise no botão{' '}
+        <strong>🧱 Próxima foto é de outras linhas</strong>. Repetir a coluna{' '}
+        <strong>Rota expedição</strong> em cada foto deixa o app conferir o encaixe.
       </p>
       <textarea
         className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
@@ -172,6 +217,22 @@ export function ImportarRotasModal({
         <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
           {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar Excel, CSV, PDF ou foto')}
         </Button>
+        {pedacos.length > 0 && (
+          <Button
+            variante="secundario"
+            onClick={() => {
+              // A próxima foto começa um bloco novo mesmo que as colunas não
+              // repitam — para quando o Dispatcher fotografa outro pedaço da
+              // planilha com colunas diferentes das que já enviou.
+              const nova = [...new Set([...quebras, pedacos.length])]
+              setQuebras(nova)
+              recalcular(pedacos, textoColado, nova)
+            }}
+            title="As próximas fotos são de OUTRAS linhas da planilha, não das mesmas"
+          >
+            🧱 Próxima foto é de outras linhas
+          </Button>
+        )}
         {previa && (
           <>
             <span className="text-sm font-semibold text-slate-700">
@@ -183,6 +244,7 @@ export function ImportarRotasModal({
                 setPedacos([])
                 setFotos([])
                 setAvisosFotos([])
+                setQuebras([])
                 atualizarPrevia('')
               }}
               className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
@@ -195,39 +257,20 @@ export function ImportarRotasModal({
       </div>
       {fotos.length > 0 && (
         <div className="mt-2 space-y-1">
-          {fotos.map((f, i) => (
-            <div
-              key={i}
-              className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
-                f.reconhecida
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                  : 'border-amber-300 bg-amber-50 text-amber-800'
-              }`}
-            >
-              <span className="font-bold">📸 Foto {i + 1}</span>
-              {f.reconhecida ? (
-                <span>
-                  {f.colunas.join(' · ')} — {f.linhas} linha(s)
-                </span>
-              ) : (
-                <span>
-                  não achei o cabeçalho, então não sei de que colunas é — entrou como linha solta.
-                  Refaça incluindo a linha de título das colunas.
-                </span>
-              )}
-              <button
-                className="ml-auto rounded px-1.5 text-slate-500 hover:bg-white hover:text-red-600"
-                title="Tirar esta foto da montagem"
-                onClick={() => {
-                  const restantes = pedacos.filter((_, j) => j !== i)
-                  setPedacos(restantes)
-                  recalcular(restantes, textoColado)
-                }}
-              >
-                🗑️
-              </button>
-            </div>
-          ))}
+          {fotos.map((f, i) => {
+            const abreBloco = f.bloco > 0 && (i === 0 || fotos[i - 1].bloco !== f.bloco)
+            const doBloco = fotos.filter((x) => x.bloco === f.bloco)
+            return (
+              <div key={i}>
+                {abreBloco && (
+                  <p className="mb-1 mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    🧱 Bloco {f.bloco} · {Math.max(...doBloco.map((x) => x.linhas))} rota(s)
+                  </p>
+                )}
+                {LINHA_FOTO(f, i)}
+              </div>
+            )
+          })}
         </div>
       )}
       {avisosFotos.length > 0 && (

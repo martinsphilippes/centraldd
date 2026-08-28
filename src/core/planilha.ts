@@ -57,10 +57,10 @@ export function parsearPlanilhaMeli(texto: string): {
   itens: ProgramacaoImportada[]
   ignoradas: number
 } {
-  const linhas = texto
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
+  // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
+  // trim comia a tabulação e todas as colunas escorregavam uma casa para a
+  // esquerda — a rota original acabava lida como código de expedição.
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== '')
   const itens: ProgramacaoImportada[] = []
   let ignoradas = 0
 
@@ -575,6 +575,8 @@ export interface FotoColuna {
   linhas: number
   /** Sem cabeçalho reconhecido não dá para saber de que coluna a foto é. */
   reconhecida: boolean
+  /** Em que bloco de linhas esta foto entrou (1, 2, 3…). */
+  bloco: number
 }
 
 const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
@@ -605,6 +607,8 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
 export function juntarFotosPorColuna(
   textos: string[],
   ctx: ContextoLeitura = {},
+  /** Índices em que o Dispatcher mandou começar um bloco de linhas novo. */
+  quebras: number[] = [],
 ): {
   texto: string
   fotos: FotoColuna[]
@@ -612,14 +616,14 @@ export function juntarFotosPorColuna(
 } {
   const avisos: string[] = []
   const fotos: FotoColuna[] = []
-  const blocos: { mapa: Map<number, (typeof COLUNAS)[number]>; linhas: string[][] }[] = []
-  const soltos: string[] = []
+  const soltos: string[][] = []
+  type Bloco = { mapa: Map<number, (typeof COLUNAS)[number]>; linhas: string[][]; foto: number }
+  const lidos: Bloco[] = []
 
   for (const texto of textos) {
     const grade = texto
       .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
+      .filter((l) => l.trim() !== '')
       .map((l) => l.split(detectarSeparador(l)).map(limpar))
     if (grade.length === 0) continue
 
@@ -635,84 +639,141 @@ export function juntarFotosPorColuna(
     }
     if (!mapa) mapa = mapearPeloConteudo(grade, ctx)
     if (!mapa) {
-      // Sem saber de que coluna é, a foto não pode ser encaixada — mas o que
-      // ela leu não se perde: entra como linha solta, o jeito antigo.
-      soltos.push(texto)
-      fotos.push({ colunas: [], linhas: grade.length, reconhecida: false })
+      // Sem reconhecer as colunas, ainda dá para pescar o código de rota pelo
+      // padrão, linha a linha. O que sai daqui já vem no formato final — nada
+      // de texto cru misturado com tabela montada, que era o que embaralhava.
+      const pescadas = grade
+        .map((l) => lerRecorte(l.join('\t')))
+        .filter((r): r is NonNullable<typeof r> => !!r)
+      for (const r of pescadas) {
+        const linha = COLUNAS.map(() => '')
+        linha[COLUNAS.indexOf('rotaExpedicao')] = r.rotaExpedicao
+        if (r.rotaOriginal) linha[COLUNAS.indexOf('rotaOriginal')] = r.rotaOriginal
+        soltos.push(linha)
+      }
+      fotos.push({ colunas: [], linhas: pescadas.length, reconhecida: false, bloco: 0 })
       continue
     }
     const linhas = grade
       .slice(inicio)
       .filter((l) => l.some((c) => c !== '') && pareceLinhaDeDados(l, mapa))
-    blocos.push({ mapa, linhas })
+    lidos.push({ mapa, linhas, foto: fotos.length })
     fotos.push({
       colunas: [...new Set([...mapa.values()])].map((c) => ROTULO_COLUNA[c]),
       linhas: linhas.length,
       reconhecida: true,
+      bloco: 0,
     })
   }
 
-  if (blocos.length === 0) return { texto: soltos.join('\n'), fotos, avisos }
-
-  // Todas as fotos precisam ter a mesma quantidade de linhas para encaixarem.
-  const alturas = [...new Set(blocos.map((b) => b.linhas.length))]
-  if (alturas.length > 1) {
-    avisos.push(
-      `as fotos têm quantidades de linhas diferentes (${alturas.join(', ')}) — confira se alguma ficou cortada, porque as linhas podem ter se encaixado trocadas`,
-    )
+  const cabecalho = COLUNAS.map((c) => ROTULO_COLUNA[c]).join('\t')
+  if (lidos.length === 0) {
+    const corpo = soltos.map((l) => l.join('\t')).join('\n')
+    return { texto: corpo ? [cabecalho, corpo].join('\n') : '', fotos, avisos }
   }
 
-  // Âncora: coluna que aparece em mais de uma foto serve de conferência.
-  const contagem = new Map<(typeof COLUNAS)[number], number>()
-  for (const b of blocos)
-    for (const c of new Set(b.mapa.values())) contagem.set(c, (contagem.get(c) ?? 0) + 1)
-  const ancora = [...contagem.entries()].find(([c, n]) => n > 1 && (c === 'rotaExpedicao' || c === 'rotaOriginal'))?.[0]
+  // Fotos que SE COMPLETAM (colunas diferentes das mesmas linhas) ficam no
+  // mesmo bloco e se encaixam lado a lado. Quando volta uma coluna que o bloco
+  // já tem, é porque a foto CONTINUA a planilha — abre bloco novo, e as linhas
+  // dele somam às anteriores em vez de substituir.
+  const grupos: Bloco[][] = []
+  let atual: Bloco[] = []
+  let usadas = new Set<(typeof COLUNAS)[number]>()
+  const quebrasSet = new Set(quebras)
+  for (const b of lidos) {
+    const minhas = new Set(b.mapa.values())
+    const repete = [...minhas].some((c) => usadas.has(c))
+    if (atual.length > 0 && (repete || quebrasSet.has(b.foto))) {
+      grupos.push(atual)
+      atual = []
+      usadas = new Set()
+    }
+    atual.push(b)
+    for (const c of minhas) usadas.add(c)
+  }
+  if (atual.length > 0) grupos.push(atual)
+  grupos.forEach((g, i) => {
+    for (const b of g) fotos[b.foto].bloco = i + 1
+  })
 
-  const altura = Math.max(...blocos.map((b) => b.linhas.length))
   const saida: string[][] = []
-  for (let i = 0; i < altura; i++) {
-    const linha = COLUNAS.map(() => '')
-    for (const b of blocos) {
-      const celulas = b.linhas[i]
-      if (!celulas) continue
-      for (const [pos, coluna] of b.mapa) {
-        const valor = celulas[pos] ?? ''
-        if (valor) linha[COLUNAS.indexOf(coluna)] = valor
-      }
-    }
-    saida.push(linha)
-  }
+  grupos.forEach((blocos, iGrupo) => {
+    const rotulo = grupos.length > 1 ? `bloco ${iGrupo + 1}: ` : ''
 
-  if (ancora) {
-    // Com âncora dá para conferir de verdade: se as fotos discordarem na mesma
-    // linha, o encaixe escorregou e é melhor o Dispatcher saber.
-    const pos = COLUNAS.indexOf(ancora)
-    let divergiu = 0
-    for (let i = 0; i < altura; i++) {
-      const vistos = new Set<string>()
-      for (const b of blocos) {
-        const idx = [...b.mapa.entries()].find(([, c]) => c === ancora)?.[0]
-        if (idx === undefined) continue
-        const v = normalizarTexto(b.linhas[i]?.[idx] ?? '')
-        if (v) vistos.add(v)
-      }
-      if (vistos.size > 1) divergiu++
-    }
-    void pos
-    if (divergiu > 0) {
+    // Dentro do bloco, todas as fotos precisam ter as MESMAS linhas.
+    const alturas = [...new Set(blocos.map((b) => b.linhas.length))]
+    if (alturas.length > 1) {
       avisos.push(
-        `${divergiu} linha(s) em que as fotos discordam na coluna ${ROTULO_COLUNA[ancora]} — o encaixe pode ter escorregado; confira ou tire as fotos de novo com as mesmas linhas`,
+        `${rotulo}as fotos têm quantidades de linhas diferentes (${alturas.join(', ')}) — confira se alguma ficou cortada, porque as linhas podem ter se encaixado trocadas`,
       )
     }
-  } else if (blocos.length > 1) {
-    avisos.push(
-      'as fotos não têm nenhuma coluna em comum, então o encaixe é pela ordem das linhas — para o app poder CONFERIR o encaixe, inclua a coluna "Rota expedição" em todas as fotos',
-    )
-  }
 
-  const cabecalho = COLUNAS.map((c) => ROTULO_COLUNA[c]).join('\t')
-  const corpo = saida.map((l) => l.join('\t')).join('\n')
-  return { texto: [cabecalho, corpo, ...soltos].filter(Boolean).join('\n'), fotos, avisos }
+    // Âncora: coluna repetida entre as fotos do bloco serve de conferência.
+    const contagem = new Map<(typeof COLUNAS)[number], number>()
+    for (const b of blocos)
+      for (const c of new Set(b.mapa.values())) contagem.set(c, (contagem.get(c) ?? 0) + 1)
+    const ancora = [...contagem.entries()].find(
+      ([c, n]) => n > 1 && (c === 'rotaExpedicao' || c === 'rotaOriginal'),
+    )?.[0]
+
+    const altura = Math.max(...blocos.map((b) => b.linhas.length))
+    for (let i = 0; i < altura; i++) {
+      const linha = COLUNAS.map(() => '')
+      for (const b of blocos) {
+        const celulas = b.linhas[i]
+        if (!celulas) continue
+        for (const [pos, coluna] of b.mapa) {
+          const valor = celulas[pos] ?? ''
+          if (valor) linha[COLUNAS.indexOf(coluna)] = valor
+        }
+        // Numa foto estreita a célula escorrega ("B15 PM1 PM1 21" às vezes vem
+        // em duas células, às vezes em quatro). Onde o código de rota não saiu
+        // com cara de código, vale o padrão lido na linha inteira.
+        const temCodigo = [...b.mapa.values()].some(
+          (c) => c === 'rotaExpedicao' || c === 'rotaOriginal',
+        )
+        if (temCodigo && b.mapa.size <= 3) {
+          const achado = lerRecorte(celulas.join('\t'))
+          if (achado) {
+            const iExp = COLUNAS.indexOf('rotaExpedicao')
+            const iOrig = COLUNAS.indexOf('rotaOriginal')
+            if (!CARA_DE_ROTA.test(linha[iExp])) linha[iExp] = achado.rotaExpedicao
+            if (achado.rotaOriginal && !CARA_DE_ORIGINAL.test(linha[iOrig]))
+              linha[iOrig] = achado.rotaOriginal
+          }
+        }
+      }
+      saida.push(linha)
+    }
+
+    if (ancora) {
+      // Com âncora dá para conferir de verdade: se as fotos discordarem na
+      // mesma linha, o encaixe escorregou e é melhor o Dispatcher saber.
+      let divergiu = 0
+      for (let i = 0; i < altura; i++) {
+        const vistos = new Set<string>()
+        for (const b of blocos) {
+          const idx = [...b.mapa.entries()].find(([, c]) => c === ancora)?.[0]
+          if (idx === undefined) continue
+          const v = normalizarTexto(b.linhas[i]?.[idx] ?? '')
+          if (v) vistos.add(v)
+        }
+        if (vistos.size > 1) divergiu++
+      }
+      if (divergiu > 0) {
+        avisos.push(
+          `${rotulo}${divergiu} linha(s) em que as fotos discordam na coluna ${ROTULO_COLUNA[ancora]} — o encaixe pode ter escorregado; confira ou tire as fotos de novo com as mesmas linhas`,
+        )
+      }
+    } else if (blocos.length > 1) {
+      avisos.push(
+        `${rotulo}as fotos não têm nenhuma coluna em comum, então o encaixe é pela ordem das linhas — para o app poder CONFERIR o encaixe, inclua a coluna "Rota expedição" em todas as fotos`,
+      )
+    }
+  })
+
+  const corpo = [...saida, ...soltos].map((l) => l.join('\t')).join('\n')
+  return { texto: [cabecalho, corpo].filter(Boolean).join('\n'), fotos, avisos }
 }
 
 export function parsearPlanilhaRotas(
@@ -721,10 +782,10 @@ export function parsearPlanilhaRotas(
   ctx: ContextoLeitura = {},
 ): { rotas: RotaImportada[]; ignoradas: number; avisos: string[] } {
   const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
-  const linhas = texto
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)
+  // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
+  // trim comia a tabulação e todas as colunas escorregavam uma casa para a
+  // esquerda — a rota original acabava lida como código de expedição.
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== '')
   const rotas: RotaImportada[] = []
   let ignoradas = 0
 
@@ -830,12 +891,17 @@ export function parsearPlanilhaRotas(
     const g = grafias.get(chaveTransp(t))!
     r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
   }
-  conferirColuna(finais)
-  ajustarPorColuna(finais, ctx)
+  // Uma rota ORIGINAL ("PM1_21") nunca é um código de expedição. Se sobrou
+  // alguma na coluna errada — encaixe de foto que escorregou, coluna trocada —
+  // ela sai aqui, em vez de virar rota inventada no dia.
+  const validas = finais.filter((r) => !CARA_DE_ORIGINAL.test(r.rotaExpedicao.replace(/_/g, ' ')))
+  ignoradas += finais.length - validas.length
+  conferirColuna(validas)
+  ajustarPorColuna(validas, ctx)
   // Código repetido = uma das linhas teve o código mal lido e a máquina não
   // tem como saber qual. Avisar é honesto; escolher no chute, não.
   const vezes = new Map<string, number>()
-  for (const r of finais) vezes.set(r.rotaExpedicao, (vezes.get(r.rotaExpedicao) ?? 0) + 1)
+  for (const r of validas) vezes.set(r.rotaExpedicao, (vezes.get(r.rotaExpedicao) ?? 0) + 1)
   const avisos = [...vezes.entries()]
     .filter(([, n]) => n > 1)
     .map(([codigo, n]) => `${codigo} apareceu ${n}× — confira essas linhas, o código pode ter sido lido errado`)
@@ -843,7 +909,7 @@ export function parsearPlanilhaRotas(
   // Número fora de escala dentro do mesmo prefixo (VJ1…VJ13 e de repente um
   // VJ114): quase sempre é dígito duplicado pela foto. Avisa, não adivinha.
   const porPrefixo = new Map<string, number[]>()
-  for (const r of finais) {
+  for (const r of validas) {
     const m = /^([A-Z]+)(\d+)_/.exec(r.rotaExpedicao)
     if (m) porPrefixo.set(m[1], [...(porPrefixo.get(m[1]) ?? []), Number(m[2])])
   }
@@ -859,7 +925,7 @@ export function parsearPlanilhaRotas(
       }
     }
   }
-  return { rotas: finais, ignoradas, avisos }
+  return { rotas: validas, ignoradas, avisos }
 }
 
 /**
