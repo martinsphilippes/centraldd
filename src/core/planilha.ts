@@ -459,7 +459,7 @@ export interface ContextoLeitura {
 }
 
 /** "B15 PM1", "VD10_PM1" — o jeitão de um código de rota de expedição. */
-const CARA_DE_ROTA = /^[A-Z]{0,3}[0-9OILZABSGT]{1,3}[ _]?[AP]M[I1L|]{0,2}\d?$/i
+const CARA_DE_ROTA = /^[A-Z]{0,3}[0-9OILZABSGT]{1,3}[ _]{0,2}[AP]M[I1L|]{0,2}\d?$/i
 /** "PM1_21", "AM1 53" — o jeitão de uma rota original. */
 const CARA_DE_ORIGINAL = /^[AP]M[I1L|]{0,2}\d?[ _]+\d{1,3}$/i
 
@@ -657,16 +657,24 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
  * Devolve a tabela no formato normal, ou null quando o texto não é vertical.
  */
 function verticalParaTabela(texto: string, ctx: ContextoLeitura): string | null {
-  const linhas = texto
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-  if (linhas.length < 8) return null
+  // Copiar de tela deixa lixo de pontuação grudado ("D4_AM1 (", "(RodaCoop").
+  // Limpar as bordas é o que faz esses códigos voltarem a ser reconhecíveis.
+  // Parêntese solto no FIM também é lixo ("D4_AM1 (") — o lado não importa.
+  const LIXO = /^[()[\]|«»"'\s]+|[()[\]|«»"'\s]+$/g
+  const limparBorda = (l: string) => l.trim().replace(LIXO, '').trim()
+  // As linhas VAZIAS ficam: numa colagem vertical, a posição é o que diz de
+  // que linha é cada valor. Sem elas, uma rota sem cidade herdaria a
+  // transportadora da linha de cima como se fosse a cidade dela.
+  const linhas = texto.split(/\r?\n/).map(limparBorda)
+  if (linhas.filter(Boolean).length < 8) return null
   // Texto com separador é tabela de verdade — este caminho não é para ele.
-  const comSeparador = linhas.filter((l) => /[\t;]/.test(l) || (l.match(/,/g)?.length ?? 0) >= 3).length
-  if (comSeparador > linhas.length * 0.2) return null
+  const preenchidas = linhas.filter(Boolean)
+  const comSeparador = preenchidas.filter(
+    (l) => /[\t;]/.test(l) || (l.match(/,/g)?.length ?? 0) >= 3,
+  ).length
+  if (comSeparador > preenchidas.length * 0.2) return null
 
-  const ancoras = linhas.map((l, i) => (CARA_DE_ROTA.test(l) ? i : -1)).filter((i) => i >= 0)
+  const ancoras = linhas.map((l, i) => (l && CARA_DE_ROTA.test(l) ? i : -1)).filter((i) => i >= 0)
   if (ancoras.length < 2) return null
 
   const ROTULOS = new Set(
@@ -695,20 +703,27 @@ function verticalParaTabela(texto: string, ctx: ContextoLeitura): string | null 
     }
     por('rotaExpedicao', linhas[posCodigo])
 
-    // Antes do código vem a cidade; o rótulo do cabeçalho não conta.
-    for (let i = posCodigo - 1; i >= inicio; i--) {
-      const l = linhas[i]
-      if (ehRotulo(l) || CARA_DE_ROTA.test(l)) continue
-      if (cidades.has(normalizarTexto(l)) || /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,}$/.test(l)) {
-        por('cidade', l)
-        break
-      }
+    // A cidade é a linha IMEDIATAMENTE anterior ao código — nunca uma mais
+    // atrás. Se ali estiver vazio, a rota veio sem cidade mesmo; procurar mais
+    // longe pegaria a transportadora da linha de cima.
+    const antes = posCodigo - 1 >= inicio ? linhas[posCodigo - 1] : ''
+    if (
+      antes &&
+      !ehRotulo(antes) &&
+      !CARA_DE_ROTA.test(antes) &&
+      !CARA_DE_ORIGINAL.test(antes) &&
+      !CARA_DE_HORA.test(antes) &&
+      !CARA_DE_BASE.test(antes) &&
+      /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,}$/.test(antes) &&
+      (cidades.size === 0 || !veiculos.some((v) => normalizarTexto(v) === normalizarTexto(antes)))
+    ) {
+      por('cidade', antes)
     }
     // Depois do código, cada valor cai na coluna pelo formato dele.
     const soltos: string[] = []
     for (let i = posCodigo + 1; i < fim; i++) {
       const l = linhas[i]
-      if (ehRotulo(l)) continue
+      if (!l || ehRotulo(l)) continue
       if (CARA_DE_ORIGINAL.test(l)) por('rotaOriginal', l)
       else if (CARA_DE_HORA.test(l)) por('dps', l)
       else if (CARA_DE_BASE.test(l) && !pareceVeiculo(l)) por('base', l)
