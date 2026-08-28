@@ -393,7 +393,7 @@ export function DisponibilidadeFrota() {
                   <>✏️ Limite manual deste dia (ignora o cálculo automático).</>
                 ) : (
                   <>
-                    🎯 Automático: <strong>{limiteCalc.base}</strong> rota(s) planejada(s) ({limiteCalc.fonte})
+                    🎯 Automático: <strong>{limiteCalc.base}</strong> veículo(s) planejado(s) ({limiteCalc.fonte})
                     {limiteCalc.reserva > 0 ? (
                       <>
                         {' '}
