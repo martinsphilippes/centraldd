@@ -15,6 +15,7 @@ import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { OPERACOES, STATUS_DISPONIVEIS } from '../../core/constants'
 import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
+import { abrirImpressao } from '../../core/impressao'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaDimensaoOcr, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
@@ -341,8 +342,6 @@ export function ResumoDiaCard({
   }
 
   const imprimir = () => {
-    const w = window.open('', '_blank')
-    if (!w) return
     const linhaT =
       linhasAM
         .map((t) => `<tr><td>${t.nome}</td><td class="c">${t.utilitarios || ''}</td><td class="c">${t.vuc || ''}</td></tr>`)
@@ -354,7 +353,7 @@ export function ResumoDiaCard({
           `<tr><td>${m.tipo}</td><td class="c">${m.quantidade || ''}</td><td class="c">x${m.posicoesPorUnidade} posições</td></tr>`,
       )
       .join('')
-    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Resumo ${formatarData(data)}</title>
+    abrirImpressao(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Resumo ${formatarData(data)}</title>
     <style>
       body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px;color:#1e293b}
       table{border-collapse:collapse;width:340px;margin:0 auto 10px}
@@ -387,9 +386,6 @@ export function ResumoDiaCard({
       <tr><td class="lbl">Posições</td><td class="destaque" colspan="2">${totalPosicoes}</td></tr>
     </table>
     </body></html>`)
-    w.document.close()
-    w.focus()
-    w.print()
   }
 
   // ---------- Modo edição ----------

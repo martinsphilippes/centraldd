@@ -1,3 +1,4 @@
+import { abrirImpressao } from './impressao'
 // Exportações CSV / Excel / PDF sem dependências externas.
 // - CSV: separador ";" + BOM (abre correto no Excel pt-BR)
 // - Excel: tabela HTML com content-type de Excel (.xls)
@@ -39,9 +40,7 @@ export function exportarExcel(t: Tabela) {
 }
 
 export function exportarPDF(t: Tabela, subtitulo?: string) {
-  const w = window.open('', '_blank')
-  if (!w) return
-  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+  abrirImpressao(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
     <title>${t.titulo}</title>
     <style>
       body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 24px; color: #1e293b; }
@@ -58,7 +57,4 @@ export function exportarPDF(t: Tabela, subtitulo?: string) {
     ${tabelaHTML(t)}
     <footer>MLDisponibilidade • Gestão de disponibilidade de motoristas • Mercado Livre 📦</footer>
     </body></html>`)
-  w.document.close()
-  w.focus()
-  w.print()
 }

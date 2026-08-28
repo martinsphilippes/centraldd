@@ -5,6 +5,7 @@ import { useDB } from '../core/db'
 import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
+import { PreviaImpressao } from '../components/PreviaImpressao'
 
 // O menu segue a ESTEIRA da operação: partida (disponibilidade ∥ programação),
 // depois chamada → planejamento → rotas, e por fim cadastro e análise.
@@ -205,6 +206,9 @@ export function Layout({ children }: { children: ReactNode }) {
           </NavLink>
         ))}
       </nav>
+
+      {/* Prévia de impressão: fica por cima de tudo, com ✕ e Esc. */}
+      <PreviaImpressao />
     </div>
   )
 }
