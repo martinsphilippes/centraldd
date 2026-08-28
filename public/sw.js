@@ -6,7 +6,7 @@
 //    chegam na hora, e o app ainda abre offline.
 //  - Firebase/dados: sempre direto na rede (tempo real).
 
-const CACHE = 'mldisponibilidade-v4'
+const CACHE = 'mldisponibilidade-v5'
 
 self.addEventListener('install', () => self.skipWaiting())
 
@@ -14,16 +14,74 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const chaves = await caches.keys()
-      await Promise.all(chaves.filter((c) => c !== CACHE).map((c) => caches.delete(c)))
+      await Promise.all(
+        chaves
+          .filter((c) => c !== CACHE && c !== CACHE_COMPARTILHADO)
+          .map((c) => caches.delete(c)),
+      )
       await self.clients.claim()
     })(),
   )
 })
 
+// Onde o arquivo compartilhado espera até o app pegá-lo.
+const CACHE_COMPARTILHADO = 'mldisponibilidade-compartilhado'
+const CHAVE_COMPARTILHADO = '/__arquivo-compartilhado'
+
 self.addEventListener('fetch', (event) => {
   const req = event.request
+  const alvo = new URL(req.url)
+
+  /*
+   * Compartilhar do Android: o sistema entrega o arquivo aqui num POST. Este
+   * endereço não existe no servidor — quem responde é este service worker, e é
+   * por isso que o app continua sendo só arquivos estáticos na hospedagem.
+   *
+   * O arquivo é guardado no aparelho e o app abre direto na Conferência, que o
+   * consome. Guardar em vez de passar pela URL evita limite de tamanho e não
+   * deixa a lista de pacotes no histórico do navegador.
+   */
+  if (req.method === 'POST' && alvo.pathname === '/compartilhar') {
+    event.respondWith(
+      (async () => {
+        try {
+          const form = await req.formData()
+          const arquivo = form.get('arquivo') || form.getAll('arquivo')[0]
+          const texto = form.get('texto') || form.get('title') || ''
+          const cache = await caches.open(CACHE_COMPARTILHADO)
+          if (arquivo && typeof arquivo !== 'string' && arquivo.size > 0) {
+            await cache.put(
+              CHAVE_COMPARTILHADO,
+              new Response(arquivo, {
+                headers: {
+                  'content-type': 'text/plain; charset=utf-8',
+                  'x-nome-arquivo': encodeURIComponent(arquivo.name || 'compartilhado.csv'),
+                },
+              }),
+            )
+          } else if (typeof texto === 'string' && texto.trim()) {
+            // Alguns apps compartilham as numerações como TEXTO, sem arquivo.
+            await cache.put(
+              CHAVE_COMPARTILHADO,
+              new Response(texto, {
+                headers: {
+                  'content-type': 'text/plain; charset=utf-8',
+                  'x-nome-arquivo': 'compartilhado.txt',
+                },
+              }),
+            )
+          }
+        } catch {
+          // Não deu para ler o que veio — o app avisa na tela.
+        }
+        return Response.redirect(new URL('/#/minha-conferencia', self.location.origin).href, 303)
+      })(),
+    )
+    return
+  }
+
   if (req.method !== 'GET') return
-  const url = new URL(req.url)
+  const url = alvo
   if (url.origin !== location.origin) return // dados/Firebase: rede direta
 
   // Navegação (abrir o app): rede primeiro, reserva do cache para offline.
