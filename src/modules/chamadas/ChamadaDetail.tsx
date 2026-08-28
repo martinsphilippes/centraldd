@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removerChamada, salvarChamada, salvarPlanejamento, uid, useDB, enviarNotificacao } from '../../core/db'
-import { formatarData, formatarQuandoCurto, rotuloDia } from '../../core/dates'
+import { formatarData, formatarQuandoCurto, hojeISO, rotuloDia } from '../../core/dates'
 import { respostasDaChamada, resumoChamada, sugerirPlanejamento, veioDaDisponibilidade } from '../../core/stats'
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { Motorista, Resposta } from '../../core/types'
@@ -36,7 +36,9 @@ export function ChamadaDetail() {
   // Só entra na planejamento quem FINALIZOU as rotas: pendência segura o motorista
   // mesmo que ele esteja disponível na chamada.
   const comRotaPendente = new Set(
-    db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId as string),
+    db.rotas
+      .filter((r) => r.motoristaId && !r.finalizadaEm && r.data === hojeISO())
+      .map((r) => r.motoristaId as string),
   )
 
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))

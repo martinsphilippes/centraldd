@@ -157,7 +157,7 @@ export function ResumoDiaCard({
   const auto = r.amAutomatico !== false && rotasProg > 0
 
   // Cruza com a planilha de Rotas para agrupar por transportadora (quando possível).
-  const amT = resumoPorTransportadora(progDoDia, db.rotas)
+  const amT = resumoPorTransportadora(progDoDia, db.rotas.filter((r) => r.data === data))
   const usarTransp = auto && amT.comTransp > 0
 
   // Linhas AM: por transportadora (cruzando as planilhas), por veículo (só Meli), ou manual.
@@ -807,7 +807,7 @@ export function ResumoDiaCard({
       </div>
 
       {/* Importar as rotas do dia (mesmo importador da tela de Rotas) */}
-      <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} />
+      <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} data={data} />
 
       {/* Importar o modelo do resumo (colar / CSV / PDF / foto) */}
       <Modal aberto={modalModelo} titulo={`📥 Importar modelo — ${formatarData(data)}`} onFechar={() => setModalModelo(false)}>

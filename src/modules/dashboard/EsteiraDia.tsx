@@ -69,8 +69,9 @@ export function EsteiraDia({
       ).length
     : 0
   const planejamento = chamada ? db.planejamento.find((e) => e.chamadaId === chamada.id) : undefined
-  const totalRotas = db.rotas.length
-  const direcionadas = db.rotas.filter((r) => r.motoristaId).length
+  const rotasDoDia = db.rotas.filter((r) => r.data === data)
+  const totalRotas = rotasDoDia.length
+  const direcionadas = rotasDoDia.filter((r) => r.motoristaId).length
 
   // A roteirização do dia entra ANTES da chamada: é ela que diz quantas
   // rotas existem e alimenta o direcionamento lá na frente.

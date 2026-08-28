@@ -4,7 +4,7 @@
 import { normalizarTexto } from './texto'
 import type { ProgramacaoItem, Rota } from './types'
 
-export type RotaImportada = Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>
+export type RotaImportada = Omit<Rota, 'id' | 'data' | 'motoristaId' | 'atualizadaEm'>
 
 const COLUNAS = [
   'cidade',

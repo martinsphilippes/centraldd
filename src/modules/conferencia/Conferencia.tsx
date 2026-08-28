@@ -54,7 +54,7 @@ export function Conferencia() {
         normalizarTexto(`${c.titulo} ${nomeDe(c.motoristaId)} ${c.data}`).includes(chaveBusca),
     )
     .sort((a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm))
-  const rotasDoDia = db.rotas.filter((r) => !r.finalizadaEm)
+  const rotasDoDia = db.rotas.filter((r) => r.data === data && !r.finalizadaEm)
 
   const abrir = () => {
     setMotoristaId(motoristas[0]?.id ?? '')

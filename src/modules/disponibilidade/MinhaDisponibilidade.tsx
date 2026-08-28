@@ -46,7 +46,7 @@ export function MinhaDisponibilidade() {
   const maxDiasMarcados = parametrosAtuais(db).maxDiasDisponiveis
   // "Dia concluído" = planejamento daquele dia concluída com ele, OU (para o dia de
   // hoje) todas as rotas direcionadas a ele já finalizadas/encerradas.
-  const minhasRotas = db.rotas.filter((r) => r.motoristaId === motoristaId)
+  const minhasRotas = db.rotas.filter((r) => r.motoristaId === motoristaId && r.data === hojeISO())
   const trabalhoDeHojeEncerrado = minhasRotas.length > 0 && minhasRotas.every((r) => r.finalizadaEm)
   const diaConcluido = (data: string) =>
     db.planejamento.some(

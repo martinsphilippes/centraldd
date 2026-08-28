@@ -47,7 +47,8 @@ function basePlanejada(db: DB, data: string): { base: number; fonte: string } {
   const daProgramacao = db.programacao.filter((p) => p.data === data).length
   if (daProgramacao > 0) return { base: daProgramacao, fonte: 'programação do Meli' }
 
-  if (db.rotas.length > 0) return { base: db.rotas.length, fonte: 'roteirização carregada' }
+  const rotasDoDia = db.rotas.filter((r) => r.data === data)
+  if (rotasDoDia.length > 0) return { base: rotasDoDia.length, fonte: 'roteirização carregada' }
   return { base: 0, fonte: '' }
 }
 

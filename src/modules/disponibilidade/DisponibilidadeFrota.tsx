@@ -180,7 +180,7 @@ export function DisponibilidadeFrota() {
   )
   if (diaSelecionado === hojeISO()) {
     for (const m of frota) {
-      const rotasDele = db.rotas.filter((r) => r.motoristaId === m.id)
+      const rotasDele = db.rotas.filter((r) => r.motoristaId === m.id && r.data === diaSelecionado)
       if (rotasDele.length > 0 && rotasDele.every((r) => r.finalizadaEm)) concluidosDoDia.add(m.id)
     }
   }

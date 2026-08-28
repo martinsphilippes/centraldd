@@ -6,9 +6,19 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { importarRotas, registrarDiagnosticoOcr } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
+import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
 
-export function ImportarRotasModal({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+export function ImportarRotasModal({
+  aberto,
+  onFechar,
+  data,
+}: {
+  aberto: boolean
+  onFechar: () => void
+  /** Dia da operação: a roteirização importada fica SÓ neste dia. */
+  data: string
+}) {
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ rotas: RotaImportada[]; ignoradas: number } | null>(null)
   const [importando, setImportando] = useState(false)
@@ -51,7 +61,7 @@ export function ImportarRotasModal({ aberto, onFechar }: { aberto: boolean; onFe
     if (!previa || previa.rotas.length === 0) return
     setImportando(true)
     try {
-      await importarRotas(previa.rotas)
+      await importarRotas(previa.rotas, data)
       setTextoColado('')
       setPrevia(null)
       onFechar()
@@ -62,6 +72,9 @@ export function ImportarRotasModal({ aberto, onFechar }: { aberto: boolean; onFe
 
   return (
     <Modal aberto={aberto} titulo="📥 Importar planilha de rotas" onFechar={onFechar}>
+      <p className="mb-2 rounded-lg border border-ml-amarelo bg-yellow-50 px-3 py-2 text-sm font-semibold text-slate-800">
+        📅 As rotas entram no dia <strong>{formatarData(data)}</strong> — e ficam só nele.
+      </p>
       <p className="mb-2 text-sm text-slate-600">
         <strong>Cole aqui as linhas da planilha</strong> (selecione no Excel/Sheets e Ctrl+C → Ctrl+V abaixo)
         ou envie o arquivo CSV. Ordem das colunas:

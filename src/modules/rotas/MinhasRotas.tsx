@@ -5,14 +5,16 @@
 
 import { useSessao } from '../../context/SessaoContext'
 import { finalizarRota, useDB } from '../../core/db'
+import { hojeISO } from '../../core/dates'
 import { Badge, Button, Card, EmptyState } from '../../components/ui'
 
 export function MinhasRotas() {
   const { motoristaId } = useSessao()
   const db = useDB()
 
+  // A rota pertence ao dia em que foi importada: aqui vale a de HOJE.
   const minhas = db.rotas
-    .filter((r) => r.motoristaId === motoristaId)
+    .filter((r) => r.motoristaId === motoristaId && r.data === hojeISO())
     .sort((a, b) => a.rotaExpedicao.localeCompare(b.rotaExpedicao, 'pt-BR', { numeric: true }))
   const ativas = minhas.filter((r) => !r.finalizadaEm)
   const finalizadas = minhas.filter((r) => r.finalizadaEm)
@@ -25,6 +27,7 @@ export function MinhasRotas() {
       .filter(
         (r) =>
           r.rotaExpedicao === rotaExpedicao &&
+          r.data === hojeISO() &&
           r.motoristaId &&
           r.motoristaId !== motoristaId,
       )

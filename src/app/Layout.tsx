@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useSessao } from '../context/SessaoContext'
 import { useDB } from '../core/db'
+import { hojeISO } from '../core/dates'
 import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
@@ -64,7 +65,7 @@ export function Layout({ children }: { children: ReactNode }) {
       : 0
   const minhasRotas =
     papel === 'motorista' && motoristaId
-      ? db.rotas.filter((r) => r.motoristaId === motoristaId && !r.finalizadaEm).length
+      ? db.rotas.filter((r) => r.motoristaId === motoristaId && !r.finalizadaEm && r.data === hojeISO()).length
       : 0
 
   return (

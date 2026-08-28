@@ -716,7 +716,10 @@ export async function importarProgramacao(
  * reimportar a mesma planilha ATUALIZA as rotas existentes em vez de duplicar,
  * preservando o motorista já direcionado em cada uma.
  */
-export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'atualizadaEm'>[]) {
+export async function importarRotas(
+  novas: Omit<Rota, 'id' | 'data' | 'motoristaId' | 'atualizadaEm'>[],
+  data: string,
+) {
   const agora = new Date().toISOString()
   const existentes = new Map(state.rotas.map((r) => [r.id, r]))
   // Cidade lida por OCR converge para a grafia oficial da operação
@@ -738,11 +741,14 @@ export async function importarRotas(novas: Omit<Rota, 'id' | 'motoristaId' | 'at
   const maisComum = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
   await Promise.all(
     novas.map((n) => {
-      const id = (n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')
+      // O id carrega o dia: a mesma rota em dias diferentes são documentos
+      // diferentes, e a importação de um dia nunca sobrescreve a de outro.
+      const id = `${data}_${(n.rotaExpedicao || uid()).replace(/[\s/]+/g, '-')}`
       const anterior = existentes.get(id)
       const rota: Rota = {
         ...n,
         id,
+        data,
         cidade: cidadeOficial(n.cidade),
         // Leitura vazia não apaga a já salva; rota nova fica com a mais comum.
         transportadora: n.transportadora || anterior?.transportadora || maisComum,

@@ -182,6 +182,11 @@ export interface DiaDisponibilidade {
  */
 export interface Rota {
   id: string
+  /**
+   * Dia da operação a que a rota pertence (YYYY-MM-DD). Sem isto, a
+   * roteirização importada num dia aparecia em todos os outros.
+   */
+  data: string
   cidade: string
   rotaExpedicao: string
   rotaOriginal: string

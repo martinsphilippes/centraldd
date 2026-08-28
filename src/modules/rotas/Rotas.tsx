@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { VEICULOS } from '../../core/constants'
-import { formatarData } from '../../core/dates'
+import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
+import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
 import type { Rota } from '../../core/types'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
@@ -23,13 +24,24 @@ export function Rotas() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
   const porMotorista = new Map(motoristas.map((m) => [m.id, m]))
 
-  const cidades = [...new Set(db.rotas.map((r) => r.cidade))].filter(Boolean).sort()
-  const transportadoras = [...new Set(db.rotas.map((r) => r.transportadora))].filter(Boolean).sort()
-  const veiculosOpcoes = [...new Set([...VEICULOS_ROTA, ...db.rotas.map((r) => r.veiculo)])]
+  // A roteirização pertence ao DIA em que foi importada. A tela trabalha
+  // sempre num dia só — o mesmo dia da Programação, preservado entre telas.
+  const [dia, setDia] = useState<string>(() => lerDiaProgramacao() || hojeISO())
+  const trocarDia = (d: string) => {
+    const alvo = d || hojeISO()
+    gravarDiaProgramacao(alvo)
+    setDia(alvo)
+  }
+  const rotasDoDia = db.rotas.filter((r) => r.data === dia)
+  const diasComRota = [...new Set(db.rotas.map((r) => r.data).filter(Boolean))].sort().reverse()
+
+  const cidades = [...new Set(rotasDoDia.map((r) => r.cidade))].filter(Boolean).sort()
+  const transportadoras = [...new Set(rotasDoDia.map((r) => r.transportadora))].filter(Boolean).sort()
+  const veiculosOpcoes = [...new Set([...VEICULOS_ROTA, ...rotasDoDia.map((r) => r.veiculo)])]
     .filter(Boolean)
     .sort()
 
-  const rotas = db.rotas
+  const rotas = rotasDoDia
     .filter(
       (r) =>
         !busca ||
@@ -61,10 +73,10 @@ export function Rotas() {
     : []
 
   const direcionarAutomatico = () => {
-    const vagas = db.rotas.filter((r) => !r.motoristaId)
+    const vagas = rotasDoDia.filter((r) => !r.motoristaId)
     // Rota FINALIZADA libera o motorista para uma nova; pendente segura.
     const comPendencia = new Set(
-      db.rotas.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId),
+      rotasDoDia.filter((r) => r.motoristaId && !r.finalizadaEm).map((r) => r.motoristaId),
     )
     const livres = candidatosChamada.filter((m) => !comPendencia.has(m.id))
     const alocacoes = alocarMotoristasNasRotas(db, vagas, livres, parametrosAtuais(db))
@@ -96,7 +108,7 @@ export function Rotas() {
   }
 
   const limparDirecionamentos = () => {
-    const direcionadas = db.rotas.filter((r) => r.motoristaId)
+    const direcionadas = rotasDoDia.filter((r) => r.motoristaId)
     if (direcionadas.length === 0) return
     if (!confirm(`Tirar o motorista de ${direcionadas.length} rota(s)? (as rotas continuam cadastradas)`)) return
     for (const r of direcionadas) salvarRota({ ...r, motoristaId: null, finalizadaEm: null, resultadoFinalizacao: null })
@@ -129,10 +141,10 @@ export function Rotas() {
    * encerrada com pendência. O que o motorista finalizou continua entregue.
    */
   const encerrarRotasDoDia = () => {
-    const abertas = db.rotas.filter((r) => !r.finalizadaEm)
-    const entregues = db.rotas.filter((r) => r.finalizadaEm && r.resultadoFinalizacao !== 'pendente').length
+    const abertas = rotasDoDia.filter((r) => !r.finalizadaEm)
+    const entregues = rotasDoDia.filter((r) => r.finalizadaEm && r.resultadoFinalizacao !== 'pendente').length
     if (abertas.length === 0) {
-      setAvisoAuto(`🏁 Todas as ${db.rotas.length} rota(s) já estão encerradas — ${entregues} entregues.`)
+      setAvisoAuto(`🏁 Todas as ${rotasDoDia.length} rota(s) já estão encerradas — ${entregues} entregues.`)
       return
     }
     const comMotorista = abertas.filter((r) => r.motoristaId).length
@@ -164,14 +176,14 @@ export function Rotas() {
 
   /** Apaga TODAS as rotas — para carregar a planilha de outra operação do zero. */
   const apagarTodasAsRotas = () => {
-    if (db.rotas.length === 0) return
+    if (rotasDoDia.length === 0) return
     if (
       !confirm(
-        `Apagar TODAS as ${db.rotas.length} rota(s) cadastradas? Use para trocar de operação — depois é só importar a nova planilha.`,
+        `Apagar TODAS as ${rotasDoDia.length} rota(s) cadastradas? Use para trocar de operação — depois é só importar a nova planilha.`,
       )
     )
       return
-    for (const r of db.rotas) removerRota(r.id)
+    for (const r of rotasDoDia) removerRota(r.id)
     setAvisoAuto('🗑️ Rotas apagadas — importe a planilha da nova operação.')
   }
 
@@ -196,6 +208,7 @@ export function Rotas() {
   const novaRota = () =>
     setEditando({
       id: uid(),
+      data: dia,
       cidade: '',
       rotaExpedicao: '',
       rotaOriginal: '',
@@ -218,8 +231,8 @@ export function Rotas() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">🛣️ Rotas da operação</h1>
           <p className="text-sm text-slate-500">
-            {db.rotas.length} rota(s) cadastrada(s)
-            {db.rotas.length > 0 && semMotorista > 0 && ` • ${semMotorista} sem motorista direcionado`}
+            {rotasDoDia.length} rota(s) em {rotuloDia(dia)}
+            {rotasDoDia.length > 0 && semMotorista > 0 && ` • ${semMotorista} sem motorista direcionado`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -237,22 +250,22 @@ export function Rotas() {
               ⚡ Direcionar quem está no planejamento ({candidatosChamada.length})
             </Button>
           )}
-          {db.rotas.length > 0 && (
+          {rotasDoDia.length > 0 && (
             <Button
               variante="secundario"
               onClick={encerrarRotasDoDia}
               title="Encerrar a operação do dia — as rotas abertas ficam registradas como pendentes"
             >
               🏁 Encerrar dia
-              {db.rotas.some((r) => !r.finalizadaEm)
-                ? ` (${db.rotas.filter((r) => !r.finalizadaEm).length} aberta(s))`
+              {rotasDoDia.some((r) => !r.finalizadaEm)
+                ? ` (${rotasDoDia.filter((r) => !r.finalizadaEm).length} aberta(s))`
                 : ''}
             </Button>
           )}
-          {db.rotas.some((r) => r.motoristaId) && (
+          {rotasDoDia.some((r) => r.motoristaId) && (
             <Button variante="secundario" onClick={limparDirecionamentos}>🧹 Limpar</Button>
           )}
-          {db.rotas.length > 0 && (
+          {rotasDoDia.length > 0 && (
             <Button variante="secundario" onClick={apagarTodasAsRotas}>🗑️ Apagar todas</Button>
           )}
           <Button variante="secundario" onClick={() => exportarCSV(tabela())}>⬇️ CSV</Button>
@@ -260,7 +273,7 @@ export function Rotas() {
           <Button variante="secundario" onClick={() => exportarPDF(tabela())}>🖨️ PDF</Button>
           {/* A roteirização entra pelo planejamento; aqui só se ACRESCENTA
               uma rota avulsa depois que a planilha do dia já foi carregada. */}
-          {db.rotas.length > 0 && (
+          {rotasDoDia.length > 0 && (
             <Button variante="secundario" onClick={novaRota}>➕ Acrescentar rota</Button>
           )}
         </div>
@@ -290,7 +303,32 @@ export function Rotas() {
         </Select>
       </div>
 
-      {db.rotas.length === 0 ? (
+      {/* A roteirização é POR DIA: importada num dia, vale só nele. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Dia:</span>
+        {diasComRota.length > 0 && (
+          <Select
+            value={diasComRota.includes(dia) ? dia : ''}
+            onChange={(e) => trocarDia(e.target.value)}
+            style={{ width: 'auto' }}
+          >
+            {!diasComRota.includes(dia) && <option value="">{rotuloDia(dia)} — sem rotas</option>}
+            {diasComRota.map((d) => (
+              <option key={d} value={d}>
+                {rotuloDia(d)} ({db.rotas.filter((r) => r.data === d).length})
+              </option>
+            ))}
+          </Select>
+        )}
+        <input
+          type="date"
+          value={dia}
+          onChange={(e) => trocarDia(e.target.value)}
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-ml-azul"
+        />
+      </div>
+
+      {rotasDoDia.length === 0 ? (
         <div className="space-y-3">
           <EmptyState
             icone="🛣️"

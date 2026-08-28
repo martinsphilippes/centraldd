@@ -1,6 +1,6 @@
 import { useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
-import { rotuloDia } from '../../core/dates'
+import { hojeISO, rotuloDia } from '../../core/dates'
 import { Badge, Card, EmptyState } from '../../components/ui'
 
 // Do lado do motorista, a planejamento montada pelo Dispatcher se chama
@@ -21,7 +21,7 @@ export function MeuPlanejamento() {
     .sort((a, b) => b.data.localeCompare(a.data))
 
   const minhasRotas = db.rotas
-    .filter((r) => motoristaId && r.motoristaId === motoristaId)
+    .filter((r) => motoristaId && r.motoristaId === motoristaId && r.data === hojeISO())
     .sort((a, b) => a.rotaExpedicao.localeCompare(b.rotaExpedicao, 'pt-BR', { numeric: true }))
 
   return (
