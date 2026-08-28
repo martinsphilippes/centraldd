@@ -575,6 +575,44 @@ function pareceLinhaDeDados(
   return fortes === 0 || batem > 0
 }
 
+/** Nomes internos das colunas — o bloco da foto é decidido comparando estes. */
+export type ColunaRota = (typeof COLUNAS)[number]
+
+/**
+ * Lê UMA foto: que colunas ela traz e quais linhas. É o mesmo caminho que a
+ * montagem usa, exposto para a tela poder decidir em que BLOCO a foto entra
+ * no momento em que ela chega — e não pela ordem da fila, que muda quando se
+ * apaga uma foto do meio.
+ */
+export function lerFotoDaPlanilha(
+  texto: string,
+  ctx: ContextoLeitura = {},
+): { colunas: ColunaRota[]; linhas: string[][]; mapa: Map<number, ColunaRota> | null } {
+  const grade = texto
+    .split(/\r?\n/)
+    .filter((l) => l.trim() !== '')
+    .map((l) => l.split(detectarSeparador(l)).map(limpar))
+  if (grade.length === 0) return { colunas: [], linhas: [], mapa: null }
+
+  let mapa: Map<number, ColunaRota> | null = null
+  let inicio = 0
+  for (let i = 0; i < Math.min(grade.length, 5); i++) {
+    const achado = mapearCabecalho(grade[i])
+    if (achado) {
+      mapa = achado
+      inicio = i + 1
+      break
+    }
+  }
+  if (!mapa) mapa = mapearPeloConteudo(grade, ctx)
+  if (!mapa) return { colunas: [], linhas: grade, mapa: null }
+  return {
+    colunas: [...new Set([...mapa.values()])],
+    linhas: grade.slice(inicio).filter((l) => l.some((c) => c !== '') && pareceLinhaDeDados(l, mapa)),
+    mapa,
+  }
+}
+
 /** O que uma foto trouxe: quais colunas e quantas linhas. */
 export interface FotoColuna {
   colunas: string[]
@@ -611,10 +649,9 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
  * por isso vale a pena repetir uma coluna em todas as fotos.
  */
 export function juntarFotosPorColuna(
-  textos: string[],
+  /** Cada foto com o bloco de linhas a que ela pertence (1, 2, 3…). */
+  entradas: { texto: string; bloco: number }[],
   ctx: ContextoLeitura = {},
-  /** Índices em que o Dispatcher mandou começar um bloco de linhas novo. */
-  quebras: number[] = [],
 ): {
   texto: string
   fotos: FotoColuna[]
@@ -623,27 +660,12 @@ export function juntarFotosPorColuna(
   const avisos: string[] = []
   const fotos: FotoColuna[] = []
   const soltos: string[][] = []
-  type Bloco = { mapa: Map<number, (typeof COLUNAS)[number]>; linhas: string[][]; foto: number }
+  type Bloco = { mapa: Map<number, ColunaRota>; linhas: string[][]; foto: number; bloco: number }
   const lidos: Bloco[] = []
 
-  for (const texto of textos) {
-    const grade = texto
-      .split(/\r?\n/)
-      .filter((l) => l.trim() !== '')
-      .map((l) => l.split(detectarSeparador(l)).map(limpar))
+  for (const entrada of entradas) {
+    const { mapa, linhas: grade } = lerFotoDaPlanilha(entrada.texto, ctx)
     if (grade.length === 0) continue
-
-    let mapa: Map<number, (typeof COLUNAS)[number]> | null = null
-    let inicio = 0
-    for (let i = 0; i < Math.min(grade.length, 5); i++) {
-      const achado = mapearCabecalho(grade[i])
-      if (achado) {
-        mapa = achado
-        inicio = i + 1
-        break
-      }
-    }
-    if (!mapa) mapa = mapearPeloConteudo(grade, ctx)
     if (!mapa) {
       // Sem reconhecer as colunas, ainda dá para pescar o código de rota pelo
       // padrão, linha a linha. O que sai daqui já vem no formato final — nada
@@ -660,15 +682,12 @@ export function juntarFotosPorColuna(
       fotos.push({ colunas: [], linhas: pescadas.length, reconhecida: false, bloco: 0 })
       continue
     }
-    const linhas = grade
-      .slice(inicio)
-      .filter((l) => l.some((c) => c !== '') && pareceLinhaDeDados(l, mapa))
-    lidos.push({ mapa, linhas, foto: fotos.length })
+    lidos.push({ mapa, linhas: grade, foto: fotos.length, bloco: entrada.bloco })
     fotos.push({
       colunas: [...new Set([...mapa.values()])].map((c) => ROTULO_COLUNA[c]),
-      linhas: linhas.length,
+      linhas: grade.length,
       reconhecida: true,
-      bloco: 0,
+      bloco: entrada.bloco,
     })
   }
 
@@ -678,33 +697,17 @@ export function juntarFotosPorColuna(
     return { texto: corpo ? [cabecalho, corpo].join('\n') : '', fotos, avisos }
   }
 
-  // Fotos que SE COMPLETAM (colunas diferentes das mesmas linhas) ficam no
-  // mesmo bloco e se encaixam lado a lado. Quando volta uma coluna que o bloco
-  // já tem, é porque a foto CONTINUA a planilha — abre bloco novo, e as linhas
-  // dele somam às anteriores em vez de substituir.
+  // O BLOCO de cada foto vem decidido de fora, no momento em que ela chega.
+  // Inferir pela ordem da fila era frágil: bastava apagar uma foto do meio e
+  // reenviá-la para o app casar as colunas de uma leva com as linhas de outra.
   const grupos: Bloco[][] = []
-  let atual: Bloco[] = []
-  let usadas = new Set<(typeof COLUNAS)[number]>()
-  const quebrasSet = new Set(quebras)
-  for (const b of lidos) {
-    const minhas = new Set(b.mapa.values())
-    const repete = [...minhas].some((c) => usadas.has(c))
-    if (atual.length > 0 && (repete || quebrasSet.has(b.foto))) {
-      grupos.push(atual)
-      atual = []
-      usadas = new Set()
-    }
-    atual.push(b)
-    for (const c of minhas) usadas.add(c)
+  for (const numero of [...new Set(lidos.map((b) => b.bloco))].sort((a, b) => a - b)) {
+    grupos.push(lidos.filter((b) => b.bloco === numero))
   }
-  if (atual.length > 0) grupos.push(atual)
-  grupos.forEach((g, i) => {
-    for (const b of g) fotos[b.foto].bloco = i + 1
-  })
 
   const saida: string[][] = []
   grupos.forEach((blocos, iGrupo) => {
-    const rotulo = grupos.length > 1 ? `bloco ${iGrupo + 1}: ` : ''
+    const rotulo = grupos.length > 1 ? `bloco ${blocos[0]?.bloco ?? iGrupo + 1}: ` : ''
 
     // Dentro do bloco, todas as fotos precisam ter as MESMAS linhas. Quando
     // uma leu menos, ela é a culpada — e é ela que precisa ser refeita.
@@ -1021,49 +1024,59 @@ function conferirColuna(rotas: RotaImportada[]) {
     }
   }
 
-  // 2. Bloco corrido da rota original.
-  const numeroDe = (r: RotaImportada) => Number(/_(\d{1,3})$/.exec(r.rotaOriginal)?.[1] ?? NaN)
-  const numeros = rotas.map(numeroDe).filter((n) => !Number.isNaN(n))
-  if (numeros.length < 4) return
-  const presentes = new Set(numeros)
-  // O "bloco" é a faixa onde a coluna é densa — assim um número solto e
-  // legítimo lá longe (AM1_6) não deforma a régua.
-  // A régua é a MAIOR sequência corrida (aceitando furo de até 2). Assim o
-  // próprio número errado não entra na conta e vira "dentro do bloco".
-  const ordenados = [...presentes].sort((a, b) => a - b)
-  let inicio = ordenados[0]
-  let fim = ordenados[0]
-  let iniAtual = ordenados[0]
-  for (let i = 1; i <= ordenados.length; i++) {
-    const quebrou = i === ordenados.length || ordenados[i] - ordenados[i - 1] > 2
-    if (quebrou) {
-      if (ordenados[i - 1] - iniAtual > fim - inicio) {
-        inicio = iniAtual
-        fim = ordenados[i - 1]
-      }
-      if (i < ordenados.length) iniAtual = ordenados[i]
-    }
-  }
-  const faltando = new Set<number>()
-  for (let n = inicio; n <= fim; n++) if (!presentes.has(n)) faltando.add(n)
-  if (faltando.size === 0) return
-
+  // 2. Bloco corrido da rota original — POR ONDA. AM1 e PM1 têm numerações
+  // independentes; misturá-las fazia a régua de uma "consertar" o número da
+  // outra (um AM1_38 legítimo virava AM1_18 para tapar um furo do PM1).
+  const porOnda = new Map<string, RotaImportada[]>()
   for (const r of rotas) {
-    const n = numeroDe(r)
-    if (Number.isNaN(n) || (n >= inicio && n <= fim)) continue
-    const digitos = String(n)
-    const candidatos = new Set<number>()
-    for (let i = 0; i < digitos.length; i++) {
-      for (const d of '0123456789') {
-        const trocado = Number(digitos.slice(0, i) + d + digitos.slice(i + 1))
-        if (faltando.has(trocado)) candidatos.add(trocado)
+    const onda = /^([AP]M\d)_/.exec(r.rotaOriginal)?.[1]
+    if (onda) porOnda.set(onda, [...(porOnda.get(onda) ?? []), r])
+  }
+
+  for (const [, doGrupo] of porOnda) {
+    const numeroDe = (r: RotaImportada) => Number(/_(\d{1,3})$/.exec(r.rotaOriginal)?.[1] ?? NaN)
+    const numeros = doGrupo.map(numeroDe).filter((n) => !Number.isNaN(n))
+    if (numeros.length < 6) continue
+    const presentes = new Set(numeros)
+    // A régua é a MAIOR sequência corrida (aceitando furo de até 2). Assim o
+    // próprio número errado não entra na conta e vira "dentro do bloco".
+    const ordenados = [...presentes].sort((a, b) => a - b)
+    let inicio = ordenados[0]
+    let fim = ordenados[0]
+    let iniAtual = ordenados[0]
+    for (let i = 1; i <= ordenados.length; i++) {
+      const quebrou = i === ordenados.length || ordenados[i] - ordenados[i - 1] > 2
+      if (quebrou) {
+        if (ordenados[i - 1] - iniAtual > fim - inicio) {
+          inicio = iniAtual
+          fim = ordenados[i - 1]
+        }
+        if (i < ordenados.length) iniAtual = ordenados[i]
       }
     }
-    // Uma resposta só, senão deixa como está: chutar seria pior que avisar.
-    if (candidatos.size === 1) {
-      const certo = [...candidatos][0]
-      r.rotaOriginal = r.rotaOriginal.replace(/_\d{1,3}$/, `_${certo}`)
-      faltando.delete(certo)
+    // Régua curta não é régua: sem um bloco de verdade, não corrige nada.
+    if (fim - inicio < 5) continue
+    const faltando = new Set<number>()
+    for (let n = inicio; n <= fim; n++) if (!presentes.has(n)) faltando.add(n)
+    if (faltando.size === 0) continue
+
+    for (const r of doGrupo) {
+      const n = numeroDe(r)
+      if (Number.isNaN(n) || (n >= inicio && n <= fim)) continue
+      const digitos = String(n)
+      const candidatos = new Set<number>()
+      for (let i = 0; i < digitos.length; i++) {
+        for (const d of '0123456789') {
+          const trocado = Number(digitos.slice(0, i) + d + digitos.slice(i + 1))
+          if (faltando.has(trocado)) candidatos.add(trocado)
+        }
+      }
+      // Uma resposta só, senão deixa como está: chutar seria pior que avisar.
+      if (candidatos.size === 1) {
+        const certo = [...candidatos][0]
+        r.rotaOriginal = r.rotaOriginal.replace(/_\d{1,3}$/, `_${certo}`)
+        faltando.delete(certo)
+      }
     }
   }
 }

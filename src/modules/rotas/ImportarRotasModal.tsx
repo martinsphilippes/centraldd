@@ -6,7 +6,9 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { importarRotas, registrarDiagnosticoOcr, useDB } from '../../core/db'
 import {
   juntarFotosPorColuna,
+  lerFotoDaPlanilha,
   parsearPlanilhaRotas,
+  type ColunaRota,
   type FotoColuna,
   type RotaImportada,
 } from '../../core/planilha'
@@ -29,12 +31,12 @@ export function ImportarRotasModal({
   const [textoColado, setTextoColado] = useState('')
   // Cada arquivo enviado fica guardado SEPARADO: é isso que deixa o app
   // encaixar fotos tiradas por coluna lado a lado, em vez de empilhar.
-  const [pedacos, setPedacos] = useState<string[]>([])
+  const [pedacos, setPedacos] = useState<{ texto: string; bloco: number }[]>([])
   const [fotos, setFotos] = useState<FotoColuna[]>([])
   const [avisosFotos, setAvisosFotos] = useState<string[]>([])
-  // Índices em que o Dispatcher mandou começar um bloco de linhas novo, para
-  // quando ele fotografa a MESMA coluna de outro pedaço da planilha.
-  const [quebras, setQuebras] = useState<number[]>([])
+  // Ligado pelo botão: a PRÓXIMA foto começa um bloco de linhas novo mesmo que
+  // as colunas dela não repitam nenhuma das que já vieram.
+  const [forcarBlocoNovo, setForcarBlocoNovo] = useState(false)
   const [previa, setPrevia] = useState<{
     rotas: RotaImportada[]
     ignoradas: number
@@ -69,18 +71,42 @@ export function ImportarRotasModal({
   }
 
   /** Recompõe a tabela a partir de tudo que já entrou (fotos + texto colado). */
-  const recalcular = (novosPedacos: string[], novoTexto: string, novasQuebras = quebras) => {
-    const partes = [...novosPedacos, novoTexto].filter((t) => t.trim())
+  const recalcular = (novosPedacos: { texto: string; bloco: number }[], novoTexto: string) => {
+    const ultimo = Math.max(0, ...novosPedacos.map((p) => p.bloco))
+    const partes = [
+      ...novosPedacos,
+      ...(novoTexto.trim() ? [{ texto: novoTexto, bloco: ultimo + 1 }] : []),
+    ]
     if (partes.length === 0) {
       setPrevia(null)
       setFotos([])
       setAvisosFotos([])
       return
     }
-    const junto = juntarFotosPorColuna(partes, contexto, novasQuebras)
+    const junto = juntarFotosPorColuna(partes, contexto)
     setFotos(junto.fotos.slice(0, novosPedacos.length))
     setAvisosFotos(junto.avisos)
     setPrevia(parsearPlanilhaRotas(junto.texto, contexto))
+  }
+
+  /**
+   * Em que bloco esta foto entra? No bloco que AINDA NÃO TEM nenhuma das
+   * colunas dela — é o que faz uma foto refeita voltar para o lugar de origem,
+   * mesmo chegando por último. Se todos os blocos já têm essas colunas, é
+   * porque a foto é de outras linhas: abre bloco novo.
+   */
+  const blocoPara = (texto: string, atuais: { texto: string; bloco: number }[]): number => {
+    const numeros = [...new Set(atuais.map((p) => p.bloco))].sort((a, b) => a - b)
+    if (forcarBlocoNovo) return (numeros[numeros.length - 1] ?? 0) + 1
+    const minhas = new Set<ColunaRota>(lerFotoDaPlanilha(texto, contexto).colunas)
+    if (minhas.size === 0) return numeros[numeros.length - 1] ?? 1
+    for (const n of numeros) {
+      const doBloco = new Set<ColunaRota>()
+      for (const p of atuais.filter((x) => x.bloco === n))
+        for (const c of lerFotoDaPlanilha(p.texto, contexto).colunas) doBloco.add(c)
+      if (![...minhas].some((c) => doBloco.has(c))) return n
+    }
+    return (numeros[numeros.length - 1] ?? 0) + 1
   }
 
   /** O cartão de uma foto: o que ela trouxe e o botão de tirar da montagem. */
@@ -107,11 +133,11 @@ export function ImportarRotasModal({
         className="ml-auto rounded px-1.5 text-slate-500 hover:bg-white hover:text-red-600"
         title="Tirar esta foto da montagem"
         onClick={() => {
+          // As outras fotos NÃO são renumeradas: cada uma guarda o bloco dela,
+          // então a que for reenviada volta para o lugar certo.
           const restantes = pedacos.filter((_, j) => j !== i)
-          const novasQuebras = quebras.filter((q) => q !== i).map((q) => (q > i ? q - 1 : q))
           setPedacos(restantes)
-          setQuebras(novasQuebras)
-          recalcular(restantes, textoColado, novasQuebras)
+          recalcular(restantes, textoColado)
         }}
       >
         🗑️
@@ -149,9 +175,13 @@ export function ImportarRotasModal({
           })
           novos.push(lido)
         }
-        const todos = [...pedacos, ...novos.filter((t) => t.trim())]
+        let todos = [...pedacos]
+        for (const texto of novos.filter((t) => t.trim())) {
+          todos = [...todos, { texto, bloco: blocoPara(texto, todos) }]
+        }
+        setForcarBlocoNovo(false)
         setPedacos(todos)
-        recalcular(todos, textoColado, quebras)
+        recalcular(todos, textoColado)
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
         setErroArquivo(
@@ -172,7 +202,7 @@ export function ImportarRotasModal({
       setPedacos([])
       setFotos([])
       setAvisosFotos([])
-      setQuebras([])
+      setForcarBlocoNovo(false)
       setPrevia(null)
       onFechar()
     } finally {
@@ -220,18 +250,11 @@ export function ImportarRotasModal({
         </Button>
         {pedacos.length > 0 && (
           <Button
-            variante="secundario"
-            onClick={() => {
-              // A próxima foto começa um bloco novo mesmo que as colunas não
-              // repitam — para quando o Dispatcher fotografa outro pedaço da
-              // planilha com colunas diferentes das que já enviou.
-              const nova = [...new Set([...quebras, pedacos.length])]
-              setQuebras(nova)
-              recalcular(pedacos, textoColado, nova)
-            }}
-            title="As próximas fotos são de OUTRAS linhas da planilha, não das mesmas"
+            variante={forcarBlocoNovo ? 'ml' : 'secundario'}
+            onClick={() => setForcarBlocoNovo((v) => !v)}
+            title="Marque quando a próxima foto for de OUTRAS linhas da planilha e as colunas dela não repetirem nenhuma das que já vieram"
           >
-            🧱 Próxima foto é de outras linhas
+            {forcarBlocoNovo ? '🧱 Próxima foto abre bloco novo ✓' : '🧱 Próxima foto é de outras linhas'}
           </Button>
         )}
         {previa && (
@@ -245,7 +268,7 @@ export function ImportarRotasModal({
                 setPedacos([])
                 setFotos([])
                 setAvisosFotos([])
-                setQuebras([])
+                setForcarBlocoNovo(false)
                 atualizarPrevia('')
               }}
               className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
