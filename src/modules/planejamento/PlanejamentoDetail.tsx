@@ -10,7 +10,8 @@ import {
 } from '../../core/comunicacao'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
-import { Avatar, Badge, Button, Card, EmptyState, Modal } from '../../components/ui'
+import { normalizarTexto } from '../../core/texto'
+import { Avatar, Badge, Button, Card, EmptyState, Input, Modal } from '../../components/ui'
 import { ContactButtons } from '../../components/ContactButtons'
 
 export function PlanejamentoDetail() {
@@ -19,21 +20,30 @@ export function PlanejamentoDetail() {
   const navigate = useNavigate()
   const [modalMassa, setModalMassa] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [busca, setBusca] = useState('')
 
   const planejamento = db.planejamento.find((e) => e.id === id)
   if (!planejamento) return <EmptyState icone="🔍" titulo="Planejamento não encontrada" />
 
+  // Uma busca só atravessa as três listas (planejamento, fila e disponíveis
+  // fora): com 50+ nomes, procurar alguém a olho é o que trava o Dispatcher.
+  const chaveBusca = normalizarTexto(busca)
+  const combina = (m: { nome: string; cidade: string; veiculo: string }) =>
+    !chaveBusca || normalizarTexto(`${m.nome} ${m.cidade} ${m.veiculo}`).includes(chaveBusca)
+
   const chamada = db.chamadas.find((c) => c.id === planejamento.chamadaId)
   const porId = new Map(db.motoristas.map((m) => [m.id, m]))
-  const incluidos = planejamento.motoristaIds
+  const incluidosTodos = planejamento.motoristaIds
     .map((mid) => porId.get(mid))
     .filter((m): m is NonNullable<typeof m> => !!m)
+  const incluidos = incluidosTodos.filter(combina)
 
   // Disponíveis na chamada que ainda não estão na planejamento (para incluir).
   // Fila de espera: na ordem de prioridade gravada na criação.
-  const filaEspera = (planejamento.esperaIds ?? [])
+  const filaEsperaTodos = (planejamento.esperaIds ?? [])
     .map((id) => porId.get(id))
     .filter((m): m is NonNullable<typeof m> => !!m)
+  const filaEspera = filaEsperaTodos.filter(combina)
 
   const foraDoPlanejamento = chamada
     ? db.respostas
@@ -46,6 +56,7 @@ export function PlanejamentoDetail() {
         )
         .map((r) => porId.get(r.motoristaId))
         .filter((m): m is NonNullable<typeof m> => !!m)
+        .filter(combina)
     : []
 
   const publicar = () => {
@@ -137,16 +148,50 @@ export function PlanejamentoDetail() {
         </div>
       </div>
 
+      {/* Busca única: filtra planejamento, fila de espera e disponíveis fora. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="🔎 Buscar motorista por nome, cidade ou veículo…"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="w-full sm:w-96"
+        />
+        {busca && (
+          <>
+            <Button variante="fantasma" onClick={() => setBusca('')}>
+              ✕ Limpar busca
+            </Button>
+            <span className="text-xs font-semibold text-slate-500">
+              {incluidos.length + filaEspera.length} encontrado(s) · 🚚 {incluidos.length} no
+              planejamento · 🕐 {filaEspera.length} na fila
+            </span>
+          </>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4 lg:col-span-2">
-          <h2 className="mb-3 font-bold text-slate-900">🚚 No planejamento ({incluidos.length}{chamada ? `/${chamada.qtdNecessaria}` : ''})</h2>
+          <h2 className="mb-3 font-bold text-slate-900">
+            🚚 No planejamento ({incluidosTodos.length}
+            {chamada ? `/${chamada.qtdNecessaria}` : ''})
+            {busca && (
+              <span className="ml-2 text-sm font-semibold text-ml-azul">
+                🔎 {incluidos.length} na busca
+              </span>
+            )}
+          </h2>
           {incluidos.length === 0 ? (
-            <EmptyState icone="🚚" titulo="Nenhum motorista na planejamento" />
+            <EmptyState
+              icone={busca ? '🔎' : '🚚'}
+              titulo={busca ? 'Ninguém com essa busca aqui' : 'Nenhum motorista no planejamento'}
+            />
           ) : (
             <ul className="space-y-2">
-              {incluidos.map((m, i) => (
+              {incluidos.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
-                  <span className="w-6 text-center text-xs font-bold text-slate-400">{i + 1}</span>
+                  <span className="w-6 text-center text-xs font-bold text-slate-400">
+                    {incluidosTodos.findIndex((x) => x.id === m.id) + 1}
+                  </span>
                   <Avatar nome={m.nome} tamanho="sm" />
                   <div className="min-w-0 flex-1">
                     <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-ml-azul">
@@ -179,20 +224,31 @@ export function PlanejamentoDetail() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="mb-1 font-bold text-slate-900">🕐 Fila de espera ({filaEspera.length})</h2>
+          <h2 className="mb-1 font-bold text-slate-900">
+            🕐 Fila de espera ({filaEsperaTodos.length})
+            {busca && (
+              <span className="ml-2 text-sm font-semibold text-ml-azul">
+                🔎 {filaEspera.length} na busca
+              </span>
+            )}
+          </h2>
           <p className="mb-3 text-xs text-slate-500">
             Estavam disponíveis além da meta. Alguém faltou? <strong>⬆️ Promover</strong> coloca o
             primeiro da fila no lugar.
           </p>
           {filaEspera.length === 0 ? (
             <p className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">
-              Ninguém na fila — a disponibilidade não passou da meta.
+              {busca
+                ? 'Ninguém com essa busca na fila.'
+                : 'Ninguém na fila — a disponibilidade não passou da meta.'}
             </p>
           ) : (
             <ul className="mb-4 space-y-2">
-              {filaEspera.map((m, i) => (
+              {filaEspera.map((m) => (
                 <li key={m.id} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-2.5">
-                  <span className="w-6 text-center text-xs font-bold text-amber-600">{i + 1}º</span>
+                  <span className="w-6 text-center text-xs font-bold text-amber-600">
+                    {filaEsperaTodos.findIndex((x) => x.id === m.id) + 1}º
+                  </span>
                   <Avatar nome={m.nome} tamanho="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-slate-800">{m.nome}</p>
