@@ -476,7 +476,7 @@ function lerRecorte(linha: string): { rotaExpedicao: string; rotaOriginal: strin
   const original = /\b([AP]M[I1L|]{0,2}\d?)[ _]+(\d{1,3})\b/i.exec(t)
   // O código da rota é "letras + número + onda"; a rota original começa pela
   // onda, então nunca é confundida com ele.
-  const codigo = /\b([A-Z]{1,3}[0-9OILZABSGT]{1,3})[ _]?([AP]M[I1L|]{0,2}\d?)\b/i.exec(t)
+  const codigo = /\b([A-Z]{1,3}[0-9OILZABSGT]{1,3})[ _]{0,2}([AP]M[I1L|]{0,2}\d?)\b/i.exec(t)
   if (!codigo) return null
   return {
     rotaExpedicao: `${codigo[1]}_${codigo[2]}`,
@@ -585,7 +585,11 @@ export function lerFotoDaPlanilha(
   texto: string,
   ctx: ContextoLeitura = {},
 ): { colunas: ColunaRota[]; linhas: string[][]; mapa: Map<number, ColunaRota> | null } {
-  const grade = texto
+  // Colagem VERTICAL (uma célula por linha) vira tabela antes de qualquer
+  // coisa. Sem isto, o texto colado chegava aqui empilhado, nenhuma coluna era
+  // reconhecida e só o código de rota se salvava — a rota entrava oca, sem
+  // cidade, veículo nem km.
+  const grade = (verticalParaTabela(texto, ctx) ?? texto)
     .split(/\r?\n/)
     .filter((l) => l.trim() !== '')
     .map((l) => l.split(detectarSeparador(l)).map(limpar))
