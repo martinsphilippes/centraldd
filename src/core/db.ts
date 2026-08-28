@@ -362,7 +362,31 @@ export function salvarRoteiroConferencia(
 /** O MOTORISTA limpa a conferência da tela dele — o histórico não muda. */
 export function ocultarConferenciaMotorista(id: string) {
   updateDoc(doc(firestore, 'conferencias', id), { ocultaMotorista: true }).catch(() => {
-    alert('❌ Não consegui limpar. Tente de novo; se continuar, avise o Dispatcher.')
+    alert('❌ Não consegui tirar da tela. Tente de novo; se continuar, avise o Dispatcher.')
+  })
+}
+
+/** Traz de volta uma conferência que o motorista tinha tirado da tela dele. */
+export function mostrarConferenciaMotorista(id: string) {
+  updateDoc(doc(firestore, 'conferencias', id), { ocultaMotorista: false }).catch(() => {
+    alert('❌ Não consegui trazer de volta. Tente de novo; se continuar, avise o Dispatcher.')
+  })
+}
+
+/**
+ * O MOTORISTA apaga o arquivo que enviou — é o conserto de quem subiu o CSV
+ * errado. A conferência CONTINUA na tela dele, voltando ao estado de quem
+ * ainda não enviou, com o botão de enviar de novo à mão. O resultado errado
+ * também sai da tela do Dispatcher, que é o certo: leitura errada não pode
+ * ficar valendo como conferência.
+ */
+export function limparEnvioConferenciaMotorista(id: string) {
+  updateDoc(doc(firestore, 'conferencias', id), {
+    conferidos: null,
+    arquivoMotorista: '',
+    conferidaEm: null,
+  }).catch(() => {
+    alert('❌ Não consegui limpar seu envio. Tente de novo; se continuar, avise o Dispatcher.')
   })
 }
 

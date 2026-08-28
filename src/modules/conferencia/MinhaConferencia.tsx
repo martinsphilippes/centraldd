@@ -3,7 +3,13 @@
 // resposta que o Dispatcher vê do outro lado.
 
 import { useState } from 'react'
-import { enviarConferenciaMotorista, ocultarConferenciaMotorista, useDB } from '../../core/db'
+import {
+  enviarConferenciaMotorista,
+  limparEnvioConferenciaMotorista,
+  mostrarConferenciaMotorista,
+  ocultarConferenciaMotorista,
+  useDB,
+} from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
@@ -57,10 +63,12 @@ export function MinhaConferencia() {
 
   if (!motoristaId) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
-  // O que o motorista limpou sai da tela DELE; o Dispatcher segue com tudo.
-  const minhas = db.conferencias
-    .filter((c) => c.motoristaId === motoristaId && !c.ocultaMotorista)
-    .sort((a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm))
+  const porData = (a: { data: string; enviadaEm: string }, b: { data: string; enviadaEm: string }) =>
+    b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm)
+  const todas = db.conferencias.filter((c) => c.motoristaId === motoristaId)
+  // O que o motorista tirou da tela sai daqui; o Dispatcher segue com tudo.
+  const minhas = todas.filter((c) => !c.ocultaMotorista).sort(porData)
+  const escondidas = todas.filter((c) => c.ocultaMotorista).sort(porData)
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -72,7 +80,7 @@ export function MinhaConferencia() {
         </p>
       </div>
 
-      {minhas.length === 0 ? (
+      {minhas.length === 0 && escondidas.length === 0 ? (
         <EmptyState
           icone="🔍"
           titulo="Nenhuma conferência para você"
@@ -106,27 +114,70 @@ export function MinhaConferencia() {
                 <Envio c={c} />
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  <Button variante="secundario" onClick={() => setRefazer(c.id)}>
-                    🔄 Conferir de novo
+                  {/* Subiu o arquivo errado? Limpar apaga SÓ o envio e devolve o
+                      botão de enviar — a conferência continua aqui. */}
+                  <Button
+                    variante="secundario"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          'Limpar o arquivo que você enviou?\n\nA conferência continua aqui e o botão de enviar volta, para você mandar o arquivo certo.',
+                        )
+                      ) {
+                        setRefazer(null)
+                        limparEnvioConferenciaMotorista(c.id)
+                      }
+                    }}
+                  >
+                    🧹 Limpar meu envio
+                  </Button>
+                  <Button variante="fantasma" onClick={() => setRefazer(c.id)}>
+                    🔄 Enviar outro arquivo
                   </Button>
                   <Button
                     variante="fantasma"
                     onClick={() => {
                       if (
                         confirm(
-                          'Limpar esta conferência da sua tela?\n\nEla sai daqui para você receber a próxima — o Dispatcher continua vendo o resultado no histórico.',
+                          'Tirar esta conferência da sua tela?\n\nEla sai daqui para liberar espaço — o Dispatcher continua com o resultado, e você pode trazer de volta no fim desta tela.',
                         )
                       )
                         ocultarConferenciaMotorista(c.id)
                     }}
                   >
-                    🧹 Limpar da tela
+                    👁️ Tirar da minha tela
                   </Button>
                 </div>
               )}
             </div>
           </Card>
         ))
+      )}
+
+      {/* Nada fica perdido: o que foi tirado da tela volta com um toque. */}
+      {escondidas.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-sm font-bold text-slate-700">
+            👁️ {escondidas.length} conferência(s) que você tirou da tela
+          </h2>
+          <ul className="mt-2 space-y-1.5">
+            {escondidas.map((c) => (
+              <li
+                key={c.id}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+              >
+                <span className="font-semibold text-slate-700">{c.titulo}</span>
+                <span className="text-xs text-slate-500">📅 {rotuloDia(c.data)}</span>
+                <button
+                  className="ml-auto rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  onClick={() => mostrarConferenciaMotorista(c.id)}
+                >
+                  ↩️ Trazer de volta
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </div>
   )
