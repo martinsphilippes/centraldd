@@ -6,7 +6,8 @@ import { useState, type FormEvent } from 'react'
 import { salvarMeuPerfilMotorista, useDB } from '../../core/db'
 import { trocarSenha } from '../../core/firebase'
 import { useSessao } from '../../context/SessaoContext'
-import { OPERACOES, VEICULOS } from '../../core/constants'
+import { OPERACOES } from '../../core/constants'
+import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { Button, Card, EmptyState, Field, Input, Select } from '../../components/ui'
 
 const ERROS_SENHA: Record<string, string> = {
@@ -25,7 +26,7 @@ export function MeuPerfil() {
   const [nome, setNome] = useState(eu?.nome ?? '')
   const [telefone, setTelefone] = useState(eu?.telefone ?? '')
   const [cidade, setCidade] = useState(eu?.cidade ?? '')
-  const [veiculo, setVeiculo] = useState(eu?.veiculo ?? '')
+  const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(eu?.veiculo, db))
   const [avisoPerfil, setAvisoPerfil] = useState('')
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
 
@@ -41,11 +42,7 @@ export function MeuPerfil() {
   const cidades = [...new Set([...db.cidades.map((c) => c.nome), eu.cidade].filter(Boolean))].sort(
     (a, b) => a.localeCompare(b, 'pt-BR'),
   )
-  const veiculosOpcoes = (() => {
-    const doSistema = db.tipos.filter((t) => t.categoria === 'veiculo').map((t) => t.nome)
-    const base = doSistema.length > 0 ? doSistema : VEICULOS
-    return [...new Set([...base, eu.veiculo].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  })()
+  const veiculosOpcoes = opcoesDeVeiculo(db, veiculo)
 
   const salvarPerfil = (e: FormEvent) => {
     e.preventDefault()

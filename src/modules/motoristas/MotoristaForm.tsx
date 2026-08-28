@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getDB, salvarMotorista, uid, useDB } from '../../core/db'
 import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
+import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 
 const ERROS_CONTA: Record<string, string> = {
@@ -22,13 +23,13 @@ export function MotoristaForm() {
   const [telefone, setTelefone] = useState(existente?.telefone ?? '')
   const [cidade, setCidade] = useState(existente?.cidade ?? '')
   const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
-  const [veiculo, setVeiculo] = useState(existente?.veiculo ?? VEICULOS[0])
+  const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(existente?.veiculo, db) || VEICULOS[0])
   // Opções cadastradas pelo dispatcher (Tipos) + o valor atual do motorista.
   const doSistema = (categoria: 'veiculo' | 'operacao', padrao: string[]): string[] => {
     const lista = db.tipos.filter((t) => t.categoria === categoria).map((t) => t.nome)
     return lista.length > 0 ? lista.sort((a, b) => a.localeCompare(b, 'pt-BR')) : padrao
   }
-  const veiculosOpcoes = [...new Set([...doSistema('veiculo', VEICULOS), veiculo].filter(Boolean))]
+  const veiculosOpcoes = opcoesDeVeiculo(db, veiculo)
   const operacoesOpcoes = [...new Set([...doSistema('operacao', OPERACOES), operacao].filter(Boolean))]
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
   const [cidadesPreferidas, setCidadesPreferidas] = useState(existente?.cidadesPreferidas ?? '')

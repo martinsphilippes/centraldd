@@ -16,6 +16,7 @@ import {
 import { firestore } from './firebase'
 import { normalizarTexto, parecidoCom } from './texto'
 import { chaveNumeracao } from './conferencia'
+import { nomeOficialVeiculo } from './veiculos'
 import type {
   DB,
   Chamada,
@@ -194,7 +195,12 @@ export function uid(): string {
 // ---- Operações de domínio (gravam no Firestore; o snapshot atualiza a UI) ----
 
 export function salvarMotorista(m: Motorista) {
-  void setDoc(doc(firestore, 'motoristas', m.id), m)
+  // A grafia oficial é gravada sempre: sem isto, 'Utilitario' e 'Utilitário'
+  // viram dois veículos diferentes nas listas e no seletor do cadastro.
+  void setDoc(doc(firestore, 'motoristas', m.id), {
+    ...m,
+    veiculo: nomeOficialVeiculo(m.veiculo, state),
+  })
 }
 
 /**
@@ -278,7 +284,7 @@ export async function importarMotoristas(
       telefone: ou(linha.telefone, anterior?.telefone),
       cidade: ou(linha.cidade, anterior?.cidade),
       operacao: ou(linha.operacao, anterior?.operacao),
-      veiculo: ou(linha.veiculo, anterior?.veiculo),
+      veiculo: nomeOficialVeiculo(ou(linha.veiculo, anterior?.veiculo), state),
       ativo: linha.ativo,
       // Cadastro feito pelo Dispatcher já nasce aprovado.
       aprovado: anterior?.aprovado ?? true,
@@ -318,7 +324,10 @@ export function salvarMeuPerfilMotorista(
   motoristaId: string,
   dados: { nome: string; telefone: string; cidade: string; veiculo: string },
 ) {
-  return updateDoc(doc(firestore, 'motoristas', motoristaId), dados)
+  return updateDoc(doc(firestore, 'motoristas', motoristaId), {
+    ...dados,
+    veiculo: nomeOficialVeiculo(dados.veiculo, state),
+  })
 }
 
 /** O DISPATCHER tira UMA numeração da conferência (pacote fora da carga). */
