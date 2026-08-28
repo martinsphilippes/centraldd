@@ -3,7 +3,7 @@
 // importações do dia (rotas + resumo) ficarem lado a lado.
 
 import { useRef, useState, type ChangeEvent } from 'react'
-import { importarRotas, registrarDiagnosticoOcr } from '../../core/db'
+import { importarRotas, registrarDiagnosticoOcr, useDB } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import { xlsxComoTexto } from '../../core/xlsx'
@@ -20,16 +20,31 @@ export function ImportarRotasModal({
   /** Dia da operação: a roteirização importada fica SÓ neste dia. */
   data: string
 }) {
+  const db = useDB()
   const [textoColado, setTextoColado] = useState('')
-  const [previa, setPrevia] = useState<{ rotas: RotaImportada[]; ignoradas: number } | null>(null)
+  const [previa, setPrevia] = useState<{
+    rotas: RotaImportada[]
+    ignoradas: number
+    avisos: string[]
+  } | null>(null)
   const [importando, setImportando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
   const arquivoRef = useRef<HTMLInputElement>(null)
 
+  // Os códigos que a operação já usou corrigem a letra que a foto não mostra:
+  // "VI" vira "VJ" quando esta base sempre teve VJ e nunca VI.
+  const prefixosConhecidos = [
+    ...new Set(
+      db.rotas
+        .map((r) => /^([A-Z]+)\d/.exec(r.rotaExpedicao.toUpperCase())?.[1])
+        .filter((p): p is string => !!p),
+    ),
+  ]
+
   const atualizarPrevia = (texto: string) => {
     setTextoColado(texto)
-    setPrevia(texto.trim() ? parsearPlanilhaRotas(texto) : null)
+    setPrevia(texto.trim() ? parsearPlanilhaRotas(texto, prefixosConhecidos) : null)
   }
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
@@ -125,6 +140,16 @@ export function ImportarRotasModal({
           </>
         )}
       </div>
+      {previa && previa.avisos.length > 0 && (
+        <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+          <p className="text-xs font-bold text-amber-900">⚠️ Confira antes de importar:</p>
+          <ul className="mt-1 list-inside list-disc text-xs text-amber-800">
+            {previa.avisos.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {erroArquivo && (
         <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
       )}

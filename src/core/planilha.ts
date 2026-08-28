@@ -1,7 +1,7 @@
 // Leitura das planilhas da operação: aceita texto colado do Excel/Sheets
 // (separado por TAB) ou arquivo CSV (; ou ,). Preserva os valores como estão.
 
-import { normalizarTexto } from './texto'
+import { normalizarTexto, parecidoCom } from './texto'
 import type { ProgramacaoItem, Rota } from './types'
 
 export type RotaImportada = Omit<Rota, 'id' | 'data' | 'motoristaId' | 'atualizadaEm'>
@@ -322,13 +322,172 @@ export function repararRotaExpedicao(bruto: string): string {
   return `${prefixo}${Number(numero)}_${periodo}`
 }
 
-/** "AM1 89" / "AMI_89" → "AM1_89" (rota original: período + sequência). */
-export function repararRotaOriginal(bruto: string): string {
-  const m = /^([AP])M[I1L|]{0,2}[ _]+(\d{1,3})$/i.exec(bruto.trim())
-  return m ? `${m[1].toUpperCase()}M1_${m[2]}` : bruto.trim()
+/** Letras que o OCR troca entre si. Só as visualmente parecidas mesmo. */
+const LETRAS_SOSIA: Record<string, string[]> = {
+  I: ['J', 'L', 'T', 'F'],
+  J: ['I', 'L'],
+  L: ['I', 'J'],
+  O: ['D', 'Q', 'C'],
+  D: ['O'],
+  S: ['G', '5'],
+  G: ['S', 'C', '6'],
+  B: ['R', 'E', '8'],
+  R: ['B', 'P'],
+  V: ['U', 'Y'],
+  U: ['V'],
+  H: ['N', 'M'],
+  N: ['H', 'M'],
+  M: ['N', 'H'],
+  C: ['G', 'O'],
+  E: ['B', 'F'],
+  F: ['E', 'I'],
+  P: ['R'],
+  T: ['I'],
 }
 
-export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; ignoradas: number } {
+/**
+ * Corrige o PREFIXO da rota usando os códigos que a operação já usou antes.
+ *
+ * É a única saída para letra trocada: "VJ" e "VI" são idênticos numa foto, e
+ * nenhuma regra interna da planilha desempata. Mas se esta base sempre teve
+ * VJ e nunca VI, a leitura "VI" é erro — e o histórico sabe disso.
+ *
+ * Também desfaz o prefixo comprido demais: "DI4" vira "D14" quando "D" é
+ * prefixo conhecido e "DI" não é.
+ */
+export function repararComHistorico(codigo: string, conhecidos: Set<string>): string {
+  if (conhecidos.size === 0) return codigo
+  const m = /^([A-Z]+)(\d+)_([AP]M\d)$/.exec(codigo)
+  if (!m) return codigo
+  const [, prefixo, numero, onda] = m
+  if (conhecidos.has(prefixo)) return codigo
+
+  // 1. A última letra do prefixo era, na verdade, um dígito ("DI4" → "D14").
+  const SOSIA_DIGITO: Record<string, string> = { I: '1', L: '1', O: '0', S: '5', B: '8', G: '6', Z: '2', T: '7', A: '4' }
+  if (prefixo.length >= 2) {
+    const menor = prefixo.slice(0, -1)
+    const virouDigito = SOSIA_DIGITO[prefixo[prefixo.length - 1]]
+    if (conhecidos.has(menor) && virouDigito) return `${menor}${Number(virouDigito + numero)}_${onda}`
+  }
+
+  // 2. Uma letra trocada por outra parecida — só vale se a resposta for única.
+  const candidatos = new Set<string>()
+  for (let i = 0; i < prefixo.length; i++) {
+    for (const letra of LETRAS_SOSIA[prefixo[i]] ?? []) {
+      const tentativa = prefixo.slice(0, i) + letra + prefixo.slice(i + 1)
+      if (conhecidos.has(tentativa)) candidatos.add(tentativa)
+    }
+  }
+  return candidatos.size === 1 ? `${[...candidatos][0]}${numero}_${onda}` : codigo
+}
+
+/** "AM1 89" / "AMI_89" → "AM1_89" (rota original: período + sequência). */
+export function repararRotaOriginal(bruto: string): string {
+  // A onda (o dígito depois de AM/PM) é DADO, não ruído: existe AM1 e AM2 na
+  // mesma planilha. Só as sósias do OCR (I, L, |) viram 1.
+  const m = /^([AP])M[ ]?([I1L|]|\d)?[ _]+(\d{1,3})$/i.exec(bruto.trim())
+  if (!m) return bruto.trim()
+  const onda = /\d/.test(m[2] ?? '') ? m[2] : '1'
+  return `${m[1].toUpperCase()}M${onda}_${m[3]}`
+}
+
+/** Nomes que cada coluna da planilha de rotas pode ter no cabeçalho. */
+const COLUNAS_ROTA: Record<(typeof COLUNAS)[number], string[]> = {
+  cidade: ['cidade', 'municipio', 'cidades'],
+  rotaExpedicao: ['rota expedicao', 'rota de expedicao', 'expedicao', 'rota exp'],
+  rotaOriginal: ['rota original', 'original', 'rota orig'],
+  base: ['base', 'cd', 'centro'],
+  veiculo: ['veiculo', 'tipo de veiculo', 'tipo veiculo'],
+  km: ['km', 'distancia', 'kms'],
+  dps: ['dps', 'tempo', 'duracao'],
+  ocupacao: ['ocupacao', 'ocupacao %', 'ocupacao(%)', '% ocupacao'],
+  transportadora: ['transportadora', 'transp', 'fornecedor'],
+}
+
+/**
+ * Cabeçalho → de que coluna é cada posição.
+ *
+ * Sem isto a leitura era por POSIÇÃO fixa, e uma foto de PARTE da planilha
+ * (só "Rota expedição" e "Rota original", por exemplo) entrava toda torta: o
+ * código da rota caía na casa da cidade. Lendo o cabeçalho, qualquer recorte
+ * de colunas — em qualquer ordem — entra no lugar certo.
+ */
+function mapearCabecalho(celulas: string[]): Map<number, (typeof COLUNAS)[number]> | null {
+  const mapa = new Map<number, (typeof COLUNAS)[number]>()
+  celulas.forEach((celula, i) => {
+    const chave = normalizarTexto(celula)
+    if (!chave) return
+    for (const coluna of COLUNAS) {
+      if (mapa.has(i)) break
+      // Comparação frouxa: no OCR o cabeçalho vem mastigado ("Rota expedição"
+      // virou "Roraexpedção"), e ele é justamente a linha que NÃO pode virar
+      // dado. Basta o cabeçalho conter o nome sem espaços, ou vice-versa.
+      const semEspaco = chave.replace(/ /g, '')
+      if (
+        COLUNAS_ROTA[coluna].some((nome) => {
+          const alvo = normalizarTexto(nome).replace(/ /g, '')
+          return semEspaco === alvo || (alvo.length >= 8 && parecidoCom(semEspaco, alvo))
+        })
+      )
+        mapa.set(i, coluna)
+    }
+  })
+  // Duas colunas reconhecidas já bastam: é cabeçalho, não linha de dados.
+  return mapa.size >= 2 ? mapa : null
+}
+
+/** "B15 PM1", "VD10_PM1" — o jeitão de um código de rota de expedição. */
+const CARA_DE_ROTA = /^[A-Z]{0,3}[0-9OILZABSGT]{1,3}[ _]?[AP]M[I1L|]{0,2}\d?$/i
+/** "PM1_21", "AM1 53" — o jeitão de uma rota original. */
+const CARA_DE_ORIGINAL = /^[AP]M[I1L|]{0,2}\d?[ _]+\d{1,3}$/i
+
+/**
+ * Recorte de foto: pega o código da rota e a rota original pelo FORMATO deles,
+ * onde quer que estejam na linha.
+ *
+ * Em foto, o OCR não entrega coluna firme — "B19 PMI1 PM1 17" às vezes vem
+ * com o 17 numa célula, às vezes colado na anterior. Procurar o padrão na
+ * linha inteira acerta nos dois casos; contar casinha, não.
+ */
+function lerRecorte(linha: string): { rotaExpedicao: string; rotaOriginal: string } | null {
+  const t = linha.replace(/[\t;]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const original = /\b([AP]M[I1L|]{0,2}\d?)[ _]+(\d{1,3})\b/i.exec(t)
+  // O código da rota é "letras + número + onda"; a rota original começa pela
+  // onda, então nunca é confundida com ele.
+  const codigo = /\b([A-Z]{1,3}[0-9OILZABSGT]{1,3})[ _]?([AP]M[I1L|]{0,2}\d?)\b/i.exec(t)
+  if (!codigo) return null
+  return {
+    rotaExpedicao: `${codigo[1]}_${codigo[2]}`,
+    rotaOriginal: original ? `${original[1]}_${original[2]}` : '',
+  }
+}
+
+/**
+ * Recorte SEM cabeçalho: descobre as colunas pelo formato do conteúdo. É o
+ * caso da foto tirada de perto, em que o cabeçalho ficou fora do quadro.
+ */
+function mapearPeloConteudo(linhas: string[][]): Map<number, (typeof COLUNAS)[number]> | null {
+  const total = linhas.length
+  if (total < 2) return null
+  const quantas = Math.max(...linhas.map((l) => l.length))
+  const mapa = new Map<number, (typeof COLUNAS)[number]>()
+  for (let i = 0; i < quantas; i++) {
+    const valores = linhas.map((l) => l[i] ?? '').filter(Boolean)
+    if (valores.length < total * 0.6) continue
+    if (valores.filter((v) => CARA_DE_ORIGINAL.test(v)).length >= valores.length * 0.7)
+      mapa.set(i, 'rotaOriginal')
+    else if (valores.filter((v) => CARA_DE_ROTA.test(v)).length >= valores.length * 0.7)
+      mapa.set(i, 'rotaExpedicao')
+  }
+  return mapa.size > 0 && [...mapa.values()].includes('rotaExpedicao') ? mapa : null
+}
+
+export function parsearPlanilhaRotas(
+  texto: string,
+  /** Prefixos de rota que a operação já usou — vindos das importações anteriores. */
+  prefixosConhecidos: string[] = [],
+): { rotas: RotaImportada[]; ignoradas: number; avisos: string[] } {
+  const conhecidos = new Set(prefixosConhecidos.map((p) => p.toUpperCase()))
   const linhas = texto
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -342,11 +501,48 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
   const SUFIXO_ROTA = /^[A-Z]{0,3}[MW][I1L]{0,2}\d{0,2}$/i
   const BASE_CURTA = /^[A-Z]{2,5}\d{1,3}$/
 
-  for (const linha of linhas) {
+  // Descobre as colunas ANTES de ler: pelo cabeçalho, se ele veio na foto;
+  // senão, pelo formato do conteúdo. Só cai na posição fixa se nada casar.
+  const grade = linhas.map((l) => l.split(detectarSeparador(l)).map(limpar))
+  let mapa: Map<number, (typeof COLUNAS)[number]> | null = null
+  let primeiraLinha = 0
+  for (let i = 0; i < Math.min(grade.length, 5); i++) {
+    const achado = mapearCabecalho(grade[i])
+    if (achado) {
+      mapa = achado
+      primeiraLinha = i + 1
+      break
+    }
+  }
+  if (!mapa) mapa = mapearPeloConteudo(grade)
+
+  for (const linha of linhas.slice(primeiraLinha)) {
     const sep = detectarSeparador(linha)
     const celulas = linha.split(sep).map(limpar)
     // Cabeçalho: primeira célula "Cidade" (ou similar) → pula.
     if (/^cidade$/i.test(celulas[0] ?? '')) continue
+    if (mapa) {
+      const rota = {} as Record<(typeof COLUNAS)[number], string>
+      for (const c of COLUNAS) rota[c] = ''
+      for (const [i, coluna] of mapa) rota[coluna] = celulas[i] ?? ''
+      // Recorte estreito (foto de duas ou três colunas): o padrão manda, porque
+      // a casinha da célula não é confiável no OCR.
+      if (celulas.length <= 4 && mapa.size <= 3) {
+        const achado = lerRecorte(linha)
+        if (achado) {
+          rota.rotaExpedicao = achado.rotaExpedicao
+          if (achado.rotaOriginal) rota.rotaOriginal = achado.rotaOriginal
+        }
+      }
+      if (!rota.rotaExpedicao || !/\d/.test(rota.rotaExpedicao)) {
+        ignoradas++
+        continue
+      }
+      rota.rotaExpedicao = repararComHistorico(repararRotaExpedicao(rota.rotaExpedicao), conhecidos)
+      rota.rotaOriginal = repararRotaOriginal(rota.rotaOriginal)
+      rotas.push(rota)
+      continue
+    }
     if (
       celulas.length >= COLUNAS.length &&
       SUFIXO_ROTA.test(celulas[2] ?? '') &&
@@ -355,8 +551,9 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     ) {
       celulas.splice(1, 2, `${celulas[1]} ${celulas[2]}`)
     }
-    // Precisa de pelo menos cidade + rota expedição.
-    if (celulas.length < 2 || !celulas[0] || !celulas[1]) {
+    // Precisa de pelo menos cidade + rota expedição — e um código de rota
+    // sempre tem número, então "Rota expedição" lido da foto não vira linha.
+    if (celulas.length < 2 || !celulas[0] || !celulas[1] || !/\d/.test(celulas[1])) {
       ignoradas++
       continue
     }
@@ -364,7 +561,7 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     COLUNAS.forEach((c, i) => {
       rota[c] = celulas[i] ?? ''
     })
-    rota.rotaExpedicao = repararRotaExpedicao(rota.rotaExpedicao)
+    rota.rotaExpedicao = repararComHistorico(repararRotaExpedicao(rota.rotaExpedicao), conhecidos)
     rota.rotaOriginal = repararRotaOriginal(rota.rotaOriginal)
     rotas.push(rota)
   }
@@ -373,7 +570,7 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
   const porChave = new Map<string, RotaImportada>()
   const ordem: string[] = []
   for (const rota of rotas) {
-    const chave = rota.rotaExpedicao.toUpperCase().replace(/\s+/g, ' ').trim()
+    const chave = `${rota.rotaExpedicao.toUpperCase().replace(/\s+/g, ' ').trim()}|${rota.rotaOriginal}`
     const existente = porChave.get(chave)
     if (existente) {
       for (const c of COLUNAS) if (!existente[c] && rota[c]) existente[c] = rota[c]
@@ -400,7 +597,116 @@ export function parsearPlanilhaRotas(texto: string): { rotas: RotaImportada[]; i
     const g = grafias.get(chaveTransp(t))!
     r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
   }
-  return { rotas: finais, ignoradas }
+  conferirColuna(finais)
+  // Código repetido = uma das linhas teve o código mal lido e a máquina não
+  // tem como saber qual. Avisar é honesto; escolher no chute, não.
+  const vezes = new Map<string, number>()
+  for (const r of finais) vezes.set(r.rotaExpedicao, (vezes.get(r.rotaExpedicao) ?? 0) + 1)
+  const avisos = [...vezes.entries()]
+    .filter(([, n]) => n > 1)
+    .map(([codigo, n]) => `${codigo} apareceu ${n}× — confira essas linhas, o código pode ter sido lido errado`)
+
+  // Número fora de escala dentro do mesmo prefixo (VJ1…VJ13 e de repente um
+  // VJ114): quase sempre é dígito duplicado pela foto. Avisa, não adivinha.
+  const porPrefixo = new Map<string, number[]>()
+  for (const r of finais) {
+    const m = /^([A-Z]+)(\d+)_/.exec(r.rotaExpedicao)
+    if (m) porPrefixo.set(m[1], [...(porPrefixo.get(m[1]) ?? []), Number(m[2])])
+  }
+  for (const [prefixo, numeros] of porPrefixo) {
+    if (numeros.length < 4) continue
+    const ordenados = [...numeros].sort((a, b) => a - b)
+    const mediana = ordenados[Math.floor(ordenados.length / 2)]
+    for (const n of ordenados) {
+      if (mediana > 0 && n > mediana * 3) {
+        avisos.push(
+          `${prefixo}${n} destoa dos outros ${prefixo} (${ordenados[0]} a ${ordenados[ordenados.length - 2]}) — confira esse número`,
+        )
+      }
+    }
+  }
+  return { rotas: finais, ignoradas, avisos }
+}
+
+/**
+ * Conferência pela COERÊNCIA DA PRÓPRIA COLUNA — o que sobra depois do reparo
+ * linha a linha. Uma planilha de rotas tem duas regularidades fortes:
+ *
+ * 1. a onda (_AM1 / _PM1) é a MESMA em todas as linhas — quem discordar da
+ *    maioria foi erro de leitura;
+ * 2. os números da rota original formam um bloco corrido (ex.: 28 a 61) — um
+ *    valor fora do bloco que, trocando um dígito, cai exatamente no número que
+ *    está faltando, é esse número.
+ *
+ * Só corrige quando a resposta é ÚNICA: na dúvida, mantém o que foi lido.
+ */
+function conferirColuna(rotas: RotaImportada[]) {
+  if (rotas.length < 4) return
+
+  // 1. A onda de cada linha vem da rota original DELA — as duas colunas sempre
+  // falam da mesma onda, e isso vale por linha. Maioria da planilha não serve
+  // aqui: um dia pode ter AM1 e AM2 juntos, e o AM2 seria atropelado.
+  const votos = new Map<string, number>()
+  for (const r of rotas) {
+    const daOriginal = /^([AP]M\d)_/.exec(r.rotaOriginal)?.[1]
+    if (daOriginal) {
+      r.rotaExpedicao = r.rotaExpedicao.replace(/_[AP]M\d$/, `_${daOriginal}`)
+      votos.set(daOriginal, (votos.get(daOriginal) ?? 0) + 1)
+    }
+  }
+  // Só quem ficou sem rota original segue a onda mais comum do lote.
+  const vencedora = [...votos.entries()].sort((a, b) => b[1] - a[1])[0]
+  if (vencedora && vencedora[1] >= rotas.length * 0.7) {
+    for (const r of rotas) {
+      if (!r.rotaOriginal) r.rotaExpedicao = r.rotaExpedicao.replace(/_[AP]M\d$/, `_${vencedora[0]}`)
+    }
+  }
+
+  // 2. Bloco corrido da rota original.
+  const numeroDe = (r: RotaImportada) => Number(/_(\d{1,3})$/.exec(r.rotaOriginal)?.[1] ?? NaN)
+  const numeros = rotas.map(numeroDe).filter((n) => !Number.isNaN(n))
+  if (numeros.length < 4) return
+  const presentes = new Set(numeros)
+  // O "bloco" é a faixa onde a coluna é densa — assim um número solto e
+  // legítimo lá longe (AM1_6) não deforma a régua.
+  // A régua é a MAIOR sequência corrida (aceitando furo de até 2). Assim o
+  // próprio número errado não entra na conta e vira "dentro do bloco".
+  const ordenados = [...presentes].sort((a, b) => a - b)
+  let inicio = ordenados[0]
+  let fim = ordenados[0]
+  let iniAtual = ordenados[0]
+  for (let i = 1; i <= ordenados.length; i++) {
+    const quebrou = i === ordenados.length || ordenados[i] - ordenados[i - 1] > 2
+    if (quebrou) {
+      if (ordenados[i - 1] - iniAtual > fim - inicio) {
+        inicio = iniAtual
+        fim = ordenados[i - 1]
+      }
+      if (i < ordenados.length) iniAtual = ordenados[i]
+    }
+  }
+  const faltando = new Set<number>()
+  for (let n = inicio; n <= fim; n++) if (!presentes.has(n)) faltando.add(n)
+  if (faltando.size === 0) return
+
+  for (const r of rotas) {
+    const n = numeroDe(r)
+    if (Number.isNaN(n) || (n >= inicio && n <= fim)) continue
+    const digitos = String(n)
+    const candidatos = new Set<number>()
+    for (let i = 0; i < digitos.length; i++) {
+      for (const d of '0123456789') {
+        const trocado = Number(digitos.slice(0, i) + d + digitos.slice(i + 1))
+        if (faltando.has(trocado)) candidatos.add(trocado)
+      }
+    }
+    // Uma resposta só, senão deixa como está: chutar seria pior que avisar.
+    if (candidatos.size === 1) {
+      const certo = [...candidatos][0]
+      r.rotaOriginal = r.rotaOriginal.replace(/_\d{1,3}$/, `_${certo}`)
+      faltando.delete(certo)
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
