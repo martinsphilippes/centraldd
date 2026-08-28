@@ -6,6 +6,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { importarRotas, registrarDiagnosticoOcr } from '../../core/db'
 import { parsearPlanilhaRotas, type RotaImportada } from '../../core/planilha'
 import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
+import { xlsxComoTexto } from '../../core/xlsx'
 import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
 
@@ -39,18 +40,31 @@ export function ImportarRotasModal({
     setLendoPdf('⏳ Lendo…')
     void (async () => {
       try {
-        // As leituras se SOMAM: enviar outra foto acrescenta as linhas dela
-        // (no iPad a galeria costuma deixar escolher uma por vez).
-        const texto = await extrairTextoDeArquivos(arquivos, setLendoPdf)
-        registrarDiagnosticoOcr('rotas', texto, {
-          arquivo: arquivos.map((a) => a.name).join(', '),
-          miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
-        })
+        // Planilha de verdade (.xlsx) é lida célula a célula — sem OCR, sem
+        // chute. É o caminho exato; foto só quando não há o arquivo.
+        const excel = arquivos.filter((a) => /\.xlsx$/i.test(a.name))
+        const demais = arquivos.filter((a) => !/\.xlsx$/i.test(a.name))
+        const partes: string[] = []
+        for (const a of excel) {
+          setLendoPdf(`⏳ Lendo ${a.name}…`)
+          partes.push(await xlsxComoTexto(a))
+        }
+        if (demais.length > 0) {
+          const lido = await extrairTextoDeArquivos(demais, setLendoPdf)
+          registrarDiagnosticoOcr('rotas', lido, {
+            arquivo: demais.map((a) => a.name).join(', '),
+            miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
+          })
+          partes.push(lido)
+        }
+        const texto = partes.filter((t) => t.trim()).join('\n')
         const anterior = textoColado.trim() ? textoColado.replace(/\s+$/, '') + '\n' : ''
         atualizarPrevia(anterior + texto)
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
-        setErroArquivo(`Não consegui ler (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
+        setErroArquivo(
+          `Não consegui ler (${detalhe}). O caminho mais certo é enviar a planilha .xlsx ou colar as linhas — foto sempre erra letra e número.`,
+        )
       } finally {
         setLendoPdf('')
       }
@@ -76,8 +90,10 @@ export function ImportarRotasModal({
         📅 As rotas entram no dia <strong>{formatarData(data)}</strong> — e ficam só nele.
       </p>
       <p className="mb-2 text-sm text-slate-600">
-        <strong>Cole aqui as linhas da planilha</strong> (selecione no Excel/Sheets e Ctrl+C → Ctrl+V abaixo)
-        ou envie o arquivo CSV. Ordem das colunas:
+        <strong>Envie a planilha .xlsx</strong> ou <strong>cole as linhas</strong> (Ctrl+C no
+        Excel → Ctrl+V abaixo). Os dois caminhos leem o valor exato de cada célula. Foto e PDF
+        também funcionam, mas passam por reconhecimento de imagem e podem trocar letra por número
+        (I vira 1, G vira 6) — use só quando não tiver o arquivo. Ordem das colunas:
       </p>
       <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
         Cidade • Rota expedição • Rota original • Base • Veículo • Km • DPS • Ocupação % • Transportadora
@@ -89,9 +105,9 @@ export function ImportarRotasModal({
         onChange={(e) => atualizarPrevia(e.target.value)}
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
+        <input ref={arquivoRef} type="file" multiple accept=".xlsx,.csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
         <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-          {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar CSV, PDF ou fotos')}
+          {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar Excel, CSV, PDF ou foto')}
         </Button>
         {previa && (
           <>

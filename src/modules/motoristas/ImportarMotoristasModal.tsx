@@ -1,4 +1,4 @@
-// Cadastro de motoristas em LOTE: cola a planilha do Excel (ou envia um CSV)
+// Cadastro de motoristas em LOTE: cola a planilha do Excel (ou envia o .xlsx/CSV)
 // e o app cria/atualiza a frota inteira de uma vez.
 //
 // A prévia mostra linha a linha o que vai acontecer ANTES de gravar — quem é
@@ -7,6 +7,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { importarMotoristas, useDB, type ResultadoImportacaoMotoristas } from '../../core/db'
 import { parsearPlanilhaMotoristas, type MotoristaImportado } from '../../core/planilha'
+import { xlsxComoTexto } from '../../core/xlsx'
 import { normalizarTexto } from '../../core/texto'
 import { Badge, Button, Modal } from '../../components/ui'
 
@@ -61,6 +62,14 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
     const arquivo = e.target.files?.[0]
     e.target.value = ''
     if (!arquivo) return
+    // O modelo que eu entrego é uma planilha; ler o .xlsx direto evita obrigar
+    // o Dispatcher a converter para CSV antes de importar.
+    if (/\.xlsx$/i.test(arquivo.name)) {
+      void xlsxComoTexto(arquivo)
+        .then(atualizarPrevia)
+        .catch((err) => atualizarPrevia(`❌ Não consegui ler a planilha: ${String(err)}`))
+      return
+    }
     const leitor = new FileReader()
     leitor.onload = () => atualizarPrevia(String(leitor.result ?? ''))
     leitor.readAsText(arquivo)
@@ -137,9 +146,9 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
           <div className="mb-3 flex flex-wrap gap-2">
             <Button variante="secundario" onClick={baixarModelo}>⬇️ Baixar modelo (.csv)</Button>
             <Button variante="secundario" onClick={() => arquivoRef.current?.click()}>
-              📎 Enviar CSV
+              📎 Enviar Excel ou CSV
             </Button>
-            <input ref={arquivoRef} type="file" accept=".csv,.txt,text/csv" hidden onChange={lerArquivo} />
+            <input ref={arquivoRef} type="file" accept=".xlsx,.csv,.txt,text/csv" hidden onChange={lerArquivo} />
           </div>
 
           <textarea
