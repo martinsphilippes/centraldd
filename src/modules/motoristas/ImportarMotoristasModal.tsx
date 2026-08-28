@@ -65,7 +65,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
     // O modelo que eu entrego é uma planilha; ler o .xlsx direto evita obrigar
     // o Dispatcher a converter para CSV antes de importar.
     if (/\.xlsx$/i.test(arquivo.name)) {
-      void xlsxComoTexto(arquivo)
+      void xlsxComoTexto(arquivo, ['Motoristas', 'Cadastro'])
         .then(atualizarPrevia)
         .catch((err) => atualizarPrevia(`❌ Não consegui ler a planilha: ${String(err)}`))
       return

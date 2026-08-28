@@ -582,13 +582,14 @@ export type ColunaRota = (typeof COLUNAS)[number]
  * apaga uma foto do meio.
  */
 export function lerFotoDaPlanilha(
-  texto: string,
+  bruto: string,
   ctx: ContextoLeitura = {},
 ): { colunas: ColunaRota[]; linhas: string[][]; mapa: Map<number, ColunaRota> | null } {
   // Colagem VERTICAL (uma célula por linha) vira tabela antes de qualquer
   // coisa. Sem isto, o texto colado chegava aqui empilhado, nenhuma coluna era
   // reconhecida e só o código de rota se salvava — a rota entrava oca, sem
   // cidade, veículo nem km.
+  const texto = bruto.normalize('NFC')
   const grade = (verticalParaTabela(texto, ctx) ?? texto)
     .split(/\r?\n/)
     .filter((l) => l.trim() !== '')
@@ -892,7 +893,7 @@ export function juntarFotosPorColuna(
 }
 
 export function parsearPlanilhaRotas(
-  texto: string,
+  bruto: string,
   /** O que a operação já conhece: prefixos de rota, cidades e veículos. */
   ctx: ContextoLeitura = {},
 ): {
@@ -929,6 +930,9 @@ export function parsearPlanilhaRotas(
   // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
   // trim comia a tabulação e todas as colunas escorregavam uma casa para a
   // esquerda — a rota original acabava lida como código de expedição.
+  // NFC antes de tudo: um acento pode vir embutido na letra ou em caractere
+  // separado, e as duas formas são textos diferentes para o computador.
+  const texto = bruto.normalize('NFC')
   // Colagem VERTICAL (uma célula por linha) vira tabela antes de tudo.
   const linhas = (verticalParaTabela(texto, ctx) ?? texto)
     .split(/\r?\n/)

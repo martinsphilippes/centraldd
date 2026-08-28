@@ -13,9 +13,15 @@ import {
   type RotaImportada,
 } from '../../core/planilha'
 import { extrairTextoDeArquivo, obterUltimaMiniaturaOcr } from '../../core/pdf'
-import { xlsxComoTexto } from '../../core/xlsx'
+import { xlsxAbaEscolhida } from '../../core/xlsx'
 import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
+
+/**
+ * A aba das rotas na planilha do Meli. O arquivo vem com sete abas, e a maior
+ * é a de telemetria — sem dizer o nome, o app leria a errada.
+ */
+const ABA_DAS_ROTAS = ['Distribuição de Rotas', 'Distribuicao de Rotas', 'Rotas']
 
 export function ImportarRotasModal({
   aberto,
@@ -37,6 +43,8 @@ export function ImportarRotasModal({
   // Ligado pelo botão: a PRÓXIMA foto começa um bloco de linhas novo mesmo que
   // as colunas dela não repitam nenhuma das que já vieram.
   const [forcarBlocoNovo, setForcarBlocoNovo] = useState(false)
+  // Qual aba foi lida de cada Excel — o arquivo do Meli tem várias.
+  const [abasLidas, setAbasLidas] = useState<string[]>([])
   const [previa, setPrevia] = useState<{
     rotas: RotaImportada[]
     ignoradas: number
@@ -169,7 +177,12 @@ export function ImportarRotasModal({
         for (const a of arquivos) {
           setLendoPdf(`⏳ Lendo ${a.name}…`)
           if (/\.xlsx$/i.test(a.name)) {
-            novos.push(await xlsxComoTexto(a))
+            const aba = await xlsxAbaEscolhida(a, ABA_DAS_ROTAS)
+            setAbasLidas((v) => [
+              ...v,
+              `${a.name}: li a aba "${aba.nome}" (o arquivo tem ${aba.abas.length}: ${aba.abas.join(', ')})`,
+            ])
+            novos.push(aba.texto)
             continue
           }
           const lido = await extrairTextoDeArquivo(a, setLendoPdf)
@@ -212,6 +225,7 @@ export function ImportarRotasModal({
       setFotos([])
       setAvisosFotos([])
       setForcarBlocoNovo(false)
+      setAbasLidas([])
       setManuais([])
       setPrevia(null)
       onFechar()
@@ -279,6 +293,7 @@ export function ImportarRotasModal({
                 setFotos([])
                 setAvisosFotos([])
                 setForcarBlocoNovo(false)
+                setAbasLidas([])
                 atualizarPrevia('')
               }}
               className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
@@ -315,6 +330,13 @@ export function ImportarRotasModal({
               <li key={a}>{a}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {abasLidas.length > 0 && (
+        <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          {abasLidas.map((a) => (
+            <p key={a}>📄 {a}</p>
+          ))}
         </div>
       )}
       {previa && previa.colunasVazias.length > 0 && (

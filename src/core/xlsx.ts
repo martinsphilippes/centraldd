@@ -11,6 +11,8 @@
 // como "5:00" e não como 0,2083; número com vírgula decimal. É o mesmo texto
 // que sairia de um Ctrl+C na planilha, e é isso que os parsers esperam.
 
+import { normalizarTexto } from './texto'
+
 /** Uma planilha lida: nome da aba e as linhas, célula a célula. */
 export interface AbaPlanilha {
   nome: string
@@ -172,7 +174,10 @@ function lerAba(xml: string, compartilhados: string[], formatos: Formato[]): str
             : valorFormatado(numero, formatos[Number(c.getAttribute('s') ?? 0)] ?? 'numero')
         }
       }
-      celulas.push(texto.trim())
+      // NFC: o mesmo "Santa Vitória" aparece no arquivo com o acento embutido
+      // no ó e com o acento em caractere separado. São textos DIFERENTES para o
+      // computador, e virariam duas cidades. Normalizar deixa um só.
+      celulas.push(texto.normalize('NFC').trim())
       coluna++
     }
     linhas.push(celulas)
@@ -223,19 +228,49 @@ export async function lerXlsx(arquivo: File | ArrayBuffer): Promise<AbaPlanilha[
 }
 
 /**
- * A aba com mais conteúdo, em TEXTO separado por tabulação — exatamente o que
- * sairia de um Ctrl+C na planilha. Assim o .xlsx entra pelos mesmos leitores
- * que já tratam o texto colado, sem duplicar regra de coluna nenhuma.
+ * Escolhe a ABA certa e devolve o conteúdo dela em TEXTO separado por
+ * tabulação — exatamente o que sairia de um Ctrl+C na planilha. Assim o .xlsx
+ * entra pelos mesmos leitores que já tratam o texto colado.
+ *
+ * A planilha do Meli vem com sete abas, e a maior delas é a "Data": 123 mil
+ * células de telemetria de veículo, que não têm rota nenhuma. Por isso a aba
+ * é escolhida pelo NOME primeiro; o tamanho só desempata quando o nome pedido
+ * não existe no arquivo.
  */
-export async function xlsxComoTexto(arquivo: File | ArrayBuffer): Promise<string> {
+export async function xlsxAbaEscolhida(
+  arquivo: File | ArrayBuffer,
+  /** Nomes (ou pedaços de nome) da aba desejada, em ordem de preferência. */
+  preferidas: string[] = [],
+): Promise<{ nome: string; texto: string; abas: string[] }> {
   const abas = await lerXlsx(arquivo)
+  const nomes = abas.map((a) => a.nome)
   const cheias = abas.filter((a) => a.linhas.some((l) => l.some((c) => c !== '')))
-  if (cheias.length === 0) return ''
-  const escolhida = cheias.reduce((maior, a) =>
-    a.linhas.flat().filter(Boolean).length > maior.linhas.flat().filter(Boolean).length ? a : maior,
-  )
-  return escolhida.linhas
-    .map((l) => l.join('\t'))
-    .filter((l) => l.trim() !== '')
-    .join('\n')
+  if (cheias.length === 0) return { nome: '', texto: '', abas: nomes }
+
+  const chave = (t: string) => normalizarTexto(t).replace(/\s+/g, ' ')
+  const pedida = preferidas
+    .map((p) => cheias.find((a) => chave(a.nome).includes(chave(p))))
+    .find(Boolean)
+  const escolhida =
+    pedida ??
+    cheias.reduce((maior, a) =>
+      a.linhas.flat().filter(Boolean).length > maior.linhas.flat().filter(Boolean).length ? a : maior,
+    )
+
+  return {
+    nome: escolhida.nome,
+    texto: escolhida.linhas
+      .map((l) => l.join('\t'))
+      .filter((l) => l.trim() !== '')
+      .join('\n'),
+    abas: nomes,
+  }
+}
+
+/** Só o texto da aba escolhida — atalho para quem não precisa do nome dela. */
+export async function xlsxComoTexto(
+  arquivo: File | ArrayBuffer,
+  preferidas: string[] = [],
+): Promise<string> {
+  return (await xlsxAbaEscolhida(arquivo, preferidas)).texto
 }
