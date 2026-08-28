@@ -24,6 +24,7 @@ import {
 } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { ProgramacaoItem } from '../../core/types'
+import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
 import { ResumoDiaCard } from './ResumoDiaCard'
 import { ParametrosAlocacaoModal } from './ParametrosAlocacaoModal'
 import { EsteiraDia } from '../dashboard/EsteiraDia'
@@ -71,12 +72,26 @@ export function Programacao() {
 
   // Programação é para frente: dia passado não se programa. As datas antigas
   // continuam no banco (rodízio e relatórios usam), só somem do seletor.
-  const datas = [...new Set(db.programacao.map((p) => p.data))]
+  // A lista junta os dois tipos de trabalho já feito no dia: a planilha do
+  // Meli importada E o resumo/modelo preenchido — antes só a planilha
+  // aparecia, e um dia que só tinha modelo sumia do seletor.
+  const datas = [
+    ...new Set([...db.programacao.map((p) => p.data), ...db.resumos.map((r) => r.id)]),
+  ]
     .filter((d) => d >= hojeISO())
     .sort()
-  const [dataSelecionada, setDataSelecionada] = useState<string>('')
-  const escolherData = (d: string) => setDataSelecionada(d && d < hojeISO() ? hojeISO() : d)
-  const dataAtiva = dataSelecionada || datas.find((d) => d >= hojeISO()) || hojeISO()
+  // O dia escolhido SOBREVIVE à navegação: sair para outra tela e voltar
+  // mantinha o estado zerado e a tela pulava para hoje, dando a impressão de
+  // que o modelo do dia seguinte havia sumido.
+  const [dataSelecionada, setDataSelecionada] = useState<string>(() => lerDiaProgramacao())
+  const escolherData = (d: string) => {
+    const alvo = d && d < hojeISO() ? hojeISO() : d
+    gravarDiaProgramacao(alvo)
+    setDataSelecionada(alvo)
+  }
+  // Sem escolha: abre no primeiro dia que JÁ TEM trabalho feito (modelo ou
+  // planilha), e só cai em hoje quando não há nada em lugar nenhum.
+  const dataAtiva = dataSelecionada || datas[0] || hojeISO()
 
   const doDia = db.programacao
     .filter((p) => p.data === dataAtiva)
