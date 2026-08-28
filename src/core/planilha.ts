@@ -357,6 +357,21 @@ const LETRAS_SOSIA: Record<string, string[]> = {
  */
 export function repararComHistorico(codigo: string, conhecidos: Set<string>): string {
   if (conhecidos.size === 0) return codigo
+
+  // Código que veio SÓ com números ("822_PM1"): a primeira letra virou dígito
+  // na foto. Se a sósia dela for um prefixo conhecido, era isso.
+  const soNumero = /^(\d)(\d+)[ _]([AP]M[I1L|]?\d?)$/.exec(codigo)
+  if (soNumero) {
+    const DIGITO_SOSIA: Record<string, string[]> = {
+      '8': ['B'], '0': ['O', 'D'], '1': ['I', 'L'], '5': ['S'], '6': ['G'], '2': ['Z'], '4': ['A'], '7': ['T'],
+    }
+    const candidatos = (DIGITO_SOSIA[soNumero[1]] ?? []).filter((l) => conhecidos.has(l))
+    if (candidatos.length === 1) {
+      const onda = soNumero[3].replace(/[IL|]/g, '1')
+      return `${candidatos[0]}${Number(soNumero[2])}_${/\d$/.test(onda) ? onda : onda + '1'}`
+    }
+  }
+
   const m = /^([A-Z]+)(\d+)_([AP]M\d)$/.exec(codigo)
   if (!m) return codigo
   const [, prefixo, numero, onda] = m
@@ -436,6 +451,16 @@ function mapearCabecalho(celulas: string[]): Map<number, (typeof COLUNAS)[number
   return mapa.size >= 2 ? mapa : null
 }
 
+/**
+ * O que a operação já conhece — é o que deixa a foto ser lida sem cabeçalho.
+ * Cidades e veículos vêm do cadastro; os prefixos, das rotas já importadas.
+ */
+export interface ContextoLeitura {
+  prefixos?: string[]
+  cidades?: string[]
+  veiculos?: string[]
+}
+
 /** "B15 PM1", "VD10_PM1" — o jeitão de um código de rota de expedição. */
 const CARA_DE_ROTA = /^[A-Z]{0,3}[0-9OILZABSGT]{1,3}[ _]?[AP]M[I1L|]{0,2}\d?$/i
 /** "PM1_21", "AM1 53" — o jeitão de uma rota original. */
@@ -462,32 +487,240 @@ function lerRecorte(linha: string): { rotaExpedicao: string; rotaOriginal: strin
   }
 }
 
+const CARA_DE_HORA = /^\d{1,2}:\d{2}$/
+const CARA_DE_NUMERO = /^\d{1,3}([.,]\d{1,3})?$/
+const CARA_DE_BASE = /^[A-Z]{2,5}\d{1,3}$/i
+
 /**
- * Recorte SEM cabeçalho: descobre as colunas pelo formato do conteúdo. É o
- * caso da foto tirada de perto, em que o cabeçalho ficou fora do quadro.
+ * Descobre as colunas pelo CONTEÚDO delas, sem depender do cabeçalho.
+ *
+ * Numa foto de planilha o cabeçalho é o primeiro a se perder: é texto claro
+ * sobre faixa colorida, e o OCR devolve coisas como "Base ado verde". Já o
+ * conteúdo se identifica sozinho — "PM1_21" só pode ser rota original, "5:58"
+ * só pode ser DPS — e o que é ambíguo (cidade × veículo × transportadora) o
+ * app resolve com o que ele já tem cadastrado.
  */
-function mapearPeloConteudo(linhas: string[][]): Map<number, (typeof COLUNAS)[number]> | null {
+function mapearPeloConteudo(
+  linhas: string[][],
+  ctx: ContextoLeitura = {},
+): Map<number, (typeof COLUNAS)[number]> | null {
   const total = linhas.length
   if (total < 2) return null
+  const cidades = new Set((ctx.cidades ?? []).map(normalizarTexto))
+  const veiculos = new Set((ctx.veiculos ?? []).map(normalizarTexto))
   const quantas = Math.max(...linhas.map((l) => l.length))
   const mapa = new Map<number, (typeof COLUNAS)[number]>()
+  const maioria = (valores: string[], teste: (v: string) => boolean) =>
+    valores.filter(teste).length >= valores.length * 0.7
+
+  // Um veículo do cadastro pode aparecer abreviado na foto ("Veículo de
+  // Passeio" cortado em "Passeio"), então basta uma das palavras bater.
+  const pareceVeiculo = (v: string) => {
+    const chave = normalizarTexto(v)
+    if (veiculos.has(chave)) return true
+    return [...veiculos].some((c) => c.includes(chave) || chave.includes(c))
+  }
+
+  const numericas: number[] = []
   for (let i = 0; i < quantas; i++) {
     const valores = linhas.map((l) => l[i] ?? '').filter(Boolean)
     if (valores.length < total * 0.6) continue
-    if (valores.filter((v) => CARA_DE_ORIGINAL.test(v)).length >= valores.length * 0.7)
-      mapa.set(i, 'rotaOriginal')
-    else if (valores.filter((v) => CARA_DE_ROTA.test(v)).length >= valores.length * 0.7)
-      mapa.set(i, 'rotaExpedicao')
+    if (maioria(valores, (v) => CARA_DE_ORIGINAL.test(v))) mapa.set(i, 'rotaOriginal')
+    else if (maioria(valores, (v) => CARA_DE_ROTA.test(v))) mapa.set(i, 'rotaExpedicao')
+    else if (maioria(valores, (v) => CARA_DE_HORA.test(v))) mapa.set(i, 'dps')
+    else if (maioria(valores, (v) => pareceVeiculo(v))) mapa.set(i, 'veiculo')
+    else if (cidades.size > 0 && maioria(valores, (v) => cidades.has(normalizarTexto(v))))
+      mapa.set(i, 'cidade')
+    else if (maioria(valores, (v) => CARA_DE_NUMERO.test(v) || /^\d{1,3}[.,]\d{1,3}$/.test(v)))
+      numericas.push(i)
+    // Base é o mesmo código repetido em todas as linhas (EMG13, EMG13, …).
+    else if (maioria(valores, (v) => CARA_DE_BASE.test(v)) && new Set(valores).size <= 3)
+      mapa.set(i, 'base')
   }
-  return mapa.size > 0 && [...mapa.values()].includes('rotaExpedicao') ? mapa : null
+
+  // Km e Ocupação são os dois decimais; o DPS fica entre eles na planilha, e é
+  // essa vizinhança que diz qual é qual sem precisar de cabeçalho.
+  const posDps = [...mapa.entries()].find(([, c]) => c === 'dps')?.[0]
+  for (const i of numericas) {
+    if (posDps === undefined) mapa.set(i, 'km')
+    else mapa.set(i, i < posDps ? 'km' : 'ocupacao')
+  }
+
+  return mapa.size > 0 ? mapa : null
+}
+
+/**
+ * Linha que não se parece com nenhuma das colunas detectadas é sobra da foto
+ * (o cabeçalho mastigado, um rodapé) e não pode virar rota.
+ */
+function pareceLinhaDeDados(
+  celulas: string[],
+  mapa: Map<number, (typeof COLUNAS)[number]>,
+): boolean {
+  let fortes = 0
+  let batem = 0
+  for (const [i, coluna] of mapa) {
+    const v = celulas[i] ?? ''
+    if (coluna === 'rotaExpedicao') { fortes++; if (CARA_DE_ROTA.test(v)) batem++ }
+    else if (coluna === 'rotaOriginal') { fortes++; if (CARA_DE_ORIGINAL.test(v)) batem++ }
+    else if (coluna === 'dps') { fortes++; if (CARA_DE_HORA.test(v)) batem++ }
+    else if (coluna === 'km' || coluna === 'ocupacao') { fortes++; if (/\d/.test(v)) batem++ }
+  }
+  return fortes === 0 || batem > 0
+}
+
+/** O que uma foto trouxe: quais colunas e quantas linhas. */
+export interface FotoColuna {
+  colunas: string[]
+  linhas: number
+  /** Sem cabeçalho reconhecido não dá para saber de que coluna a foto é. */
+  reconhecida: boolean
+}
+
+const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
+  cidade: 'Cidade',
+  rotaExpedicao: 'Rota expedição',
+  rotaOriginal: 'Rota original',
+  base: 'Base',
+  veiculo: 'Veículo',
+  km: 'Km',
+  dps: 'DPS',
+  ocupacao: 'Ocupação %',
+  transportadora: 'Transportadora',
+}
+
+/**
+ * Junta fotos TIRADAS POR COLUNA lado a lado, em vez de empilhar.
+ *
+ * Fotografar a planilha inteira obriga a afastar, e aí letra e número somem.
+ * Fotografando 2 ou 3 colunas de cada vez, cada foto sai grande e o OCR acerta
+ * — desde que o app recomponha a tabela. É o que esta função faz: cada foto
+ * diz, pelo próprio cabeçalho, de que colunas ela é, e as linhas se encaixam.
+ *
+ * O encaixe é pela ORDEM das linhas, que é como as fotos foram tiradas. Se
+ * duas fotos tiverem uma coluna em comum (a Rota expedição, por exemplo), essa
+ * coluna vira a âncora e o encaixe passa a ser conferido, não presumido —
+ * por isso vale a pena repetir uma coluna em todas as fotos.
+ */
+export function juntarFotosPorColuna(
+  textos: string[],
+  ctx: ContextoLeitura = {},
+): {
+  texto: string
+  fotos: FotoColuna[]
+  avisos: string[]
+} {
+  const avisos: string[] = []
+  const fotos: FotoColuna[] = []
+  const blocos: { mapa: Map<number, (typeof COLUNAS)[number]>; linhas: string[][] }[] = []
+  const soltos: string[] = []
+
+  for (const texto of textos) {
+    const grade = texto
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.split(detectarSeparador(l)).map(limpar))
+    if (grade.length === 0) continue
+
+    let mapa: Map<number, (typeof COLUNAS)[number]> | null = null
+    let inicio = 0
+    for (let i = 0; i < Math.min(grade.length, 5); i++) {
+      const achado = mapearCabecalho(grade[i])
+      if (achado) {
+        mapa = achado
+        inicio = i + 1
+        break
+      }
+    }
+    if (!mapa) mapa = mapearPeloConteudo(grade, ctx)
+    if (!mapa) {
+      // Sem saber de que coluna é, a foto não pode ser encaixada — mas o que
+      // ela leu não se perde: entra como linha solta, o jeito antigo.
+      soltos.push(texto)
+      fotos.push({ colunas: [], linhas: grade.length, reconhecida: false })
+      continue
+    }
+    const linhas = grade
+      .slice(inicio)
+      .filter((l) => l.some((c) => c !== '') && pareceLinhaDeDados(l, mapa))
+    blocos.push({ mapa, linhas })
+    fotos.push({
+      colunas: [...new Set([...mapa.values()])].map((c) => ROTULO_COLUNA[c]),
+      linhas: linhas.length,
+      reconhecida: true,
+    })
+  }
+
+  if (blocos.length === 0) return { texto: soltos.join('\n'), fotos, avisos }
+
+  // Todas as fotos precisam ter a mesma quantidade de linhas para encaixarem.
+  const alturas = [...new Set(blocos.map((b) => b.linhas.length))]
+  if (alturas.length > 1) {
+    avisos.push(
+      `as fotos têm quantidades de linhas diferentes (${alturas.join(', ')}) — confira se alguma ficou cortada, porque as linhas podem ter se encaixado trocadas`,
+    )
+  }
+
+  // Âncora: coluna que aparece em mais de uma foto serve de conferência.
+  const contagem = new Map<(typeof COLUNAS)[number], number>()
+  for (const b of blocos)
+    for (const c of new Set(b.mapa.values())) contagem.set(c, (contagem.get(c) ?? 0) + 1)
+  const ancora = [...contagem.entries()].find(([c, n]) => n > 1 && (c === 'rotaExpedicao' || c === 'rotaOriginal'))?.[0]
+
+  const altura = Math.max(...blocos.map((b) => b.linhas.length))
+  const saida: string[][] = []
+  for (let i = 0; i < altura; i++) {
+    const linha = COLUNAS.map(() => '')
+    for (const b of blocos) {
+      const celulas = b.linhas[i]
+      if (!celulas) continue
+      for (const [pos, coluna] of b.mapa) {
+        const valor = celulas[pos] ?? ''
+        if (valor) linha[COLUNAS.indexOf(coluna)] = valor
+      }
+    }
+    saida.push(linha)
+  }
+
+  if (ancora) {
+    // Com âncora dá para conferir de verdade: se as fotos discordarem na mesma
+    // linha, o encaixe escorregou e é melhor o Dispatcher saber.
+    const pos = COLUNAS.indexOf(ancora)
+    let divergiu = 0
+    for (let i = 0; i < altura; i++) {
+      const vistos = new Set<string>()
+      for (const b of blocos) {
+        const idx = [...b.mapa.entries()].find(([, c]) => c === ancora)?.[0]
+        if (idx === undefined) continue
+        const v = normalizarTexto(b.linhas[i]?.[idx] ?? '')
+        if (v) vistos.add(v)
+      }
+      if (vistos.size > 1) divergiu++
+    }
+    void pos
+    if (divergiu > 0) {
+      avisos.push(
+        `${divergiu} linha(s) em que as fotos discordam na coluna ${ROTULO_COLUNA[ancora]} — o encaixe pode ter escorregado; confira ou tire as fotos de novo com as mesmas linhas`,
+      )
+    }
+  } else if (blocos.length > 1) {
+    avisos.push(
+      'as fotos não têm nenhuma coluna em comum, então o encaixe é pela ordem das linhas — para o app poder CONFERIR o encaixe, inclua a coluna "Rota expedição" em todas as fotos',
+    )
+  }
+
+  const cabecalho = COLUNAS.map((c) => ROTULO_COLUNA[c]).join('\t')
+  const corpo = saida.map((l) => l.join('\t')).join('\n')
+  return { texto: [cabecalho, corpo, ...soltos].filter(Boolean).join('\n'), fotos, avisos }
 }
 
 export function parsearPlanilhaRotas(
   texto: string,
-  /** Prefixos de rota que a operação já usou — vindos das importações anteriores. */
-  prefixosConhecidos: string[] = [],
+  /** O que a operação já conhece: prefixos de rota, cidades e veículos. */
+  ctx: ContextoLeitura = {},
 ): { rotas: RotaImportada[]; ignoradas: number; avisos: string[] } {
-  const conhecidos = new Set(prefixosConhecidos.map((p) => p.toUpperCase()))
+  const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
   const linhas = texto
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -514,7 +747,7 @@ export function parsearPlanilhaRotas(
       break
     }
   }
-  if (!mapa) mapa = mapearPeloConteudo(grade)
+  if (!mapa) mapa = mapearPeloConteudo(grade, ctx)
 
   for (const linha of linhas.slice(primeiraLinha)) {
     const sep = detectarSeparador(linha)
@@ -598,6 +831,7 @@ export function parsearPlanilhaRotas(
     r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
   }
   conferirColuna(finais)
+  ajustarPorColuna(finais, ctx)
   // Código repetido = uma das linhas teve o código mal lido e a máquina não
   // tem como saber qual. Avisar é honesto; escolher no chute, não.
   const vezes = new Map<string, number>()
@@ -626,6 +860,30 @@ export function parsearPlanilhaRotas(
     }
   }
   return { rotas: finais, ignoradas, avisos }
+}
+
+/**
+ * Ajustes que dependem de olhar a coluna inteira e o que a operação conhece:
+ * o veículo cortado pela foto volta ao nome completo, e a ocupação que perdeu
+ * a vírgula é recomposta (é sempre uma porcentagem, nunca passa de 100).
+ */
+function ajustarPorColuna(rotas: RotaImportada[], ctx: ContextoLeitura) {
+  const veiculos = [...new Set(ctx.veiculos ?? [])].filter(Boolean)
+  for (const r of rotas) {
+    if (r.veiculo && veiculos.length > 0) {
+      const chave = normalizarTexto(r.veiculo)
+      // "Passeio" na foto é o "Veículo de Passeio" do cadastro — só completa
+      // quando a resposta é única, senão fica como foi lido.
+      const iguais = veiculos.filter((v) => normalizarTexto(v) === chave)
+      const contidos = veiculos.filter((v) => normalizarTexto(v).includes(chave))
+      if (iguais.length === 0 && contidos.length === 1) r.veiculo = contidos[0]
+    }
+    // Ocupação é % e nunca passa de 100: "431" perdeu a vírgula, é 4,31.
+    const oc = r.ocupacao.trim()
+    if (oc && !/[.,]/.test(oc) && /^\d{3,}$/.test(oc) && Number(oc) > 100) {
+      r.ocupacao = `${oc.slice(0, -2)},${oc.slice(-2)}`
+    }
+  }
 }
 
 /**
