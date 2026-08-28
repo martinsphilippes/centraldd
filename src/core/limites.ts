@@ -20,11 +20,12 @@ const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
 /**
  * Veículos planejados para a data, na melhor fonte disponível.
  *
- * O RESUMO DO DIA manda: é o documento que o Dispatcher edita à mão, e cada
- * veículo dele precisa de um motorista. Conta os dois blocos — AM
- * (utilitários + VUC por transportadora, ou o TOTAL ROTAS informado à mão) e
- * MM (as quantidades de 3/4, TOCO, TRUCK, CARRETA). Qualquer edição no card
- * muda o limite na hora, porque a conta é feita a partir do documento salvo.
+ * O RESUMO DO DIA manda: é o documento que o Dispatcher edita à mão. Conta só
+ * o AM — utilitários + VUC por transportadora, ou o TOTAL ROTAS informado à
+ * mão: são as rotas de entrega, e cada uma precisa de um motorista. O bloco MM
+ * fica de fora de propósito, porque são os veículos grandes da transferência,
+ * contados em posições trazidas — não são rotas para a frota rodar. Qualquer
+ * edição no card muda o limite na hora, porque a conta sai do documento salvo.
  */
 function basePlanejada(db: DB, data: string): { base: number; fonte: string } {
   const resumo = db.resumos.find((r) => r.id === data)
@@ -34,14 +35,8 @@ function basePlanejada(db: DB, data: string): { base: number; fonte: string } {
       0,
     )
     // O TOTAL ROTAS digitado à mão sobrepõe a soma, igual ao card.
-    const totalRotas = num(resumo.totalRotas ?? '') > 0 ? num(resumo.totalRotas ?? '') : somaTransportadoras
-    const veiculosGrandes = resumo.mm.reduce((s, m) => s + num(m.quantidade), 0)
-    const total = totalRotas + veiculosGrandes
-    if (total > 0) {
-      const partes = [`${totalRotas} do TOTAL ROTAS`]
-      if (veiculosGrandes > 0) partes.push(`${veiculosGrandes} veículo(s) grande(s) do MM`)
-      return { base: total, fonte: `resumo do dia — ${partes.join(' + ')}` }
-    }
+    const total = num(resumo.totalRotas ?? '') > 0 ? num(resumo.totalRotas ?? '') : somaTransportadoras
+    if (total > 0) return { base: total, fonte: `resumo do dia — ${total} do TOTAL ROTAS` }
   }
 
   const daProgramacao = db.programacao.filter((p) => p.data === data).length

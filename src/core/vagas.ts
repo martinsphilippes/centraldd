@@ -70,6 +70,11 @@ export function frotaDoDia(db: DB, data: string): FrotaDoDia {
 
   const resumo = db.resumos.find((r) => r.id === data)
   if (resumo) {
+    // SÓ O AM. As transportadoras (Utilitários + VUC) são as rotas de entrega,
+    // que é o que precisa de motorista da frota. O bloco MM é outra coisa: são
+    // os veículos grandes da transferência, contados em POSIÇÕES trazidas
+    // (quantidade × posições por unidade) — somá-los aqui inventava vaga de
+    // CARRETA e TRUCK que motorista nenhum deste cadastro vai rodar.
     const mapa = new Map<string, VagaVeiculo>()
     let am = 0
     for (const t of resumo.transportadoras) {
@@ -77,7 +82,6 @@ export function frotaDoDia(db: DB, data: string): FrotaDoDia {
       somar(mapa, 'VUC', num(t.vuc))
       am += num(t.utilitarios) + num(t.vuc)
     }
-    for (const m of resumo.mm) somar(mapa, m.tipo, num(m.quantidade))
     // O TOTAL ROTAS digitado à mão só acrescenta: a diferença vira vaga livre,
     // porque um número solto não diz de que veículo ele é.
     const manual = num(resumo.totalRotas)
@@ -215,6 +219,39 @@ export interface DistribuicaoFrota {
   aplicada: boolean
 }
 
+/**
+ * Reparte `meta` vagas entre os veículos na proporção do que cada um tem, sem
+ * perder nem inventar vaga: cada um leva a parte inteira e o que sobra do
+ * arredondamento vai para quem ficou com a maior fração.
+ */
+function cotaProporcional(
+  itens: { chave: string; vagas: number }[],
+  meta: number,
+  total: number,
+): Map<string, number> {
+  const cota = new Map<string, number>()
+  if (meta >= total || total <= 0) {
+    for (const i of itens) cota.set(i.chave, i.vagas)
+    return cota
+  }
+  const exatas = itens.map((i) => ({ ...i, exata: (i.vagas * meta) / total }))
+  let distribuidas = 0
+  for (const i of exatas) {
+    const inteira = Math.floor(i.exata)
+    cota.set(i.chave, inteira)
+    distribuidas += inteira
+  }
+  // Sobra do arredondamento: quem tem a maior fração pendente leva primeiro.
+  const porFracao = [...exatas].sort(
+    (a, b) => (b.exata - Math.floor(b.exata)) - (a.exata - Math.floor(a.exata)) || b.vagas - a.vagas,
+  )
+  for (let i = 0; distribuidas < meta && i < porFracao.length; i++, distribuidas++) {
+    const chave = porFracao[i].chave
+    cota.set(chave, (cota.get(chave) ?? 0) + 1)
+  }
+  return cota
+}
+
 /** Tipos ordenados do mais disputado para o menos — o apertado escolhe antes. */
 function ordemDeEscolha(
   frota: FrotaDoDia,
@@ -260,31 +297,52 @@ export function distribuirPorFrota(
   }
 
   const serve = testeDeVaga(p)
-  const dentro = new Set<string>()
-  const linhas: LinhaFrota[] = []
-  let cabemAinda = Math.min(meta, frota.total)
+  const tipoDe = new Map<string, string>()
+  const ordem = ordemDeEscolha(frota, ordenados, serve)
+  // Meta menor que a frota: cada veículo cede na mesma proporção, em vez de um
+  // deles zerar. Com 47 Utilitário + 2 VUC e meta 20, saem 19 e 1 — a rota de
+  // VUC continua tendo motorista.
+  const cota = cotaProporcional(
+    [...ordem.map((v) => ({ chave: v.tipo, vagas: v.vagas })), { chave: '', vagas: frota.livres }],
+    meta,
+    frota.total,
+  )
 
-  for (const v of ordemDeEscolha(frota, ordenados, serve)) {
+  // 1ª passada: cada veículo enche as vagas DELE, sem olhar a meta global. Se a
+  // meta cortasse aqui, o último veículo da fila ficaria sem ninguém só por ser
+  // o último — foi o que deixou uma vaga de VUC vazia com o time cheio.
+  for (const v of ordem) {
     let ocupadas = 0
     for (const m of ordenados) {
-      if (ocupadas >= v.vagas || cabemAinda <= 0) break
-      if (dentro.has(m.id) || !serve(v.tipo, m.veiculo)) continue
-      dentro.add(m.id)
+      if (ocupadas >= (cota.get(v.tipo) ?? 0)) break
+      if (tipoDe.has(m.id) || !serve(v.tipo, m.veiculo)) continue
+      tipoDe.set(m.id, v.tipo)
       ocupadas++
-      cabemAinda--
     }
-    linhas.push({ tipo: v.tipo, vagas: v.vagas, ocupadas, candidatos: v.candidatos })
+  }
+  // Vaga livre é coringa: fecha com quem ainda não entrou, na ordem.
+  let livres = 0
+  for (const m of ordenados) {
+    if (livres >= (cota.get('') ?? 0)) break
+    if (tipoDe.has(m.id)) continue
+    tipoDe.set(m.id, '')
+    livres++
   }
 
-  // Vaga livre é coringa: fecha com quem ainda não entrou, na ordem.
-  let livresOcupadas = 0
-  for (const m of ordenados) {
-    if (livresOcupadas >= frota.livres || cabemAinda <= 0) break
-    if (dentro.has(m.id)) continue
-    dentro.add(m.id)
-    livresOcupadas++
-    cabemAinda--
-  }
+  // Trava final: se a sobra de arredondamento passar da meta, saem os últimos
+  // da ordem de prioridade.
+  const escolhidosOrdenados = ordenados.filter((m) => tipoDe.has(m.id))
+  for (const m of escolhidosOrdenados.slice(meta)) tipoDe.delete(m.id)
+
+  const dentro = new Set(tipoDe.keys())
+  const contar = (tipo: string) => [...tipoDe.values()].filter((t) => t === tipo).length
+  const linhas: LinhaFrota[] = ordem.map((v) => ({
+    tipo: v.tipo,
+    vagas: v.vagas,
+    ocupadas: contar(v.tipo),
+    candidatos: v.candidatos,
+  }))
+  const livresOcupadas = contar('')
 
   const sobra = ordenados.filter((m) => !dentro.has(m.id))
   const temVagaDoTipo = (m: Motorista) => frota.vagas.some((v) => serve(v.tipo, m.veiculo))
