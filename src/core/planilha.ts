@@ -57,9 +57,6 @@ export function parsearPlanilhaMeli(texto: string): {
   itens: ProgramacaoImportada[]
   ignoradas: number
 } {
-  // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
-  // trim comia a tabulação e todas as colunas escorregavam uma casa para a
-  // esquerda — a rota original acabava lida como código de expedição.
   const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== '')
   const itens: ProgramacaoImportada[] = []
   let ignoradas = 0
@@ -648,6 +645,94 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
  * coluna vira a âncora e o encaixe passa a ser conferido, não presumido —
  * por isso vale a pena repetir uma coluna em todas as fotos.
  */
+/**
+ * Texto colado com UMA CÉLULA POR LINHA.
+ *
+ * É o que sai quando se copia a planilha de uma tela (o reconhecimento de
+ * texto do iPad, um PDF, uma página): as colunas viram uma coluna só,
+ * empilhada. Não dá para contar casinha — mas dá para montar a linha em volta
+ * do CÓDIGO DA ROTA, que é inconfundível, classificando o resto pelo formato:
+ * "PM1_21" só é rota original, "5:58" só é DPS, "EMG13" só é base.
+ *
+ * Devolve a tabela no formato normal, ou null quando o texto não é vertical.
+ */
+function verticalParaTabela(texto: string, ctx: ContextoLeitura): string | null {
+  const linhas = texto
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  if (linhas.length < 8) return null
+  // Texto com separador é tabela de verdade — este caminho não é para ele.
+  const comSeparador = linhas.filter((l) => /[\t;]/.test(l) || (l.match(/,/g)?.length ?? 0) >= 3).length
+  if (comSeparador > linhas.length * 0.2) return null
+
+  const ancoras = linhas.map((l, i) => (CARA_DE_ROTA.test(l) ? i : -1)).filter((i) => i >= 0)
+  if (ancoras.length < 2) return null
+
+  const ROTULOS = new Set(
+    ['cidade', 'rota expedicao', 'rota original', 'base', 'veiculo', 'km', 'dps', 'ocupacao', 'ocupacao %', 'transportadora'].map(
+      (r) => r.replace(/ /g, ''),
+    ),
+  )
+  const ehRotulo = (l: string) => ROTULOS.has(normalizarTexto(l).replace(/[= %]/g, ''))
+  const cidades = new Set((ctx.cidades ?? []).map(normalizarTexto))
+  const veiculos = (ctx.veiculos ?? []).filter(Boolean)
+  const pareceVeiculo = (v: string) => {
+    const chave = normalizarTexto(v)
+    return veiculos.some((c) => {
+      const k = normalizarTexto(c)
+      return k === chave || k.includes(chave) || chave.includes(k)
+    })
+  }
+
+  const saida: string[][] = []
+  ancoras.forEach((posCodigo, k) => {
+    const inicio = k === 0 ? 0 : ancoras[k - 1] + 1
+    const fim = k === ancoras.length - 1 ? linhas.length : ancoras[k + 1] - 1
+    const linha = COLUNAS.map(() => '')
+    const por = (c: (typeof COLUNAS)[number], v: string) => {
+      if (!linha[COLUNAS.indexOf(c)]) linha[COLUNAS.indexOf(c)] = v
+    }
+    por('rotaExpedicao', linhas[posCodigo])
+
+    // Antes do código vem a cidade; o rótulo do cabeçalho não conta.
+    for (let i = posCodigo - 1; i >= inicio; i--) {
+      const l = linhas[i]
+      if (ehRotulo(l) || CARA_DE_ROTA.test(l)) continue
+      if (cidades.has(normalizarTexto(l)) || /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]{2,}$/.test(l)) {
+        por('cidade', l)
+        break
+      }
+    }
+    // Depois do código, cada valor cai na coluna pelo formato dele.
+    const soltos: string[] = []
+    for (let i = posCodigo + 1; i < fim; i++) {
+      const l = linhas[i]
+      if (ehRotulo(l)) continue
+      if (CARA_DE_ORIGINAL.test(l)) por('rotaOriginal', l)
+      else if (CARA_DE_HORA.test(l)) por('dps', l)
+      else if (CARA_DE_BASE.test(l) && !pareceVeiculo(l)) por('base', l)
+      else if (pareceVeiculo(l)) por('veiculo', l)
+      else if (/^\d{1,3}[.,]\d{1,3}$/.test(l) || /^\d{1,3}$/.test(l)) {
+        // Km vem antes da Ocupação na planilha; o primeiro decimal é o Km.
+        if (!linha[COLUNAS.indexOf('km')]) por('km', l)
+        else por('ocupacao', l)
+      } else if (/[A-Za-zÀ-ÿ]/.test(l)) soltos.push(l)
+    }
+    // Texto que não bateu com nada: na planilha, Veículo vem antes de
+    // Transportadora. Um veículo que o cadastro ainda não conhece ("Vuc" lido
+    // como "Wile") não pode empurrar a transportadora para fora da linha.
+    if (soltos.length > 0) {
+      if (!linha[COLUNAS.indexOf('veiculo')] && soltos.length > 1) por('veiculo', soltos[0])
+      por('transportadora', soltos[soltos.length - 1])
+    }
+    saida.push(linha)
+  })
+
+  const cabecalho = COLUNAS.map((c) => ROTULO_COLUNA[c]).join('\t')
+  return [cabecalho, ...saida.map((l) => l.join('\t'))].join('\n')
+}
+
 export function juntarFotosPorColuna(
   /** Cada foto com o bloco de linhas a que ela pertence (1, 2, 3…). */
   entradas: { texto: string; bloco: number }[],
@@ -823,7 +908,10 @@ export function parsearPlanilhaRotas(
   // Sem trim na LINHA: numa linha que começa com coluna vazia ("\tB14…"), o
   // trim comia a tabulação e todas as colunas escorregavam uma casa para a
   // esquerda — a rota original acabava lida como código de expedição.
-  const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== '')
+  // Colagem VERTICAL (uma célula por linha) vira tabela antes de tudo.
+  const linhas = (verticalParaTabela(texto, ctx) ?? texto)
+    .split(/\r?\n/)
+    .filter((l) => l.trim() !== '')
   const rotas: RotaImportada[] = []
   let ignoradas = 0
 
@@ -958,6 +1046,54 @@ export function parsearPlanilhaRotas(
   const avisos = [...vezes.entries()]
     .filter(([, n]) => n > 1)
     .map(([codigo, n]) => `${codigo} apareceu ${n}× — confira essas linhas, o código pode ter sido lido errado`)
+
+  // Cidade que não existe na operação: a leitura torceu o nome ("mulutaDa"),
+  // e a preferência de cidade do motorista não vai casar com ela.
+  const oficiais = ctx.cidades ?? []
+  if (oficiais.length > 0) {
+    const estranhas = [
+      ...new Set(
+        validas
+          .map((r) => r.cidade.trim())
+          .filter(
+            (c) =>
+              c &&
+              !oficiais.some((o) => normalizarTexto(o) === normalizarTexto(c) || parecidoCom(o, c)),
+          ),
+      ),
+    ]
+    if (estranhas.length > 0) {
+      avisos.push(
+        `${estranhas.join(', ')} — não é cidade da operação. A leitura pode ter torcido o nome; acerte na tela de Rotas, senão a preferência de cidade do motorista não vai casar.`,
+      )
+    }
+  }
+
+  // Mesma ideia para o veículo: "Vuc" lido como "Wile" não casa com motorista
+  // nenhum na hora de direcionar.
+  const veiculosOperacao = ctx.veiculos ?? []
+  if (veiculosOperacao.length > 0) {
+    const estranhos = [
+      ...new Set(
+        validas
+          .map((r) => r.veiculo.trim())
+          .filter(
+            (v) =>
+              v &&
+              !veiculosOperacao.some((o) => {
+                const a = normalizarTexto(o)
+                const b = normalizarTexto(v)
+                return a === b || a.includes(b) || b.includes(a)
+              }),
+          ),
+      ),
+    ]
+    if (estranhos.length > 0) {
+      avisos.push(
+        `${estranhos.join(', ')} — não é veículo cadastrado. Confira na tela de Rotas: veículo torto atrapalha o direcionamento do motorista.`,
+      )
+    }
+  }
 
   // Número fora de escala dentro do mesmo prefixo (VJ1…VJ13 e de repente um
   // VJ114): quase sempre é dígito duplicado pela foto. Avisa, não adivinha.
