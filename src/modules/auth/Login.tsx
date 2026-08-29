@@ -107,6 +107,7 @@ export function Login() {
           />
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">Central DD</h1>
           <p className="text-sm font-medium text-marca">Dispatcher &amp; Driver</p>
+          <p className="mt-0.5 text-xs text-slate-400">a serviço da Rodacoop 📦</p>
         </div>
         <div className="mb-3">
           <InstalarBanner />

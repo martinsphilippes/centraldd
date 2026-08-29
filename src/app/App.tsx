@@ -45,6 +45,7 @@ function TelaCarregando() {
         />
         <p className="mt-4 text-base font-bold tracking-tight text-white">Central DD</p>
         <p className="text-xs font-medium text-marca">Dispatcher &amp; Driver</p>
+        <p className="mt-0.5 text-[11px] text-slate-400">a serviço da Rodacoop 📦</p>
         <p className="mt-3 text-sm font-medium text-slate-400">Carregando…</p>
       </div>
     </div>

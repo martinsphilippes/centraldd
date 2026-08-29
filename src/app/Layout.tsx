@@ -74,11 +74,23 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col overflow-hidden lg:pl-60">
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-navy pt-[env(safe-area-inset-top)] lg:flex">
-        <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-4">
-          <img src="/icons/icon-192.png" alt="" className="h-9 w-9 rounded-lg bg-white object-cover" />
-          <div>
-            <div className="text-sm font-bold leading-tight text-white">Central DD</div>
-            <div className="text-[10px] font-medium text-marca">Dispatcher &amp; Driver</div>
+        <div className="flex items-center gap-2.5 border-b border-white/10 px-4 py-4">
+          {/* marca.png é só o símbolo, com folga branca em volta: em 40px o
+              letreiro do logo cheio vira borrão. object-contain garante que
+              nada seja cortado, que era o defeito antes. */}
+          <img
+            src="/icons/marca.png"
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-0.5"
+          />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold leading-tight text-white">Central DD</div>
+            <div className="truncate text-[10px] font-medium leading-tight text-marca">
+              Dispatcher &amp; Driver
+            </div>
+            <div className="truncate text-[10px] leading-tight text-slate-400">
+              a serviço da Rodacoop 📦
+            </div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -132,8 +144,15 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="shrink-0 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
-            <img src="/icons/icon-192.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
-            <span className="text-sm font-bold">Central DD</span>
+            <img
+              src="/icons/marca.png"
+              alt=""
+              className="h-8 w-8 shrink-0 rounded-lg bg-white object-contain"
+            />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-bold">Central DD</div>
+              <div className="truncate text-[10px] text-slate-500">a serviço da Rodacoop 📦</div>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {/* O avatar do motorista abre o Meu perfil (dados + trocar senha). */}
