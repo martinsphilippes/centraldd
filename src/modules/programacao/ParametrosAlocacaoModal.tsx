@@ -71,18 +71,6 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Pesos da distribuição</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <Item
-            titulo="🏙️ Experiência na cidade"
-            explicacao="Conta quantas vezes o motorista já entregou naquela cidade. Peso alto = cada um vai para onde já conhece o caminho."
-          >
-            {num('pesoExperienciaCidade', 0, 10)}
-          </Item>
-          <Item
-            titulo="🛣️ Experiência na rota"
-            explicacao="Se o motorista já fez aquela rota específica (mesmo código), ganha prioridade nela."
-          >
-            {num('pesoExperienciaRota', 0, 10)}
-          </Item>
-          <Item
             titulo="📋 Respeitar o plano do Meli"
             explicacao="Quando a planilha do Meli já indica um motorista para a rota, este peso puxa a sugestão para manter o plano original."
           >

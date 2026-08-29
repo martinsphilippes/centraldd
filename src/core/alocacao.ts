@@ -8,11 +8,17 @@ import { STATUS_DISPONIVEIS } from './constants'
 import { algumaCidadeBate, normalizarTexto } from './texto'
 import { hojeISO, parseISODate } from './dates'
 
+/**
+ * Experiência na cidade e experiência na rota saíram da parametrização: o
+ * histórico já pesa pelo rodízio e pelas cidades preferidas, e mais dois
+ * critérios sobre a mesma coisa só empurravam sempre os mesmos motoristas
+ * para as mesmas rotas — o contrário do revezamento que a operação quer.
+ * Configuração antiga que ainda tenha esses campos salvos é simplesmente
+ * ignorada na mesclagem abaixo.
+ */
 export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   id: 'alocacao',
   janelaHistoricoDias: 90,
-  pesoExperienciaCidade: 6,
-  pesoExperienciaRota: 4,
   pesoRespeitarPlanoMeli: 5,
   pesoCidadesPreferidas: 6,
   pesoCidadePossivel: 2,
@@ -57,7 +63,12 @@ export function parametrosAtuais(db: DB): ParametrosAlocacao {
   }
   // Mescla com o padrão: configurações salvas antes de um campo novo existir
   // ganham o valor padrão desse campo automaticamente.
-  return { ...PARAMETROS_PADRAO, ...salvo, ...recuperados }
+  const mesclado = { ...PARAMETROS_PADRAO, ...salvo, ...recuperados } as Record<string, unknown>
+  // E só os campos que o padrão conhece seguem adiante: critério removido não
+  // volta a viajar junto nem é regravado no banco quando o Dispatcher salva.
+  const limpo = {} as Record<string, unknown>
+  for (const campo of Object.keys(PARAMETROS_PADRAO)) limpo[campo] = mesclado[campo]
+  return limpo as unknown as ParametrosAlocacao
 }
 
 function norm(s: string): string {
@@ -122,20 +133,19 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
 
   const candidatos = db.motoristas.filter((m) => m.ativo && m.aprovado !== false)
 
-  // Índices do histórico por motorista.
+  // Índices do histórico por motorista: só o que o rodízio e a trava de
+  // sequência precisam. A contagem por rota e por cidade saiu junto com os
+  // critérios de experiência.
   const porMotorista = new Map<
     string,
-    { porCidade: Map<string, number>; porRota: Map<string, number>; rodizioPorCidade: Map<string, number>; datasPorCidade: Map<string, string[]> }
+    { rodizioPorCidade: Map<string, number>; datasPorCidade: Map<string, string[]> }
   >()
   for (const h of historico) {
     if (!h.motoristaId) continue
     const idx =
-      porMotorista.get(h.motoristaId) ??
-      { porCidade: new Map(), porRota: new Map(), rodizioPorCidade: new Map(), datasPorCidade: new Map() }
-    idx.porRota.set(h.rota, (idx.porRota.get(h.rota) ?? 0) + 1)
+      porMotorista.get(h.motoristaId) ?? { rodizioPorCidade: new Map(), datasPorCidade: new Map() }
     for (const c of cidadesDoTexto(h.cidade)) {
       const cidade = norm(c)
-      idx.porCidade.set(cidade, (idx.porCidade.get(cidade) ?? 0) + 1)
       if (h.data >= dataMinimaRodizio) idx.rodizioPorCidade.set(cidade, (idx.rodizioPorCidade.get(cidade) ?? 0) + 1)
       const datas = idx.datasPorCidade.get(cidade) ?? []
       if (!datas.includes(h.data)) datas.push(h.data)
@@ -196,18 +206,6 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       // ---- Pontuação ----
       let pontos = 0
       const idx = porMotorista.get(m.id)
-      const expCidade = cidades.reduce((s, c) => s + (idx?.porCidade.get(c) ?? 0), 0)
-      if (expCidade > 0) {
-        pontos += p.pesoExperienciaCidade * Math.min(1, expCidade / 8)
-        motivos.push(`🏙️ ${expCidade}x nessa(s) cidade(s)`)
-      } else {
-        alertas.push('🆕 sem histórico na cidade')
-      }
-      const expRota = idx?.porRota.get(item.rota) ?? 0
-      if (expRota > 0) {
-        pontos += p.pesoExperienciaRota * Math.min(1, expRota / 5)
-        motivos.push(`🛣️ já fez a ${item.rota} ${expRota}x`)
-      }
       if (item.motoristaId === m.id || norm(item.driverPlanejado).startsWith(norm(m.nome).split(' ')[0])) {
         pontos += p.pesoRespeitarPlanoMeli
         motivos.push('📋 era o plano do Meli')
@@ -316,16 +314,12 @@ export function alocarMotoristasNasRotas(
   const dataMinima = p.janelaHistoricoDias > 0 ? hojeISO(-p.janelaHistoricoDias) : '0000-01-01'
   const dataMinimaRodizio = hojeISO(-Math.max(1, p.janelaRodizioDias))
 
-  // Histórico da programação: experiência e repetição recente por cidade.
-  const expPorMotorista = new Map<string, Map<string, number>>()
+  // Histórico da programação: repetição recente por cidade, para o rodízio.
   const rodizioPorMotorista = new Map<string, Map<string, number>>()
   for (const h of db.programacao) {
     if (!h.motoristaId || h.data < dataMinima) continue
     for (const c of cidadesDoTexto(h.cidade)) {
       const cidade = norm(c)
-      const exp = expPorMotorista.get(h.motoristaId) ?? new Map()
-      exp.set(cidade, (exp.get(cidade) ?? 0) + 1)
-      expPorMotorista.set(h.motoristaId, exp)
       if (h.data >= dataMinimaRodizio) {
         const rod = rodizioPorMotorista.get(h.motoristaId) ?? new Map()
         rod.set(cidade, (rod.get(cidade) ?? 0) + 1)
@@ -368,11 +362,6 @@ export function alocarMotoristasNasRotas(
         // mas mais que quem não tem preferência nenhuma pela cidade.
         pontos += p.pesoCidadePossivel
         motivos.push('👍 ele marcou que faz essa cidade')
-      }
-      const exp = cidades.reduce((s, c) => s + (expPorMotorista.get(m.id)?.get(c) ?? 0), 0)
-      if (exp > 0) {
-        pontos += p.pesoExperienciaCidade * Math.min(1, exp / 8)
-        motivos.push(`🏙️ ${exp}x nessa(s) cidade(s)`)
       }
       const repeticao = cidades.reduce((s, c) => s + (rodizioPorMotorista.get(m.id)?.get(c) ?? 0), 0)
       if (repeticao > 0) pontos -= p.pesoRodizio * Math.min(1, repeticao / Math.max(1, p.janelaRodizioDias))

@@ -240,10 +240,6 @@ export interface ParametrosAlocacao {
   id: string // sempre 'alocacao'
   /** Quantos dias de histórico considerar (0 = tudo). */
   janelaHistoricoDias: number
-  /** Valoriza quem mais conhece a(s) cidade(s) da rota. */
-  pesoExperienciaCidade: number
-  /** Valoriza quem já fez exatamente essa rota. */
-  pesoExperienciaRota: number
   /** Valoriza manter o driver que veio no plano do Meli. */
   pesoRespeitarPlanoMeli: number
   /** Valoriza cidades marcadas como preferidas no cadastro do motorista. */
