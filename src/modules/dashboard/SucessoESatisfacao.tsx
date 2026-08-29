@@ -1,5 +1,4 @@
-// Dois indicadores do Dashboard:
-//  📈 Taxa de sucesso das rotas dia a dia — finalizada sem pendência = sucesso.
+// Indicadores do Dashboard:
 //  😊/😠 Clientes satisfeitos e insatisfeitos por motorista — vem das
 //  reclamações (claims) que o documento de rota do Meli traz por pacote,
 //  gravadas junto com cada conferência.
@@ -7,10 +6,9 @@
 import { useMemo, useState } from 'react'
 import { useDB } from '../../core/db'
 import { compararConferencia } from '../../core/conferencia'
-import { hojeISO, parseISODate } from '../../core/dates'
+import { hojeISO } from '../../core/dates'
 import type { DB } from '../../core/types'
 import { Avatar, Card, EmptyState, Select } from '../../components/ui'
-import { BarChart, Legenda } from '../../components/charts'
 
 const PERIODOS = [
   { valor: '7', rotulo: 'Última semana' },
@@ -20,86 +18,6 @@ const PERIODOS = [
 
 function inicioDe(periodo: string): string {
   return hojeISO(-Number(periodo))
-}
-
-// ─────────────────────────── Taxa de sucesso ───────────────────────────
-
-export function TaxaSucessoRotas() {
-  const db = useDB()
-  const [periodo, setPeriodo] = useState('7')
-  const inicio = inicioDe(periodo)
-
-  // Por dia de finalização: entregue (sucesso) × encerrada com pendência.
-  const porDia = useMemo(() => {
-    const mapa = new Map<string, { sucesso: number; pendente: number }>()
-    for (const r of db.rotas) {
-      if (!r.finalizadaEm) continue
-      const dia = r.finalizadaEm.slice(0, 10)
-      if (dia < inicio) continue
-      const atual = mapa.get(dia) ?? { sucesso: 0, pendente: 0 }
-      if (r.resultadoFinalizacao === 'pendente') atual.pendente++
-      else atual.sucesso++
-      mapa.set(dia, atual)
-    }
-    return [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [db.rotas, inicio])
-
-  const totalSucesso = porDia.reduce((s, [, v]) => s + v.sucesso, 0)
-  const totalPendente = porDia.reduce((s, [, v]) => s + v.pendente, 0)
-  const total = totalSucesso + totalPendente
-  const taxa = total > 0 ? Math.round((totalSucesso / total) * 100) : null
-
-  return (
-    <Card className="p-4">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold text-slate-900">🎯 Taxa de sucesso das rotas</h2>
-        <Select value={periodo} onChange={(e) => setPeriodo(e.target.value)} style={{ width: 'auto' }}>
-          {PERIODOS.map((p) => (
-            <option key={p.valor} value={p.valor}>
-              {p.rotulo}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <p className="mb-3 text-xs text-slate-500">
-        Rota finalizada e entregue = sucesso; encerrada com pendência conta contra.
-      </p>
-
-      {total === 0 ? (
-        <EmptyState
-          icone="🎯"
-          titulo="Nenhuma rota finalizada no período"
-          descricao="Quando as rotas do dia forem encerradas, a taxa aparece aqui dia a dia."
-        />
-      ) : (
-        <>
-          <p className="mb-3 text-3xl font-bold text-slate-900">
-            {taxa}%
-            <span className="ml-2 text-sm font-medium text-slate-500">
-              {totalSucesso} entregue(s) · {totalPendente} com pendência
-            </span>
-          </p>
-          <BarChart
-            barras={porDia.map(([dia, v]) => ({
-              rotulo: parseISODate(dia).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-              valores: [
-                { valor: v.sucesso, cor: '#10b981' },
-                { valor: v.pendente, cor: '#ef4444' },
-              ],
-            }))}
-          />
-          <div className="mt-2">
-            <Legenda
-              itens={[
-                { rotulo: 'Entregues', cor: '#10b981' },
-                { rotulo: 'Com pendência', cor: '#ef4444' },
-              ]}
-            />
-          </div>
-        </>
-      )}
-    </Card>
-  )
 }
 
 // ─────────────────────── Satisfação dos clientes ───────────────────────
