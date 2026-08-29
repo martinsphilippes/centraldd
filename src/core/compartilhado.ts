@@ -8,11 +8,7 @@
 // (`#/minha-conferencia?dados=…`). Os dois caminhos terminam na mesma função,
 // para a tela não precisar saber de qual celular veio.
 
-// O nome do depósito mudou junto com o nome do app. O antigo continua sendo
-// consultado porque um arquivo compartilhado ANTES da atualização chegar ao
-// aparelho ficou guardado com o nome velho — sem isto, esse arquivo sumiria e
-// a motorista teria enviado a conferência para o vazio.
-const CACHES = ['centraldd-compartilhado', 'mldisponibilidade-compartilhado']
+const CACHE = 'centraldd-compartilhado'
 const CHAVE = '/__arquivo-compartilhado'
 
 export interface ArquivoCompartilhado {
@@ -25,18 +21,15 @@ export interface ArquivoCompartilhado {
 async function doServiceWorker(): Promise<ArquivoCompartilhado | null> {
   if (typeof caches === 'undefined') return null
   try {
-    for (const nomeCache of CACHES) {
-      const cache = await caches.open(nomeCache)
-      const resp = await cache.match(CHAVE)
-      if (!resp) continue
-      const texto = await resp.text()
-      const nome = decodeURIComponent(resp.headers.get('x-nome-arquivo') ?? 'compartilhado.csv')
-      // Consome: um arquivo compartilhado vale uma vez só. Se ficasse guardado,
-      // reabrir o app tentaria enviar de novo o que já foi enviado.
-      await cache.delete(CHAVE)
-      if (texto.trim()) return { nome, texto, origem: 'compartilhar' }
-    }
-    return null
+    const cache = await caches.open(CACHE)
+    const resp = await cache.match(CHAVE)
+    if (!resp) return null
+    const texto = await resp.text()
+    const nome = decodeURIComponent(resp.headers.get('x-nome-arquivo') ?? 'compartilhado.csv')
+    // Consome: um arquivo compartilhado vale uma vez só. Se ficasse guardado,
+    // reabrir o app tentaria enviar de novo o que já foi enviado.
+    await cache.delete(CHAVE)
+    return texto.trim() ? { nome, texto, origem: 'compartilhar' } : null
   } catch {
     return null
   }

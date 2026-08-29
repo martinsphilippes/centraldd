@@ -24,10 +24,9 @@ profissional, rápido e intuitivo.
 Aplicativo em produção: **https://centraldd.vercel.app** (deploy automático a cada
 push neste repositório).
 
-O endereço antigo, **https://mldisponibilidade.vercel.app**, continua ligado ao
-mesmo projeto e serve o mesmo app. Ele existe para quem já tinha o atalho na tela
-de início não ficar com um ícone quebrado, e sai de cena quando todos os
-motoristas tiverem migrado.
+O endereço anterior (`mldisponibilidade.vercel.app`) segue ligado ao mesmo
+projeto, para não quebrar o atalho de quem instalou o app antes da mudança de
+nome. Sai de cena quando todos tiverem migrado.
 
 ## Como rodar
 

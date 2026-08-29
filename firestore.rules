@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Regras de segurança do MLDisponibilidade.
+// Regras de segurança do Central DD.
 // Cole este conteúdo em: Console do Firebase → Firestore Database → Regras → Publicar.
 //
 // Modelo de acesso:
