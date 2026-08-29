@@ -123,7 +123,7 @@ export function MeuPerfil() {
                 ))}
               </Select>
             </Field>
-            <Field label="📦 Operação (definida pelo Dispatcher)">
+            <Field label="📦 Operação">
               <Input value={eu.operacao || OPERACOES[0]} disabled className="bg-slate-50 text-slate-500" />
             </Field>
           </div>
