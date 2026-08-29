@@ -4,7 +4,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { salvarMeuPerfilMotorista, useDB } from '../../core/db'
-import { trocarSenha } from '../../core/firebase'
+import { trocarEmail, trocarSenha } from '../../core/firebase'
 import { useSessao } from '../../context/SessaoContext'
 import { OPERACOES } from '../../core/constants'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
@@ -14,6 +14,16 @@ const ERROS_SENHA: Record<string, string> = {
   'auth/wrong-password': 'A senha atual não confere.',
   'auth/invalid-credential': 'A senha atual não confere.',
   'auth/weak-password': 'A nova senha é muito fraca — use pelo menos 6 caracteres.',
+  'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente de novo.',
+  'auth/network-request-failed': 'Sem conexão. Verifique sua internet.',
+}
+
+const ERROS_EMAIL: Record<string, string> = {
+  'auth/wrong-password': 'A senha atual não confere.',
+  'auth/invalid-credential': 'A senha atual não confere.',
+  'auth/invalid-email': 'Esse e-mail não parece válido. Confira a digitação.',
+  'auth/email-already-in-use': 'Já existe uma conta com esse e-mail.',
+  'auth/requires-recent-login': 'Por segurança, saia e entre de novo antes de trocar o e-mail.',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente de novo.',
   'auth/network-request-failed': 'Sem conexão. Verifique sua internet.',
 }
@@ -28,6 +38,11 @@ export function MeuPerfil() {
   const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(eu?.veiculo, db))
   const [avisoPerfil, setAvisoPerfil] = useState('')
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
+
+  const [novoEmail, setNovoEmail] = useState('')
+  const [senhaDoEmail, setSenhaDoEmail] = useState('')
+  const [avisoEmail, setAvisoEmail] = useState<{ ok: boolean; texto: string } | null>(null)
+  const [trocandoEmail, setTrocandoEmail] = useState(false)
 
   const [senhaAtual, setSenhaAtual] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
@@ -53,6 +68,47 @@ export function MeuPerfil() {
       .then(() => setAvisoPerfil('✅ Dados salvos! O Dispatcher já vê a atualização.'))
       .catch(() => setAvisoPerfil('❌ Não consegui salvar. Tente de novo; se continuar, avise o Dispatcher.'))
       .finally(() => setSalvandoPerfil(false))
+  }
+
+  const enviarEmail = (e: FormEvent) => {
+    e.preventDefault()
+    setAvisoEmail(null)
+    const alvo = novoEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alvo)) {
+      setAvisoEmail({ ok: false, texto: 'Escreva um e-mail válido, como voce@gmail.com.' })
+      return
+    }
+    if (alvo === (usuarioEmail ?? '').toLowerCase()) {
+      setAvisoEmail({ ok: false, texto: 'Esse já é o seu e-mail atual.' })
+      return
+    }
+    setTrocandoEmail(true)
+    trocarEmail(senhaDoEmail, alvo)
+      .then((resultado) => {
+        setSenhaDoEmail('')
+        if (resultado === 'trocado') {
+          setAvisoEmail({
+            ok: true,
+            texto: `✅ Pronto! Seu login agora é ${alvo}. Atualizando a tela…`,
+          })
+          setNovoEmail('')
+          // A sessão só descobre o endereço novo relendo a conta — recarregar
+          // é o jeito mais simples de não deixar a tela mostrando o antigo.
+          setTimeout(() => window.location.reload(), 1800)
+        } else {
+          setAvisoEmail({
+            ok: true,
+            texto: `📧 Enviei um link de confirmação para ${alvo}. Abra esse e-mail e clique no link — o login só muda depois disso. Até lá, continue entrando com o endereço atual.`,
+          })
+        }
+      })
+      .catch((err: { code?: string }) => {
+        setAvisoEmail({
+          ok: false,
+          texto: ERROS_EMAIL[err.code ?? ''] ?? 'Não foi possível trocar o e-mail. Tente novamente.',
+        })
+      })
+      .finally(() => setTrocandoEmail(false))
   }
 
   const enviarSenha = (e: FormEvent) => {
@@ -100,20 +156,29 @@ export function MeuPerfil() {
           <Field label="Nome completo">
             <Input value={nome} onChange={(e) => setNome(e.target.value)} required />
           </Field>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="📱 Telefone (WhatsApp)">
-              <Input
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                placeholder="Ex.: 34 99876-5432"
-              />
-            </Field>
-            {/* O e-mail é o login da conta: mostrar, nunca deixar editar aqui —
-                mudar o endereço tiraria o motorista do próprio acesso. */}
-            <Field label="✉️ E-mail (seu login)">
-              <Input value={usuarioEmail ?? ''} readOnly className="bg-slate-100 text-slate-500" />
-            </Field>
-          </div>
+          <Field label="📱 Telefone (WhatsApp)">
+            <Input
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+              placeholder="Ex.: 34 99876-5432"
+            />
+          </Field>
+          {/* O e-mail ocupa a LINHA INTEIRA: dividido em duas colunas ele não
+              cabia no celular e o endereço aparecia cortado pela metade.
+              Trocar é possível, mas no cartão de baixo — a troca pede a senha
+              atual, e misturar isso com o salvar comum de nome e telefone
+              seria pedir confusão. */}
+          <Field label="✉️ E-mail (seu login)">
+            <Input
+              value={usuarioEmail ?? ''}
+              readOnly
+              className="bg-slate-100 text-slate-600"
+              title={usuarioEmail ?? ''}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Para trocar, use <strong>Trocar e-mail de acesso</strong>, logo abaixo.
+            </p>
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="🚐 Meu veículo">
               <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
@@ -142,6 +207,52 @@ export function MeuPerfil() {
           <div className="flex justify-end">
             <Button variante="marca" disabled={salvandoPerfil}>
               {salvandoPerfil ? '⏳ Salvando…' : '💾 Salvar meus dados'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {/* Troca do e-mail de LOGIN */}
+      <Card className="p-5">
+        <h2 className="mb-1 font-bold text-slate-900">✉️ Trocar e-mail de acesso</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Este é o endereço com que você entra no app. Depois da troca, o login passa a ser o
+          novo — a senha continua a mesma.
+        </p>
+        <form onSubmit={enviarEmail} className="space-y-3">
+          <Field label="Novo e-mail">
+            <Input
+              type="email"
+              value={novoEmail}
+              onChange={(e) => setNovoEmail(e.target.value)}
+              placeholder="voce@gmail.com"
+              autoComplete="email"
+              required
+            />
+          </Field>
+          <Field label="Senha atual (para confirmar que é você)">
+            <Input
+              type="password"
+              value={senhaDoEmail}
+              onChange={(e) => setSenhaDoEmail(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+          {avisoEmail && (
+            <p
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                avisoEmail.ok
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : 'border-red-300 bg-red-50 text-red-700'
+              }`}
+            >
+              {avisoEmail.texto}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <Button variante="marca" disabled={trocandoEmail}>
+              {trocandoEmail ? '⏳ Trocando…' : '✉️ Trocar e-mail'}
             </Button>
           </div>
         </form>

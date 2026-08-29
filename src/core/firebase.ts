@@ -7,6 +7,8 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
+  updateEmail,
+  verifyBeforeUpdateEmail,
 } from 'firebase/auth'
 import {
   deleteDoc,
@@ -40,6 +42,35 @@ export async function trocarSenha(senhaAtual: string, novaSenha: string): Promis
   const credencial = EmailAuthProvider.credential(usuario.email, senhaAtual)
   await reauthenticateWithCredential(usuario, credencial)
   await updatePassword(usuario, novaSenha)
+}
+
+/**
+ * Troca o E-MAIL DE LOGIN da própria conta. Mesma exigência da senha: o
+ * Firebase pede login recente, então a senha atual reautentica antes.
+ *
+ * Projetos com proteção contra descoberta de e-mail recusam a troca direta.
+ * Nesse caso o caminho é mandar um link de confirmação para o endereço NOVO —
+ * e a troca só vale depois que a pessoa clicar nele. Devolvemos qual dos dois
+ * aconteceu, porque a tela precisa dizer coisas diferentes.
+ */
+export async function trocarEmail(
+  senhaAtual: string,
+  novoEmail: string,
+): Promise<'trocado' | 'confirmar-no-email-novo'> {
+  const usuario = auth.currentUser
+  if (!usuario?.email) throw new Error('sem-sessao')
+  const credencial = EmailAuthProvider.credential(usuario.email, senhaAtual)
+  await reauthenticateWithCredential(usuario, credencial)
+  try {
+    await updateEmail(usuario, novoEmail)
+    return 'trocado'
+  } catch (err) {
+    if ((err as { code?: string }).code === 'auth/operation-not-allowed') {
+      await verifyBeforeUpdateEmail(usuario, novoEmail)
+      return 'confirmar-no-email-novo'
+    }
+    throw err
+  }
 }
 
 /** Grava o perfil de acesso de um motorista (papel + vínculo com o cadastro). */

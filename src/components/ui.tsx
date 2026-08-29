@@ -67,12 +67,15 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 const CAMPO =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-texto focus:ring-2 focus:ring-marca-texto/20'
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={CAMPO} {...props} />
+// O className de fora SOMA ao padrão, não substitui. Espalhar `props` depois
+// de className fazia o campo perder tudo — inclusive a largura — e ele voltava
+// ao tamanho padrão do navegador, cortando o texto no celular.
+export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={`${CAMPO} ${className}`} {...props} />
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={CAMPO} {...props} />
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`${CAMPO} ${className}`} {...props} />
 }
 
 // ---------- Indicadores ----------
