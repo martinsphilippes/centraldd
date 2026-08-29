@@ -189,7 +189,7 @@ export function DisponibilidadeFrota() {
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
       <Avatar nome={m.nome} tamanho="sm" />
       <div className="min-w-0 flex-1">
-        <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-ml-azul">
+        <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-marca-texto">
           {m.nome}
         </Link>
         <p className="truncate text-[11px] text-slate-500">
@@ -200,7 +200,7 @@ export function DisponibilidadeFrota() {
         <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>
       ) : (
         doPlanejamentoDoDia.has(m.id) ? (
-          <Badge className="border-blue-200 bg-blue-100 text-blue-800">🚚 vai trabalhar</Badge>
+          <Badge className="border-orange-200 bg-orange-100 text-orange-900">🚚 vai trabalhar</Badge>
         ) : (
           naEsperaDoDia.has(m.id) && (
             <Badge className="border-amber-300 bg-amber-100 text-amber-800">🕐 fila de espera</Badge>
@@ -216,7 +216,7 @@ export function DisponibilidadeFrota() {
         <a
           href={linkWhatsApp(
             m,
-            `Olá, ${m.nome.split(' ')[0]}! 🚚 Marque sua disponibilidade para ${rotuloDia(diaSelecionado).toLowerCase()} na tela Disponibilidade do app MLDisponibilidade, por favor. 🙏`,
+            `Olá, ${m.nome.split(' ')[0]}! 🚚 Marque sua disponibilidade para ${rotuloDia(diaSelecionado).toLowerCase()} na tela Disponibilidade do app Central DD, por favor. 🙏`,
           )}
           target="_blank"
           rel="noreferrer"
@@ -251,7 +251,7 @@ export function DisponibilidadeFrota() {
           </Button>
           {souDono && ficticios.length > 0 && (
             <Button
-              variante="ml"
+              variante="marca"
               onClick={simularDisponiveis}
               disabled={!temProgramacao}
               title={
@@ -264,18 +264,18 @@ export function DisponibilidadeFrota() {
             </Button>
           )}
           {souDono && (
-            <Button variante="ml" onClick={() => setMarcarTodos((v) => !v)}>
+            <Button variante="marca" onClick={() => setMarcarTodos((v) => !v)}>
               ⚡ Marcar todos
             </Button>
           )}
-          <Button variante="ml" onClick={() => exportarExcel(tabelaPeriodo())}>
+          <Button variante="marca" onClick={() => exportarExcel(tabelaPeriodo())}>
             📊 Relatório do período (Excel)
           </Button>
         </div>
       </div>
 
       {souDono && marcarTodos && (
-        <Card className="border-ml-amarelo bg-yellow-50 p-4">
+        <Card className="border-marca bg-marca-suave p-4">
           <p className="mb-2 text-sm font-bold text-slate-900">
             ⚡ Marcar a frota em massa — {rotuloDia(diaSelecionado)}
             {cidade && <span className="font-semibold text-slate-600"> · filtro: {cidade}</span>}
@@ -302,7 +302,7 @@ export function DisponibilidadeFrota() {
               </option>
               <option value="todos">TODOS — sobrescreve quem já marcou ({frota.length})</option>
             </Select>
-            <Button variante="ml" onClick={aplicarMarcacaoEmMassa}>
+            <Button variante="marca" onClick={aplicarMarcacaoEmMassa}>
               ✅ Aplicar
             </Button>
             <Button variante="secundario" onClick={() => setMarcarTodos(false)}>
@@ -324,7 +324,7 @@ export function DisponibilidadeFrota() {
       {souDono && ficticios.length > 0 && !temProgramacao && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
           🧪 A simulação de disponíveis libera depois que o dia tiver{' '}
-          <Link to="/programacao" className="font-semibold text-ml-azul hover:underline">
+          <Link to="/programacao" className="font-semibold text-marca-texto hover:underline">
             programação lançada
           </Link>{' '}
           (planilha do Meli ou resumo do dia) — {rotuloDia(diaSelecionado).toLowerCase()}.
@@ -342,10 +342,10 @@ export function DisponibilidadeFrota() {
               key={d}
               onClick={() => setDiaSelecionado(d)}
               className={`flex min-w-16 shrink-0 flex-col items-center rounded-xl border-2 px-3 py-2 transition-colors ${
-                ativo ? 'border-ml-navy bg-ml-navy text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ativo ? 'border-navy bg-navy text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
               }`}
             >
-              <span className={`text-[10px] font-bold uppercase ${ativo ? 'text-ml-amarelo' : 'text-slate-400'}`}>
+              <span className={`text-[10px] font-bold uppercase ${ativo ? 'text-marca' : 'text-slate-400'}`}>
                 {dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
               </span>
               <span className="text-lg font-bold leading-tight">{dt.getDate()}</span>
@@ -362,7 +362,7 @@ export function DisponibilidadeFrota() {
       </div>
 
       {/* Limite de vagas do dia */}
-      <Card className={`p-4 ${limiteDoDia ? 'border-ml-amarelo bg-yellow-50' : ''}`}>
+      <Card className={`p-4 ${limiteDoDia ? 'border-marca bg-marca-suave' : ''}`}>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-2xl">🎯</span>
           <div className="min-w-0 flex-1">
@@ -377,7 +377,7 @@ export function DisponibilidadeFrota() {
                   <ProgressBar
                     valor={disponiveisTotais}
                     total={limiteDoDia.maxDisponiveis}
-                    cor={disponiveisTotais >= limiteDoDia.maxDisponiveis ? 'bg-red-500' : 'bg-ml-azul'}
+                    cor={disponiveisTotais >= limiteDoDia.maxDisponiveis ? 'bg-red-500' : 'bg-marca-texto'}
                   />
                 </div>
               </>
@@ -403,7 +403,7 @@ export function DisponibilidadeFrota() {
                       ' sem reserva'
                     )}{' '}
                     = <strong>{limiteDoDia.maxDisponiveis}</strong>.{' '}
-                    <Link to="/programacao" className="font-semibold text-ml-azul hover:underline">
+                    <Link to="/programacao" className="font-semibold text-marca-texto hover:underline">
                       Parametrizar
                     </Link>
                   </>
@@ -418,10 +418,10 @@ export function DisponibilidadeFrota() {
                 min={1}
                 value={novoLimite}
                 onChange={(e) => setNovoLimite(Number(e.target.value))}
-                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm outline-none focus:border-ml-azul"
+                className="w-20 rounded-lg border border-slate-300 px-2 py-2 text-sm outline-none focus:border-marca-texto"
               />
               <Button
-                variante="ml"
+                variante="marca"
                 onClick={() => {
                   if (novoLimite >= 1) {
                     salvarLimiteDia(diaSelecionado, novoLimite)
@@ -482,7 +482,7 @@ export function DisponibilidadeFrota() {
         <StatCard icone="❌" valor={naoTrabalham.length} rotulo="Indisponíveis" />
       </div>
       {doPlanejamentoDoDia.size > 0 && trabalham.length > doPlanejamentoDoDia.size && (
-        <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+        <p className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800">
           ℹ️ <strong>{trabalham.length} disponíveis</strong>, mas{' '}
           <strong>{doPlanejamentoDoDia.size} vão trabalhar</strong> — os{' '}
           {trabalham.length - doPlanejamentoDoDia.size} além da meta{' '}

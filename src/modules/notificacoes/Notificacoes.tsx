@@ -27,7 +27,7 @@ export function Notificacoes() {
       ) : (
         <div className="space-y-2">
           {minhas.map((n) => (
-            <Card key={n.id} className={`p-4 ${n.lida ? '' : 'border-ml-azul bg-blue-50/50'}`}>
+            <Card key={n.id} className={`p-4 ${n.lida ? '' : 'border-marca-texto bg-orange-50/50'}`}>
               <div className="flex items-start justify-between gap-2">
                 <p className="font-semibold text-slate-900">{n.titulo}</p>
                 <span className="whitespace-nowrap text-[11px] text-slate-400">{formatarDataHora(n.criadaEm)}</span>

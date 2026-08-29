@@ -26,7 +26,7 @@ export const STATUS_RESPOSTA: Record<StatusResposta, StatusInfo> = {
   meio_periodo: {
     label: 'Apenas meio período',
     emoji: '🔵',
-    cor: 'bg-blue-100 text-blue-800 border-blue-200',
+    cor: 'bg-orange-100 text-orange-900 border-orange-200',
     dot: '#3483fa',
     disponibilidade: 'parcial',
   },

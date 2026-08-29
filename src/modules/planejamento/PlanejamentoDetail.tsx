@@ -111,7 +111,7 @@ export function PlanejamentoDetail() {
             {chamada && (
               <>
                 {' '}• 📦 {chamada.operacao} • 🕖 {chamada.horarioInicio} às {chamada.horarioFim} •{' '}
-                <Link to={`/chamadas/${chamada.id}`} className="font-semibold text-ml-azul hover:underline">
+                <Link to={`/chamadas/${chamada.id}`} className="font-semibold text-marca-texto hover:underline">
                   ver chamada →
                 </Link>
               </>
@@ -123,7 +123,7 @@ export function PlanejamentoDetail() {
           <Button variante="secundario" onClick={() => exportarExcel(tabela())}>⬇️ Excel</Button>
           <Button variante="secundario" onClick={() => exportarPDF(tabela(), rotuloDia(planejamento.data))}>🖨️ PDF</Button>
           {planejamento.status === 'rascunho' && (
-            <Button variante="ml" onClick={publicar} disabled={incluidosTodos.length === 0}>
+            <Button variante="marca" onClick={publicar} disabled={incluidosTodos.length === 0}>
               📢 Publicar e notificar
             </Button>
           )}
@@ -185,7 +185,7 @@ export function PlanejamentoDetail() {
             🚚 No planejamento ({incluidosTodos.length}
             {chamada ? `/${chamada.qtdNecessaria}` : ''})
             {busca && (
-              <span className="ml-2 text-sm font-semibold text-ml-azul">
+              <span className="ml-2 text-sm font-semibold text-marca-texto">
                 🔎 {incluidos.length} na busca
               </span>
             )}
@@ -204,7 +204,7 @@ export function PlanejamentoDetail() {
                   </span>
                   <Avatar nome={m.nome} tamanho="sm" />
                   <div className="min-w-0 flex-1">
-                    <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-ml-azul">
+                    <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-marca-texto">
                       {m.nome}
                     </Link>
                     <p className="text-[11px] text-slate-500">
@@ -237,7 +237,7 @@ export function PlanejamentoDetail() {
           <h2 className="mb-1 font-bold text-slate-900">
             🕐 Fila de espera ({filaEsperaTodos.length})
             {busca && (
-              <span className="ml-2 text-sm font-semibold text-ml-azul">
+              <span className="ml-2 text-sm font-semibold text-marca-texto">
                 🔎 {filaEspera.length} na busca
               </span>
             )}
@@ -266,7 +266,7 @@ export function PlanejamentoDetail() {
                   </div>
                   {planejamento.status !== 'concluida' && (
                     <Button
-                      variante="ml"
+                      variante="marca"
                       onClick={() =>
                         salvarPlanejamento({
                           ...planejamento,
@@ -320,7 +320,7 @@ export function PlanejamentoDetail() {
         </pre>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
-            variante="ml"
+            variante="marca"
             onClick={async () => {
               await navigator.clipboard.writeText(textoGrupo)
               setCopiado(true)

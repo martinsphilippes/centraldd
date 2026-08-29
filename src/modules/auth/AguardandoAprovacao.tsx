@@ -23,7 +23,7 @@ export function AguardandoAprovacao({
 
   if (semCadastro) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ml-navy p-4">
+      <div className="flex min-h-screen items-center justify-center bg-navy p-4">
         <Card className="w-full max-w-sm p-6 text-center">
           <span className="text-5xl">🔒</span>
           <h1 className="mt-3 text-xl font-bold text-slate-900">Acesso ainda não liberado</h1>
@@ -41,7 +41,7 @@ export function AguardandoAprovacao({
 
   if (desativado) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ml-navy p-4">
+      <div className="flex min-h-screen items-center justify-center bg-navy p-4">
         <Card className="w-full max-w-sm p-6 text-center">
           <span className="text-5xl">⛔</span>
           <h1 className="mt-3 text-xl font-bold text-slate-900">
@@ -60,7 +60,7 @@ export function AguardandoAprovacao({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ml-navy p-4">
+    <div className="flex min-h-screen items-center justify-center bg-navy p-4">
       <Card className="w-full max-w-sm p-6 text-center">
         <span className="text-5xl">⏳</span>
         <h1 className="mt-3 text-xl font-bold text-slate-900">
@@ -72,7 +72,7 @@ export function AguardandoAprovacao({
           libera automaticamente o seu acesso{ehDispatcher && <> ao <strong>painel completo do dispatcher</strong></>} —
           não precisa criar conta de novo.
         </p>
-        <p className="mt-3 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-xs text-slate-600">
+        <p className="mt-3 rounded-lg border border-orange-300 bg-marca-suave p-3 text-xs text-slate-600">
           💡 Dica: avise o Dispatcher pelo WhatsApp que você concluiu o cadastro,
           para acelerar a liberação.
         </p>

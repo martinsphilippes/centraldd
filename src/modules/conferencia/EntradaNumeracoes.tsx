@@ -67,7 +67,7 @@ export function EntradaNumeracoes({ aoLer, placeholder }: Props) {
       </div>
 
       <textarea
-        className="h-32 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-ml-azul"
+        className="h-32 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-marca-texto"
         value={texto}
         onChange={(e) => atualizar(e.target.value, coluna)}
         placeholder={placeholder ?? 'Cole aqui as numerações (Ctrl+C no Excel → Ctrl+V), ou uma por linha…'}

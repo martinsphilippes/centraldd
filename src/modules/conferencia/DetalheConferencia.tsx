@@ -90,13 +90,13 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
         <div className="flex gap-1.5">
           <button
             onClick={() => setAba('pacotes')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'pacotes' ? 'bg-ml-amarelo text-slate-900' : 'bg-slate-100 text-slate-600'}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'pacotes' ? 'bg-marca text-slate-900' : 'bg-slate-100 text-slate-600'}`}
           >
             📦 Pacotes
           </button>
           <button
             onClick={() => setAba('roteiro')}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'roteiro' ? 'bg-ml-amarelo text-slate-900' : 'bg-slate-100 text-slate-600'}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${aba === 'roteiro' ? 'bg-marca text-slate-900' : 'bg-slate-100 text-slate-600'}`}
           >
             🧭 Roteiro e progresso
           </button>

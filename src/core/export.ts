@@ -52,9 +52,9 @@ export function exportarPDF(t: Tabela, subtitulo?: string) {
       tr:nth-child(even) td { background: #f8fafc; }
       footer { margin-top: 16px; font-size: 11px; color: #94a3b8; }
     </style></head><body>
-    <h1>🚚 MLDisponibilidade — ${t.titulo}</h1>
+    <h1>🚚 Central DD — ${t.titulo}</h1>
     <p class="sub">${subtitulo ?? `Gerado em ${new Date().toLocaleString('pt-BR')}`}</p>
     ${tabelaHTML(t)}
-    <footer>MLDisponibilidade • Gestão de disponibilidade de motoristas • Mercado Livre 📦</footer>
+    <footer>Central DD • Dispatcher &amp; Driver • Operação Mercado Livre 📦</footer>
     </body></html>`)
 }

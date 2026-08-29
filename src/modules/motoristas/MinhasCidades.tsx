@@ -16,7 +16,7 @@ type Preferencia = 'prefiro' | 'posso' | 'indiferente'
 
 const OPCOES: { valor: Preferencia; rotulo: string; emoji: string; ativo: string }[] = [
   { valor: 'prefiro', rotulo: 'Prefiro', emoji: '⭐', ativo: 'border-emerald-500 bg-emerald-50 text-emerald-800' },
-  { valor: 'posso', rotulo: 'Posso', emoji: '👍', ativo: 'border-ml-azul bg-blue-50 text-ml-azul' },
+  { valor: 'posso', rotulo: 'Posso', emoji: '👍', ativo: 'border-marca-texto bg-orange-50 text-marca-texto' },
   {
     valor: 'indiferente',
     rotulo: 'Não tenho preferência',

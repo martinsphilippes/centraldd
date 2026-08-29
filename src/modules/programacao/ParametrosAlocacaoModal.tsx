@@ -256,7 +256,7 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
           explicacao="Ensina quais veículos do cadastro servem para cada veículo pedido na rota. Uma regra por linha: veículo da rota = veículos aceitos, separados por vírgula. Ex.: VUC = HR, Van."
         >
           <textarea
-            className="h-20 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-ml-azul"
+            className="h-20 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-marca-texto"
             value={p.equivalenciasVeiculo}
             onChange={(e) => setP({ ...p, equivalenciasVeiculo: e.target.value })}
           />
@@ -291,7 +291,7 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
         </Item>
 
         {/* ───────── Auto-alocação ───────── */}
-        <div className="rounded-lg border border-ml-amarelo bg-yellow-50 p-3">
+        <div className="rounded-lg border border-marca bg-marca-suave p-3">
           <p className="text-sm font-semibold text-slate-800">⚡ Auto-alocação por confiança</p>
           <p className="mb-2 mt-0.5 text-xs leading-relaxed text-slate-600">
             O sistema calcula uma confiança (0 a 100%) para cada sugestão de motorista × rota. Com
@@ -311,7 +311,7 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
               Cancelar
             </Button>
             <Button
-              variante="ml"
+              variante="marca"
               onClick={() => {
                 salvarParametrosAlocacao(p)
                 fechar()

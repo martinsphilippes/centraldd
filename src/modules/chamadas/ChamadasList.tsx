@@ -15,7 +15,7 @@ export function ChamadasList() {
     const r = resumoChamada(db, c)
     return (
       <Link to={`/chamadas/${c.id}`}>
-        <Card className="p-4 transition-colors hover:border-ml-azul">
+        <Card className="p-4 transition-colors hover:border-marca-texto">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
@@ -61,7 +61,7 @@ export function ChamadasList() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-slate-900">⏰ Chamadas de disponibilidade</h1>
         <Link to="/programacao">
-          <Button variante="ml">📢 Chamar pela Programação →</Button>
+          <Button variante="marca">📢 Chamar pela Programação →</Button>
         </Link>
       </div>
 

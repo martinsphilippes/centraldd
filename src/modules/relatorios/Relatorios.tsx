@@ -87,7 +87,7 @@ export function Relatorios() {
               <Avatar nome={e.motorista.nome} tamanho="sm" />
               <Link
                 to={`/motoristas/${e.motorista.id}`}
-                className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 hover:text-ml-azul"
+                className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 hover:text-marca-texto"
               >
                 {e.motorista.nome}
               </Link>
@@ -201,7 +201,7 @@ export function Relatorios() {
                 .map((e) => (
                   <tr key={e.motorista.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="py-2 pr-2">
-                      <Link to={`/motoristas/${e.motorista.id}`} className="font-semibold text-slate-800 hover:text-ml-azul">
+                      <Link to={`/motoristas/${e.motorista.id}`} className="font-semibold text-slate-800 hover:text-marca-texto">
                         {e.motorista.nome}
                       </Link>
                     </td>

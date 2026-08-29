@@ -74,12 +74,12 @@ export function Layout({ children }: { children: ReactNode }) {
     // como soltá-los no meio da tela durante a rolagem.
     <div className="flex h-dvh flex-col overflow-hidden lg:pl-60">
       {/* Sidebar desktop */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-ml-navy pt-[env(safe-area-inset-top)] lg:flex">
-        <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ml-amarelo text-lg">🚚</span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-navy pt-[env(safe-area-inset-top)] lg:flex">
+        <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-4">
+          <img src="/icons/icon-192.png" alt="" className="h-9 w-9 rounded-lg bg-white object-cover" />
           <div>
-            <div className="text-sm font-bold leading-tight text-white">MLDisponibilidade</div>
-            <div className="text-[10px] font-medium text-ml-amarelo">Mercado Livre 📦</div>
+            <div className="text-sm font-bold leading-tight text-white">Central DD</div>
+            <div className="text-[10px] font-medium text-marca">Dispatcher &amp; Driver</div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -96,7 +96,7 @@ export function Layout({ children }: { children: ReactNode }) {
               end={item.para === '/'}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-ml-amarelo text-slate-900' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  isActive ? 'bg-marca text-slate-900' : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
@@ -112,7 +112,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   {item.para === '/minhas-rotas' && minhasRotas > 0 && (
                     <span
                       className={`ml-auto rounded-full px-1.5 text-[10px] font-bold ${
-                        isActive ? 'bg-slate-900 text-white' : 'bg-ml-amarelo text-slate-900'
+                        isActive ? 'bg-slate-900 text-white' : 'bg-marca text-slate-900'
                       }`}
                     >
                       {minhasRotas}
@@ -133,15 +133,15 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="shrink-0 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ml-amarelo">🚚</span>
-            <span className="text-sm font-bold">MLDisponibilidade</span>
+            <img src="/icons/icon-192.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
+            <span className="text-sm font-bold">Central DD</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {/* O avatar do motorista abre o Meu perfil (dados + trocar senha). */}
             {papel === 'motorista' ? (
               <NavLink
                 to="/meu-perfil"
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 transition-colors hover:border-ml-azul hover:bg-blue-50/50"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 transition-colors hover:border-marca-texto hover:bg-orange-50/50"
                 title="Meu perfil — editar dados e trocar senha"
               >
                 <Avatar nome={nomeExibicao || '?'} tamanho="sm" />
@@ -196,7 +196,7 @@ export function Layout({ children }: { children: ReactNode }) {
             end={item.para === '/'}
             className={({ isActive }) =>
               `relative flex flex-col items-center gap-0.5 px-0.5 py-1.5 text-[10px] font-medium ${
-                isActive ? 'text-ml-azul' : 'text-slate-500'
+                isActive ? 'text-marca-texto' : 'text-slate-500'
               }`
             }
           >
@@ -208,7 +208,7 @@ export function Layout({ children }: { children: ReactNode }) {
               </span>
             )}
             {item.para === '/minhas-rotas' && minhasRotas > 0 && (
-              <span className="absolute right-1/4 top-1 rounded-full bg-ml-amarelo px-1.5 text-[9px] font-bold text-slate-900">
+              <span className="absolute right-1/4 top-1 rounded-full bg-marca px-1.5 text-[9px] font-bold text-slate-900">
                 {minhasRotas}
               </span>
             )}

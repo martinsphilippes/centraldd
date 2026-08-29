@@ -302,9 +302,9 @@ export function Programacao() {
   const corCalor = (v: number, max: number) => {
     if (v === 0) return ''
     const forca = Math.min(1, v / Math.max(1, max))
-    if (forca > 0.66) return 'bg-ml-azul text-white font-bold'
-    if (forca > 0.33) return 'bg-blue-200 text-slate-800 font-semibold'
-    return 'bg-blue-50 text-slate-700'
+    if (forca > 0.66) return 'bg-marca-texto text-white font-bold'
+    if (forca > 0.33) return 'bg-orange-200 text-slate-800 font-semibold'
+    return 'bg-orange-50 text-slate-700'
   }
 
   return (
@@ -353,7 +353,7 @@ export function Programacao() {
               value={dataAtiva}
               min={hojeISO()}
               onChange={(e) => escolherData(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-ml-azul"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-marca-texto"
               title="Escolher hoje ou um dia futuro"
             />
           </div>
@@ -378,7 +378,7 @@ export function Programacao() {
                 <Button variante="primario" onClick={gerarSugestoes} disabled={doDia.length === 0}>
                   🤖 Sugerir alocação
                 </Button>
-                <Button variante="ml" onClick={autoAlocar} disabled={doDia.length === 0} title="Aplica sozinho as sugestões acima do % de confiança configurado">
+                <Button variante="marca" onClick={autoAlocar} disabled={doDia.length === 0} title="Aplica sozinho as sugestões acima do % de confiança configurado">
                   ⚡ Auto-alocar
                   {parametrosAtuais(db).autoAplicarAcimaDe > 0 && ` ≥${parametrosAtuais(db).autoAplicarAcimaDe}%`}
                 </Button>
@@ -414,7 +414,7 @@ export function Programacao() {
                         <td className="whitespace-nowrap px-2 py-2 font-bold text-slate-900">{p.rota}</td>
                         <td className="whitespace-nowrap px-2 py-2">
                           <select
-                            className={`rounded-lg border px-1.5 py-1 text-xs outline-none focus:border-ml-azul ${
+                            className={`rounded-lg border px-1.5 py-1 text-xs outline-none focus:border-marca-texto ${
                               p.motoristaId ? 'border-slate-300 bg-white' : 'border-amber-300 bg-amber-50'
                             }`}
                             value={p.motoristaId ?? ''}
@@ -566,7 +566,7 @@ export function Programacao() {
                       <tr key={d.nome} className="border-b border-slate-100">
                         <td className="sticky left-0 whitespace-nowrap bg-white px-2 py-1.5 font-semibold text-slate-800">
                           {d.motoristaId ? (
-                            <Link to={`/motoristas/${d.motoristaId}`} className="hover:text-ml-azul">
+                            <Link to={`/motoristas/${d.motoristaId}`} className="hover:text-marca-texto">
                               {d.nome}
                             </Link>
                           ) : (
@@ -598,7 +598,7 @@ export function Programacao() {
       {/* Importação da planilha Meli */}
       <Modal aberto={modalImportar} titulo="📥 Importar planilha do Meli" onFechar={() => setModalImportar(false)}>
         {modeloDetectado && (
-          <div className="mb-3 rounded-lg border-2 border-ml-amarelo bg-yellow-50 p-3">
+          <div className="mb-3 rounded-lg border-2 border-marca bg-marca-suave p-3">
             <p className="text-sm font-bold text-slate-800">
               🧠 Isso não é a planilha de rotas — parece o <u>MODELO do resumo do dia</u>!
             </p>
@@ -616,7 +616,7 @@ export function Programacao() {
                 .filter(Boolean)
                 .join(' • ')}
             </p>
-            <Button variante="ml" className="mt-2 w-full" onClick={preencherResumoDetectado}>
+            <Button variante="marca" className="mt-2 w-full" onClick={preencherResumoDetectado}>
               📋 Preencher o Resumo do Dia com isso
             </Button>
           </div>
@@ -628,7 +628,7 @@ export function Programacao() {
           DATA • DRIVER • ROTA • CIDADE • VEÍCULO • ONDAS • DOCA
         </p>
         <textarea
-          className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
+          className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-marca-texto"
           placeholder={'13/08/2026\tAdalberto\tVL9\tSÃO SIMÃO/SANTA VITORIA\tVUC\t1ª ONDA\t1\n…'}
           value={textoColado}
           onChange={(e) => atualizarPrevia(e.target.value)}
@@ -666,7 +666,7 @@ export function Programacao() {
           <Button variante="secundario" onClick={() => setModalImportar(false)}>
             Cancelar
           </Button>
-          <Button variante="ml" onClick={() => void confirmarImportacao()} disabled={!previa || previa.itens.length === 0 || importando}>
+          <Button variante="marca" onClick={() => void confirmarImportacao()} disabled={!previa || previa.itens.length === 0 || importando}>
             {importando ? 'Importando…' : `📥 Importar ${previa?.itens.length ?? 0} rota(s)`}
           </Button>
         </div>
@@ -690,7 +690,7 @@ export function Programacao() {
                   ),
                 )
               }
-              className="mb-3 rounded-lg border border-dashed border-ml-azul px-3 py-1.5 text-xs font-semibold text-ml-azul hover:bg-blue-50"
+              className="mb-3 rounded-lg border border-dashed border-marca-texto px-3 py-1.5 text-xs font-semibold text-marca-texto hover:bg-orange-50"
             >
               ⚡ Marcar só as com confiança ≥ {limite}%
             </button>
@@ -714,7 +714,7 @@ export function Programacao() {
                     !s.motorista
                       ? 'border-red-200 bg-red-50'
                       : marcada
-                        ? 'border-ml-azul bg-blue-50'
+                        ? 'border-marca-texto bg-orange-50'
                         : 'border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -772,7 +772,7 @@ export function Programacao() {
           <Button variante="secundario" onClick={() => setSugestoes(null)}>
             Cancelar
           </Button>
-          <Button variante="ml" onClick={aplicarSugestoes} disabled={selecionadas.size === 0}>
+          <Button variante="marca" onClick={aplicarSugestoes} disabled={selecionadas.size === 0}>
             ✅ Aplicar {selecionadas.size} sugestão(ões)
           </Button>
         </div>
@@ -816,7 +816,7 @@ export function Programacao() {
                 Cancelar
               </Button>
               <Button
-                variante="ml"
+                variante="marca"
                 onClick={() => {
                   salvarProgramacaoItem(editando)
                   setEditando(null)

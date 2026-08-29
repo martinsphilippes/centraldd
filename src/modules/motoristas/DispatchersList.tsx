@@ -95,7 +95,7 @@ export function DispatchersList() {
                   </div>
                   <div className="flex gap-2">
                     {souDono ? (
-                      <Button variante="ml" onClick={() => aprovar(m)}>
+                      <Button variante="marca" onClick={() => aprovar(m)}>
                         ✅ Aprovar como dispatcher
                       </Button>
                     ) : (

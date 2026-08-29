@@ -91,14 +91,22 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ml-navy p-4">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navy p-4">
+      {/* Brilho laranja atrás do cartão: dá profundidade ao azul-noite sem
+          roubar contraste do formulário, que fica em branco por cima. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-marca/25 blur-3xl"
+      />
+      <div className="relative w-full max-w-sm">
         <div className="mb-6 text-center">
-          <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-ml-amarelo text-3xl shadow-lg">
-            🚚
-          </span>
-          <h1 className="mt-3 text-2xl font-bold text-white">MLDisponibilidade</h1>
-          <p className="text-sm font-medium text-ml-amarelo">Mercado Livre 📦 • Gestão de motoristas</p>
+          <img
+            src="/icons/icon-512.png"
+            alt="Central DD"
+            className="mx-auto h-24 w-24 rounded-2xl bg-white object-cover shadow-xl ring-1 ring-white/20"
+          />
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">Central DD</h1>
+          <p className="text-sm font-medium text-marca">Dispatcher &amp; Driver</p>
         </div>
         <div className="mb-3">
           <InstalarBanner />
@@ -137,7 +145,7 @@ export function Login() {
                   {mensagemErro}
                 </p>
               )}
-              <Button type="submit" variante="ml" className="w-full" disabled={enviando}>
+              <Button type="submit" variante="marca" className="w-full" disabled={enviando}>
                 {enviando ? 'Entrando…' : '➡️ Entrar'}
               </Button>
               <button
@@ -146,7 +154,7 @@ export function Login() {
                   setErro('')
                   setTela('cadastro')
                 }}
-                className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm font-semibold text-ml-azul transition-colors hover:bg-blue-50"
+                className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm font-semibold text-marca-texto transition-colors hover:bg-orange-50"
               >
                 🚚 Sou motorista novo — fazer meu cadastro
               </button>
@@ -166,7 +174,7 @@ export function Login() {
                     onClick={() => setFuncao('motorista')}
                     className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
                       funcao === 'motorista'
-                        ? 'border-ml-azul bg-blue-50 text-ml-azul'
+                        ? 'border-marca-texto bg-orange-50 text-marca-texto'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
@@ -177,7 +185,7 @@ export function Login() {
                     onClick={() => setFuncao('dispatcher')}
                     className={`rounded-xl border-2 p-2.5 text-sm font-semibold transition-colors ${
                       funcao === 'dispatcher'
-                        ? 'border-ml-azul bg-blue-50 text-ml-azul'
+                        ? 'border-marca-texto bg-orange-50 text-marca-texto'
                         : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                     }`}
                   >
@@ -185,7 +193,7 @@ export function Login() {
                   </button>
                 </div>
                 {funcao === 'dispatcher' && (
-                  <p className="mt-1.5 rounded-lg bg-yellow-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+                  <p className="mt-1.5 rounded-lg bg-marca-suave px-2.5 py-1.5 text-[11px] text-slate-600">
                     Cadastro de dispatcher é aprovado <strong>somente pelo dono da operação</strong>.
                     Aprovado, você recebe o painel completo (programação, chamadas, planejamento e rotas).
                   </p>
@@ -249,7 +257,7 @@ export function Login() {
                   {mensagemErro}
                 </p>
               )}
-              <Button type="submit" variante="ml" className="w-full" disabled={enviando}>
+              <Button type="submit" variante="marca" className="w-full" disabled={enviando}>
                 {enviando ? 'Enviando…' : '📝 Enviar meu cadastro'}
               </Button>
               <button

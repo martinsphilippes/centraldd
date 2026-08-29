@@ -52,7 +52,7 @@ export function PreviaImpressao() {
           </span>
           <button
             onClick={imprimir}
-            className="ml-auto rounded-lg bg-ml-amarelo px-3 py-1.5 text-sm font-bold text-slate-900"
+            className="ml-auto rounded-lg bg-marca px-3 py-1.5 text-sm font-bold text-slate-900"
           >
             🖨️ Imprimir / salvar PDF
           </button>

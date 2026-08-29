@@ -330,7 +330,7 @@ export function RoteiroRota({ c, editavel }: Props) {
           📦 {paradas.length - pendentes.length}/{paradas.length} parada(s) entregue(s)
         </Badge>
         {kmRestante !== null && pendentes.length > 0 && (
-          <Badge className="border-sky-200 bg-sky-50 text-sky-800">
+          <Badge className="border-slate-300 bg-slate-100 text-slate-700">
             🛣️ ~{kmRestante.toFixed(1).replace('.', ',')} km restantes (linha reta)
           </Badge>
         )}
@@ -349,7 +349,7 @@ export function RoteiroRota({ c, editavel }: Props) {
         {editavel && escolhaValida && (
           <button
             onClick={voltarSugerida}
-            className="rounded-full border border-ml-azul bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-ml-azul transition-colors hover:bg-blue-100"
+            className="rounded-full border border-marca-texto bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-marca-texto transition-colors hover:bg-orange-100"
           >
             ↩️ Voltar à rota sugerida
           </button>
@@ -364,7 +364,7 @@ export function RoteiroRota({ c, editavel }: Props) {
           <span className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 text-xs font-bold">
             <button
               onClick={() => trocarSeguir('otimizada')}
-              className={`rounded-md px-2.5 py-1 ${seguir === 'otimizada' ? 'bg-ml-azul text-white' : 'text-slate-600'}`}
+              className={`rounded-md px-2.5 py-1 ${seguir === 'otimizada' ? 'bg-marca-texto text-white' : 'text-slate-600'}`}
             >
               🧭 Seguir a nossa
             </button>
@@ -496,7 +496,7 @@ export function RoteiroRota({ c, editavel }: Props) {
         </span>
         <span className="flex items-center gap-3 font-semibold text-slate-600">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-1 w-6 rounded bg-ml-azul" /> seu caminho
+            <span className="inline-block h-1 w-6 rounded bg-marca-texto" /> seu caminho
             {comparacao && ` ~${comparacao.atual.toFixed(1).replace('.', ',')} km`}
           </span>
           <span className="flex items-center gap-1.5">
@@ -513,7 +513,7 @@ export function RoteiroRota({ c, editavel }: Props) {
 
       {/* Próxima parada em destaque (modo execução do motorista) */}
       {editavel && proximaDaVez && (
-        <div className="rounded-xl border-2 border-ml-amarelo bg-yellow-50 p-3">
+        <div className="rounded-xl border-2 border-marca bg-marca-suave p-3">
           <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Próxima parada</p>
           <p className="mt-0.5 font-bold text-slate-900">
             {proximaDaVez.endereco} · {proximaDaVez.cidade}
@@ -531,7 +531,7 @@ export function RoteiroRota({ c, editavel }: Props) {
               href={linksNavegacao(proximaDaVez).googleMaps}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg bg-ml-azul px-3 py-1.5 text-sm font-bold text-white"
+              className="rounded-lg bg-marca-texto px-3 py-1.5 text-sm font-bold text-white"
             >
               🗺️ Google Maps
             </a>
@@ -539,11 +539,11 @@ export function RoteiroRota({ c, editavel }: Props) {
               href={linksNavegacao(proximaDaVez).waze}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg bg-sky-500 px-3 py-1.5 text-sm font-bold text-white"
+              className="rounded-lg bg-slate-1000 px-3 py-1.5 text-sm font-bold text-white"
             >
               🚗 Waze
             </a>
-            <Button variante="ml" onClick={() => marcarEntregue(proximaDaVez)}>
+            <Button variante="marca" onClick={() => marcarEntregue(proximaDaVez)}>
               ✅ Entregue → próxima
             </Button>
           </div>
@@ -569,7 +569,7 @@ export function RoteiroRota({ c, editavel }: Props) {
                 entregue
                   ? 'border-emerald-100 bg-emerald-50/60'
                   : escolhida
-                    ? 'border-yellow-300 bg-yellow-50'
+                    ? 'border-orange-300 bg-marca-suave'
                     : 'border-slate-100 bg-white'
               }`}
             >
@@ -622,7 +622,7 @@ export function RoteiroRota({ c, editavel }: Props) {
                       onClick={() => escolherProxima(p)}
                       className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${
                         escolhida
-                          ? 'border-yellow-400 bg-ml-amarelo text-slate-900'
+                          ? 'border-yellow-400 bg-marca text-slate-900'
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                       }`}
                     >

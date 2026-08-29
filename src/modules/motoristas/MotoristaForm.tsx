@@ -136,7 +136,7 @@ export function MotoristaForm() {
           </label>
 
           {!existente && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
               <p className="mb-2 text-sm font-bold text-slate-800">🔑 Acesso ao aplicativo</p>
               <p className="mb-3 text-xs text-slate-600">
                 Defina e-mail e senha para o motorista entrar no app e responder as chamadas.
@@ -174,7 +174,7 @@ export function MotoristaForm() {
             <Button type="button" variante="secundario" onClick={() => navigate(-1)}>
               Cancelar
             </Button>
-            <Button type="submit" variante="ml" disabled={salvando}>
+            <Button type="submit" variante="marca" disabled={salvando}>
               {salvando ? 'Salvando…' : '💾 Salvar'}
             </Button>
           </div>

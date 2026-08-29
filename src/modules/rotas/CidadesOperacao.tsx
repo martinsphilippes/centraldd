@@ -84,7 +84,7 @@ export function CidadesOperacao() {
             className="min-w-52 flex-1"
           />
           <Button
-            variante="ml"
+            variante="marca"
             onClick={() => {
               acrescentar(nova)
               setNova('')
@@ -152,7 +152,7 @@ export function CidadesOperacao() {
                       </Badge>
                     )}
                     {podem > 0 && (
-                      <Badge className="border-blue-200 bg-blue-100 text-blue-700">👍 {podem} fazem</Badge>
+                      <Badge className="border-orange-200 bg-orange-100 text-orange-800">👍 {podem} fazem</Badge>
                     )}
                     <button
                       onClick={() => {

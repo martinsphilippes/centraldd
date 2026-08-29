@@ -140,7 +140,7 @@ export function MeuPerfil() {
             </p>
           )}
           <div className="flex justify-end">
-            <Button variante="ml" disabled={salvandoPerfil}>
+            <Button variante="marca" disabled={salvandoPerfil}>
               {salvandoPerfil ? '⏳ Salvando…' : '💾 Salvar meus dados'}
             </Button>
           </div>
@@ -196,7 +196,7 @@ export function MeuPerfil() {
             </p>
           )}
           <div className="flex justify-end">
-            <Button variante="ml" disabled={trocando}>
+            <Button variante="marca" disabled={trocando}>
               {trocando ? '⏳ Trocando…' : '🔑 Trocar senha'}
             </Button>
           </div>

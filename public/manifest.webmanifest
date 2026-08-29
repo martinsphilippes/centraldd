@@ -1,13 +1,13 @@
 {
-  "name": "MLDisponibilidade — Gestão de Motoristas",
-  "short_name": "MLDisponibilidade",
-  "description": "Disponibilidade diária de motoristas das operações Mercado Livre 📦",
+  "name": "Central DD — Dispatcher & Driver",
+  "short_name": "Central DD",
+  "description": "Central do Dispatcher e do Driver: disponibilidade, planejamento, rotas e conferência do dia 🚚",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#ffe600",
-  "background_color": "#16213e",
+  "theme_color": "#ee7623",
+  "background_color": "#141b2e",
   "lang": "pt-BR",
   "icons": [
     {

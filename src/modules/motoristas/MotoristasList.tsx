@@ -79,7 +79,7 @@ export function MotoristasList() {
             📥 Importar planilha
           </Button>
           <Link to="/motoristas/novo">
-            <Button variante="ml">➕ Cadastrar motorista</Button>
+            <Button variante="marca">➕ Cadastrar motorista</Button>
           </Link>
         </div>
       </div>
@@ -104,7 +104,7 @@ export function MotoristasList() {
                     <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
                       {m.nome}
                       {pedeDispatcher(m.funcao) && (
-                        <Badge className="border-blue-200 bg-blue-100 text-blue-800">🧑 Quer ser dispatcher</Badge>
+                        <Badge className="border-orange-200 bg-orange-100 text-orange-900">🧑 Quer ser dispatcher</Badge>
                       )}
                     </p>
                     <p className="text-[11px] text-slate-500">
@@ -120,7 +120,7 @@ export function MotoristasList() {
                         🔒 Aguardando o dono da operação
                       </Badge>
                     ) : (
-                      <Button variante="ml" onClick={() => aprovar(m)}>
+                      <Button variante="marca" onClick={() => aprovar(m)}>
                         {pedeDispatcher(m.funcao) ? '✅ Aprovar como dispatcher' : '✅ Aprovar'}
                       </Button>
                     )}
@@ -156,7 +156,7 @@ export function MotoristasList() {
               <div className="flex items-start gap-3">
                 <Avatar nome={m.nome} />
                 <div className="min-w-0 flex-1">
-                  <Link to={`/motoristas/${m.id}`} className="block truncate font-bold text-slate-900 hover:text-ml-azul">
+                  <Link to={`/motoristas/${m.id}`} className="block truncate font-bold text-slate-900 hover:text-marca-texto">
                     {m.nome}
                   </Link>
                   <p className="text-xs text-slate-500">📱 {formatarTelefone(m.telefone)}</p>

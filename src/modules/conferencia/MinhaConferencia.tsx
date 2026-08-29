@@ -57,7 +57,7 @@ function Envio({ c, recebido }: { c: Conferencia; recebido?: { nome: string; tex
         placeholder="Envie o CSV do app de leitura, ou cole/digite as numerações…"
       />
       <div className="flex justify-end">
-        <Button variante="ml" onClick={enviar} disabled={valores.length === 0 || enviando}>
+        <Button variante="marca" onClick={enviar} disabled={valores.length === 0 || enviando}>
           {enviando ? '⏳ Enviando…' : `✅ Conferir ${valores.length} numeração(ões)`}
         </Button>
       </div>
@@ -132,13 +132,13 @@ export function MinhaConferencia() {
         </Card>
       )}
       {recebido && aguardando.length > 1 && !destino && (
-        <Card className="border-sky-300 bg-sky-50 p-4">
-          <p className="text-sm font-semibold text-sky-900">
+        <Card className="border-slate-300 bg-slate-100 p-4">
+          <p className="text-sm font-semibold text-slate-800">
             📤 Recebi <strong>{recebido.nome}</strong>. De qual rota é?
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {aguardando.map((c) => (
-              <Button key={c.id} variante="ml" onClick={() => setDestino(c.id)}>
+              <Button key={c.id} variante="marca" onClick={() => setDestino(c.id)}>
                 {c.titulo}
               </Button>
             ))}
@@ -170,7 +170,7 @@ export function MinhaConferencia() {
               {(c.pacotes ?? []).some((p) => p.lat != null) && (
                 <>
                   <Button
-                    variante={roteiroAberto === c.id ? 'secundario' : 'ml'}
+                    variante={roteiroAberto === c.id ? 'secundario' : 'marca'}
                     onClick={() => setRoteiroAberto((a) => (a === c.id ? null : c.id))}
                   >
                     🧭 {roteiroAberto === c.id ? 'Fechar roteiro' : 'Meu roteiro de entregas'}

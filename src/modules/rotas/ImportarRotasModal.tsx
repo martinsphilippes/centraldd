@@ -236,7 +236,7 @@ export function ImportarRotasModal({
 
   return (
     <Modal aberto={aberto} titulo="📥 Importar planilha de rotas" onFechar={onFechar}>
-      <p className="mb-2 rounded-lg border border-ml-amarelo bg-yellow-50 px-3 py-2 text-sm font-semibold text-slate-800">
+      <p className="mb-2 rounded-lg border border-marca bg-marca-suave px-3 py-2 text-sm font-semibold text-slate-800">
         📅 As rotas entram no dia <strong>{formatarData(data)}</strong> — e ficam só nele.
       </p>
       <p className="mb-2 text-sm text-slate-600">
@@ -248,7 +248,7 @@ export function ImportarRotasModal({
       <p className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
         Cidade • Rota expedição • Rota original • Base • Veículo • Km • DPS • Ocupação % • Transportadora
       </p>
-      <p className="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900">
+      <p className="mb-3 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-[11px] leading-relaxed text-slate-800">
         📸 <strong>Foto por partes:</strong> em vez de afastar para pegar a planilha inteira (e
         perder nitidez), fotografe <strong>2 ou 3 colunas de cada vez, de perto</strong>, e mande
         uma foto de cada — o app reconhece as colunas sozinho e encaixa lado a lado. A única regra
@@ -262,7 +262,7 @@ export function ImportarRotasModal({
         <strong>Rota expedição</strong> em cada foto deixa o app conferir o encaixe.
       </p>
       <textarea
-        className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
+        className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-marca-texto"
         placeholder={'Ituiutaba\tD11_AM1\tAM1_133\tEMG13\tVeículo de Passeio\t21,481\t5:00\t53,46\tEnvios Extra\n…'}
         value={textoColado}
         onChange={(e) => atualizarPrevia(e.target.value)}
@@ -274,7 +274,7 @@ export function ImportarRotasModal({
         </Button>
         {pedacos.length > 0 && (
           <Button
-            variante={forcarBlocoNovo ? 'ml' : 'secundario'}
+            variante={forcarBlocoNovo ? 'marca' : 'secundario'}
             onClick={() => setForcarBlocoNovo((v) => !v)}
             title="Marque quando a próxima foto for de OUTRAS linhas da planilha e as colunas dela não repetirem nenhuma das que já vieram"
           >
@@ -333,7 +333,7 @@ export function ImportarRotasModal({
         </div>
       )}
       {abasLidas.length > 0 && (
-        <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+        <div className="mt-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs text-slate-800">
           {abasLidas.map((a) => (
             <p key={a}>📄 {a}</p>
           ))}
@@ -405,7 +405,7 @@ export function ImportarRotasModal({
         <Button variante="secundario" onClick={onFechar}>
           Cancelar
         </Button>
-        <Button variante="ml" onClick={() => void confirmarImportacao()} disabled={rotasFinais.length === 0 || importando}>
+        <Button variante="marca" onClick={() => void confirmarImportacao()} disabled={rotasFinais.length === 0 || importando}>
           {importando ? 'Importando…' : `📥 Importar ${rotasFinais.length} rota(s)`}
         </Button>
       </div>

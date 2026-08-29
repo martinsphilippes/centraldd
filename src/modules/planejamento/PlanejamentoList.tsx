@@ -39,7 +39,7 @@ export function PlanejamentoList() {
           />
           <div className="text-center">
             <Link to={chamadaAberta ? `/chamadas/${chamadaAberta.id}` : '/programacao'}>
-              <Button variante="ml">
+              <Button variante="marca">
                 {chamadaAberta
                   ? `📋 Montar planejamento de ${formatarData(chamadaAberta.data)} →`
                   : '📆 Ir para a Programação →'}
@@ -53,7 +53,7 @@ export function PlanejamentoList() {
             const badge = BADGE_STATUS[e.status]
             return (
               <Link key={e.id} to={`/planejamento/${e.id}`}>
-                <Card className="flex items-center justify-between p-4 transition-colors hover:border-ml-azul">
+                <Card className="flex items-center justify-between p-4 transition-colors hover:border-marca-texto">
                   <div>
                     <span className="font-bold text-slate-900">{e.nome}</span>
                     <p className="text-sm text-slate-500">

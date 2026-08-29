@@ -35,7 +35,7 @@ export function Dashboard() {
           <span className="text-sm font-semibold text-slate-800">
             ⏳ {preCadastros} pré-cadastro{preCadastros > 1 ? 's' : ''} de motorista aguardando sua aprovação
           </span>
-          <span className="text-sm font-bold text-ml-azul">Revisar →</span>
+          <span className="text-sm font-bold text-marca-texto">Revisar →</span>
         </Link>
       )}
       {/* Só o título: a ⚙️ Parametrização e o atalho para Programação vivem na
@@ -102,7 +102,7 @@ export function Dashboard() {
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-slate-900">⏰ Chamadas abertas</h2>
-            <Link to="/chamadas" className="text-xs font-semibold text-ml-azul hover:underline">
+            <Link to="/chamadas" className="text-xs font-semibold text-marca-texto hover:underline">
               Ver todas →
             </Link>
           </div>
@@ -116,11 +116,11 @@ export function Dashboard() {
                   <li key={c.id}>
                     <Link
                       to={`/chamadas/${c.id}`}
-                      className="block rounded-lg border border-slate-200 p-3 transition-colors hover:border-ml-azul hover:bg-blue-50/50"
+                      className="block rounded-lg border border-slate-200 p-3 transition-colors hover:border-marca-texto hover:bg-orange-50/50"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-slate-800">{c.titulo}</span>
-                        <Badge className="border-yellow-300 bg-ml-amarelo/60 text-slate-800">
+                        <Badge className="border-orange-300 bg-marca/60 text-slate-800">
                           🚚 {r.disponiveis}/{c.qtdNecessaria}
                         </Badge>
                       </div>
@@ -145,7 +145,7 @@ export function Dashboard() {
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-slate-900">📍 Rotas e planejamento em andamento</h2>
-            <Link to="/planejamento" className="text-xs font-semibold text-ml-azul hover:underline">
+            <Link to="/planejamento" className="text-xs font-semibold text-marca-texto hover:underline">
               Ver todas →
             </Link>
           </div>
@@ -157,7 +157,7 @@ export function Dashboard() {
                 <li key={e.id}>
                   <Link
                     to={`/planejamento/${e.id}`}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 p-3 transition-colors hover:border-ml-azul hover:bg-blue-50/50"
+                    className="flex items-center justify-between rounded-lg border border-slate-200 p-3 transition-colors hover:border-marca-texto hover:bg-orange-50/50"
                   >
                     <div>
                       <span className="font-semibold text-slate-800">{e.nome}</span>

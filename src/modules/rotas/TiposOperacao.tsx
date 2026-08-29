@@ -99,7 +99,7 @@ export function TiposOperacao() {
                 className="min-w-52 flex-1"
               />
               <Button
-                variante="ml"
+                variante="marca"
                 onClick={() => {
                   acrescentar(secao.categoria, novo[secao.categoria] ?? '')
                   setNovo({ ...novo, [secao.categoria]: '' })

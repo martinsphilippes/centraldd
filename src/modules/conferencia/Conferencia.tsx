@@ -148,7 +148,7 @@ export function Conferencia() {
             dele — aí o sistema aponta o que não bateu, para os dois.
           </p>
         </div>
-        <Button variante="ml" onClick={abrir} disabled={motoristas.length === 0}>
+        <Button variante="marca" onClick={abrir} disabled={motoristas.length === 0}>
           ➕ Nova conferência
         </Button>
       </div>
@@ -279,7 +279,7 @@ export function Conferencia() {
             <Button variante="secundario" onClick={() => setNovo(false)}>
               Cancelar
             </Button>
-            <Button variante="ml" onClick={criar} disabled={!motoristaId || esperados.length === 0}>
+            <Button variante="marca" onClick={criar} disabled={!motoristaId || esperados.length === 0}>
               💾 Enviar para conferência ({esperados.length})
             </Button>
           </div>

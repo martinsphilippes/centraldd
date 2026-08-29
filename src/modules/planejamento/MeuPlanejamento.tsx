@@ -32,11 +32,11 @@ export function MeuPlanejamento() {
       </div>
 
       {minhasRotas.length > 0 && (
-        <Card className="border-ml-amarelo bg-yellow-50 p-4">
+        <Card className="border-marca bg-marca-suave p-4">
           <h2 className="mb-2 font-bold text-slate-900">🛣️ Rota(s) direcionada(s) a você</h2>
           <ul className="space-y-2">
             {minhasRotas.map((r) => (
-              <li key={r.id} className="rounded-lg border border-yellow-200 bg-white p-3">
+              <li key={r.id} className="rounded-lg border border-orange-200 bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-bold text-slate-900">
                     {r.rotaExpedicao}
@@ -53,7 +53,7 @@ export function MeuPlanejamento() {
                       </Badge>
                     )
                   ) : (
-                    <Badge className="border-sky-200 bg-sky-100 text-sky-800">🚚 Em andamento</Badge>
+                    <Badge className="border-slate-300 bg-slate-200 text-slate-700">🚚 Em andamento</Badge>
                   )}
                 </div>
                 <p className="text-xs text-slate-600">

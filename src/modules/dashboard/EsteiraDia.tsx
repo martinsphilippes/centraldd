@@ -27,7 +27,7 @@ function CartaoEtapa({ etapa, atual }: { etapa: Etapa; atual: boolean }) {
   const tom = etapa.feita
     ? 'border-emerald-300 bg-emerald-50'
     : atual
-      ? 'border-ml-amarelo bg-yellow-50'
+      ? 'border-marca bg-marca-suave'
       : 'border-slate-200 bg-white'
   return (
     <Link
@@ -38,7 +38,7 @@ function CartaoEtapa({ etapa, atual }: { etapa: Etapa; atual: boolean }) {
         {etapa.feita ? '✅' : etapa.icone} {etapa.titulo}
       </span>
       <span className="text-[11px] leading-tight text-slate-600">{etapa.resumo}</span>
-      <span className={`mt-auto text-[11px] font-bold ${atual ? 'text-amber-700' : 'text-ml-azul'}`}>
+      <span className={`mt-auto text-[11px] font-bold ${atual ? 'text-amber-700' : 'text-marca-texto'}`}>
         {etapa.acao} →
       </span>
     </Link>
@@ -155,7 +155,7 @@ export function EsteiraDia({
           value={data}
           onChange={(e) => aoMudarData?.(e.target.value)}
           disabled={!aoMudarData}
-          className="rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-ml-azul"
+          className="rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-marca-texto"
         />
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">

@@ -132,7 +132,7 @@ export function MotoristaDetail() {
                 <li key={e.id}>
                   <Link
                     to={`/planejamento/${e.id}`}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5 hover:border-ml-azul"
+                    className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5 hover:border-marca-texto"
                   >
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{e.nome}</p>

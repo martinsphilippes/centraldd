@@ -223,7 +223,7 @@ export function Rotas() {
     })
 
   const CELULA = 'px-2 py-2 text-slate-700 whitespace-nowrap'
-  const SELETOR = 'rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-xs outline-none focus:border-ml-azul'
+  const SELETOR = 'rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-xs outline-none focus:border-marca-texto'
 
   return (
     <div className="space-y-5">
@@ -240,13 +240,13 @@ export function Rotas() {
             // Sem planejamento ainda: a esteira manda montar a planejamento primeiro.
             <Link
               to={`/chamadas/${chamadaBase.id}`}
-              className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
+              className="rounded-lg bg-marca px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
             >
               📋 Fazer planejamento ({formatarData(chamadaBase.data)}) →
             </Link>
           )}
           {planejamentoDaChamada && candidatosChamada.length > 0 && semMotorista > 0 && (
-            <Button variante="ml" onClick={direcionarAutomatico}>
+            <Button variante="marca" onClick={direcionarAutomatico}>
               ⚡ Direcionar quem está no planejamento ({candidatosChamada.length})
             </Button>
           )}
@@ -335,7 +335,7 @@ export function Rotas() {
           type="date"
           value={dia}
           onChange={(e) => trocarDia(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-ml-azul"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-marca-texto"
         />
       </div>
 
@@ -348,7 +348,7 @@ export function Rotas() {
           />
           <div className="text-center">
             <Link to="/programacao">
-              <Button variante="ml">📆 Ir para a Programação →</Button>
+              <Button variante="marca">📆 Ir para a Programação →</Button>
             </Link>
           </div>
         </div>
@@ -390,12 +390,12 @@ export function Rotas() {
                       </button>
                     )}
                   </td>
-                  <td className={`${CELULA} bg-yellow-50`}>
+                  <td className={`${CELULA} bg-marca-suave`}>
                     <div className="flex items-center justify-between gap-1.5">
                       <span>{r.rotaOriginal}</span>
                       <button
                         onClick={() => duplicarRota(r)}
-                        className="rounded-full border border-slate-300 bg-white px-1.5 py-0.5 font-bold text-slate-600 hover:border-ml-azul hover:text-ml-azul"
+                        className="rounded-full border border-slate-300 bg-white px-1.5 py-0.5 font-bold text-slate-600 hover:border-marca-texto hover:text-marca-texto"
                         title="Adicionar outra rota igual nesta linha — para dividir os pacotes com um segundo motorista"
                       >
                         ＋
@@ -568,7 +568,7 @@ export function Rotas() {
             {editando.motoristaId && (
               <p className="text-xs text-slate-500">
                 Perfil:{' '}
-                <Link to={`/motoristas/${editando.motoristaId}`} className="font-semibold text-ml-azul hover:underline">
+                <Link to={`/motoristas/${editando.motoristaId}`} className="font-semibold text-marca-texto hover:underline">
                   {porMotorista.get(editando.motoristaId)?.nome} →
                 </Link>
               </p>
@@ -578,7 +578,7 @@ export function Rotas() {
                 Cancelar
               </Button>
               <Button
-                variante="ml"
+                variante="marca"
                 onClick={() => {
                   salvarRota(editando)
                   setEditando(null)

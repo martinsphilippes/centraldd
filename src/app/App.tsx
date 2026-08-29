@@ -30,14 +30,23 @@ import { Programacao } from '../modules/programacao/Programacao'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
 
+/** Primeira tela do app instalado: a marca enquanto os dados chegam. */
 function TelaCarregando() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ml-navy">
-      <div className="text-center">
-        <span className="inline-flex h-16 w-16 animate-pulse items-center justify-center rounded-2xl bg-ml-amarelo text-3xl">
-          🚚
-        </span>
-        <p className="mt-3 text-sm font-medium text-slate-300">Carregando…</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navy">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute h-80 w-80 rounded-full bg-marca/20 blur-3xl"
+      />
+      <div className="relative text-center">
+        <img
+          src="/icons/icon-512.png"
+          alt="Central DD"
+          className="mx-auto h-24 w-24 animate-pulse rounded-2xl bg-white object-cover shadow-xl"
+        />
+        <p className="mt-4 text-base font-bold tracking-tight text-white">Central DD</p>
+        <p className="text-xs font-medium text-marca">Dispatcher &amp; Driver</p>
+        <p className="mt-3 text-sm font-medium text-slate-400">Carregando…</p>
       </div>
     </div>
   )

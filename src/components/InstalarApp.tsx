@@ -62,14 +62,14 @@ export function InstalarBanner() {
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-yellow-300 bg-ml-amarelo/80 px-3 py-2.5 shadow-sm">
+    <div className="flex items-center gap-2 rounded-xl border border-orange-300 bg-marca/80 px-3 py-2.5 shadow-sm">
       <span className="text-xl">📲</span>
       <p className="min-w-0 flex-1 text-xs font-semibold leading-tight text-slate-800">
         Instale o app na tela de início — um toque e pronto!
       </p>
       <button
         onClick={() => void instalar()}
-        className="rounded-lg bg-ml-navy px-3 py-2 text-xs font-bold text-white transition-transform active:scale-95"
+        className="rounded-lg bg-navy px-3 py-2 text-xs font-bold text-white transition-transform active:scale-95"
       >
         Instalar
       </button>

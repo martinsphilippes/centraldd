@@ -29,7 +29,7 @@ export function ContactButtons({
       <a
         href={linkLigacao(motorista)}
         title="Ligar"
-        className={`${btn} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+        className={`${btn} border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100`}
       >
         📞{!compacto && ' Ligar'}
       </a>

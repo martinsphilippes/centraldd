@@ -30,7 +30,7 @@ export class ErroTela extends Component<{ children: ReactNode }, Estado> {
         </p>
         <button
           onClick={() => location.reload()}
-          className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900"
+          className="rounded-lg bg-marca px-4 py-2 text-sm font-bold text-slate-900"
         >
           🔄 Recarregar o app
         </button>

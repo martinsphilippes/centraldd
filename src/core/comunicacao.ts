@@ -31,7 +31,7 @@ export function mensagemCobranca(m: Motorista, c: Chamada): string {
     `📅 ${formatarDataLonga(c.data)}\n` +
     `📦 Operação: ${c.operacao}\n` +
     `🕖 Horário: ${c.horarioInicio} às ${c.horarioFim}\n\n` +
-    `Por favor, responda sua disponibilidade no app MLDisponibilidade. 🙏`
+    `Por favor, responda sua disponibilidade no app Central DD. 🙏`
   )
 }
 

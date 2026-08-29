@@ -1,4 +1,4 @@
-// Service worker do MLDisponibilidade.
+// Service worker do Central DD.
 // Estratégia de velocidade:
 //  - Arquivos estáticos (JS/CSS com hash, ícones): CACHE PRIMEIRO — depois da
 //    1ª visita, abrem do aparelho, sem rede.
@@ -6,7 +6,7 @@
 //    chegam na hora, e o app ainda abre offline.
 //  - Firebase/dados: sempre direto na rede (tempo real).
 
-const CACHE = 'mldisponibilidade-v5'
+const CACHE = 'mldisponibilidade-v6'
 
 self.addEventListener('install', () => self.skipWaiting())
 

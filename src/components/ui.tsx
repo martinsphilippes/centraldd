@@ -2,11 +2,13 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 
 // ---------- Botão ----------
 
-type Variante = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'ml'
+type Variante = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'marca'
 
 const VARIANTES: Record<Variante, string> = {
-  primario: 'bg-ml-azul text-white hover:bg-ml-azul-escuro shadow-sm',
-  ml: 'bg-ml-amarelo text-slate-900 hover:brightness-95 shadow-sm font-semibold',
+  primario: 'bg-navy text-white hover:bg-navy-claro shadow-sm',
+  // Laranja da marca com texto azul-noite: branco sobre laranja dá 2,9:1,
+  // ilegível. Assim o botão principal fica em 5,9:1.
+  marca: 'bg-marca text-navy hover:bg-marca-escura shadow-sm font-semibold',
   secundario: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50',
   perigo: 'bg-red-600 text-white hover:bg-red-700',
   fantasma: 'text-slate-600 hover:bg-slate-100',
@@ -29,7 +31,9 @@ export function Button({
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(20,27,46,0.06)] ${className}`}
+    >
       {children}
     </div>
   )
@@ -61,7 +65,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 const CAMPO =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-ml-azul focus:ring-2 focus:ring-ml-azul/20'
+  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-marca-texto focus:ring-2 focus:ring-marca-texto/20'
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={CAMPO} {...props} />
@@ -85,7 +89,7 @@ export function StatCard({
   destaque?: boolean
 }) {
   return (
-    <Card className={`p-4 ${destaque ? 'border-ml-amarelo bg-yellow-50' : ''}`}>
+    <Card className={`p-4 ${destaque ? 'border-marca bg-marca-suave' : ''}`}>
       <div className="flex items-center gap-3">
         <span className="text-2xl">{icone}</span>
         <div className="min-w-0">
@@ -100,7 +104,7 @@ export function StatCard({
 export function ProgressBar({
   valor,
   total,
-  cor = 'bg-ml-azul',
+  cor = 'bg-marca-texto',
 }: {
   valor: number
   total: number
@@ -134,7 +138,7 @@ export function Avatar({ nome, tamanho = 'md' }: { nome: string; tamanho?: 'sm' 
   const cls = tamanho === 'sm' ? 'h-7 w-7 text-[10px]' : tamanho === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-xs'
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-ml-navy font-bold text-ml-amarelo ${cls}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-navy font-bold text-marca ${cls}`}
     >
       {iniciais}
     </span>
@@ -157,7 +161,7 @@ export function SegmentedControl<T extends string>({
           key={o.valor}
           onClick={() => onChange(o.valor)}
           className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            valor === o.valor ? 'bg-ml-navy text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+            valor === o.valor ? 'bg-navy text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           {o.rotulo}

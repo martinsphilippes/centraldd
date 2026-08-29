@@ -1,11 +1,28 @@
 @import 'tailwindcss';
 
+/*
+ * Cores da marca Central DD — tiradas da logomarca: laranja da estrada e
+ * azul-noite quase preto das letras.
+ *
+ * A regra de leitura que guia o uso: laranja NUNCA leva texto branco em cima
+ * (2,9:1, ilegível). Sobre laranja vai o azul-noite (5,9:1); para texto e link
+ * sobre fundo claro existe o laranja-forte (5,8:1). Todos conferidos.
+ */
 @theme {
-  --color-ml-amarelo: #ffe600;
-  --color-ml-azul: #3483fa;
-  --color-ml-azul-escuro: #2968c8;
-  --color-ml-navy: #16213e;
-  --color-ml-navy-claro: #1f2b4d;
+  /* Laranja da marca: fundo de botão e destaque. Texto por cima é o navy. */
+  --color-marca: #ee7623;
+  /* Escurece só o suficiente para marcar o toque SEM perder o contraste do
+     texto navy por cima (5,1:1). Mais escuro que isto derruba para 4,1:1 —
+     não serve nem com navy nem com branco. */
+  --color-marca-escura: #e06a17;
+  /* Laranja escurecido o bastante para virar TEXTO e link sobre branco. */
+  --color-marca-texto: #a34e0c;
+  --color-marca-suave: #fdf1e7;
+  /* Azul-noite das letras da logo: menu, títulos e texto sobre o laranja. */
+  --color-navy: #141b2e;
+  --color-navy-claro: #1e2942;
+  /* Fundo da página: cinza levemente quente, para casar com o laranja. */
+  --color-fundo: #f6f4f1;
 }
 
 html {
@@ -13,6 +30,6 @@ html {
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
+  @apply bg-fundo text-slate-800 antialiased;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }

@@ -130,7 +130,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
             </div>
           )}
           <div className="flex justify-end">
-            <Button variante="ml" onClick={fechar}>Fechar</Button>
+            <Button variante="marca" onClick={fechar}>Fechar</Button>
           </div>
         </div>
       ) : (
@@ -152,7 +152,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
           </div>
 
           <textarea
-            className="h-40 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-ml-azul"
+            className="h-40 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-marca-texto"
             value={texto}
             onChange={(e) => atualizarPrevia(e.target.value)}
             placeholder={`${CABECALHO_MODELO.join('\t')}\nCarlos Silva\t34998765432\tItuiutaba\t…`}
@@ -165,7 +165,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
                   ➕ {novos} novo(s)
                 </Badge>
                 {atualizar > 0 && (
-                  <Badge className="border-blue-200 bg-blue-100 text-blue-800">
+                  <Badge className="border-orange-200 bg-orange-100 text-orange-900">
                     ♻️ {atualizar} já existe(m) — serão atualizados
                   </Badge>
                 )}
@@ -205,7 +205,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
                           </td>
                           <td className="px-2 py-1">
                             {existe ? (
-                              <span className="text-blue-700">♻️ atualiza</span>
+                              <span className="text-orange-800">♻️ atualiza</span>
                             ) : (
                               <span className="text-emerald-700">➕ novo</span>
                             )}
@@ -223,7 +223,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
           <div className="mt-4 flex justify-end gap-2">
             <Button variante="secundario" onClick={fechar}>Cancelar</Button>
             <Button
-              variante="ml"
+              variante="marca"
               onClick={() => void confirmar()}
               disabled={importando || !previa || previa.length === 0}
             >

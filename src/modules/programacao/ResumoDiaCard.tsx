@@ -423,7 +423,7 @@ export function ResumoDiaCard({
         <p
           className={`mb-3 rounded-lg px-3 py-2 text-sm ${
             rascunho.data > hojeISO()
-              ? 'border border-sky-200 bg-sky-50 font-semibold text-sky-800'
+              ? 'border border-slate-300 bg-slate-100 font-semibold text-slate-700'
               : 'bg-slate-50 text-slate-600'
           }`}
         >
@@ -462,7 +462,7 @@ export function ResumoDiaCard({
           </div>
 
           <div>
-            <label className="mb-2 flex items-center gap-2 rounded-lg border border-ml-amarelo bg-yellow-50 px-3 py-2 text-sm font-semibold text-slate-700">
+            <label className="mb-2 flex items-center gap-2 rounded-lg border border-marca bg-marca-suave px-3 py-2 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
                 className="h-4 w-4"
@@ -506,16 +506,16 @@ export function ResumoDiaCard({
           <div>
             <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               <span className="flex-1">AM — Transportadora</span>
-              <span className="w-28 text-ml-azul">Utilitários ✏️</span>
-              <span className="w-24 text-ml-azul">VUC ✏️</span>
+              <span className="w-28 text-marca-texto">Utilitários ✏️</span>
+              <span className="w-24 text-marca-texto">VUC ✏️</span>
               <span className="w-7" />
             </div>
             <div className="space-y-2">
               {rascunho.transportadoras.map((t, i) => (
                 <div key={i} className="flex gap-2">
                   <Input placeholder="Transportadora" value={t.nome} onChange={(e) => setT(i, 'nome', e.target.value)} />
-                  <Input placeholder="Utilitários" value={t.utilitarios} onChange={(e) => setT(i, 'utilitarios', e.target.value)} inputMode="numeric" className="w-28 border-ml-azul bg-blue-50/40 font-bold" />
-                  <Input placeholder="VUC" value={t.vuc} onChange={(e) => setT(i, 'vuc', e.target.value)} inputMode="numeric" className="w-24 border-ml-azul bg-blue-50/40 font-bold" />
+                  <Input placeholder="Utilitários" value={t.utilitarios} onChange={(e) => setT(i, 'utilitarios', e.target.value)} inputMode="numeric" className="w-28 border-marca-texto bg-orange-50/40 font-bold" />
+                  <Input placeholder="VUC" value={t.vuc} onChange={(e) => setT(i, 'vuc', e.target.value)} inputMode="numeric" className="w-24 border-marca-texto bg-orange-50/40 font-bold" />
                   <button
                     onClick={() => setRascunho({ ...rascunho, transportadoras: rascunho.transportadoras.filter((_, j) => j !== i) })}
                     className="rounded-lg px-2 text-red-600 hover:bg-red-50"
@@ -534,7 +534,7 @@ export function ResumoDiaCard({
             </div>
 
             {/* Total de rotas: calculado pela soma, mas sempre editável. */}
-            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-ml-amarelo bg-yellow-50 px-3 py-2.5">
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-marca bg-marca-suave px-3 py-2.5">
               <span className="text-sm font-bold uppercase tracking-wide text-slate-700">Total rotas</span>
               <Input
                 value={rascunho.totalRotas ?? ''}
@@ -550,7 +550,7 @@ export function ResumoDiaCard({
                     <strong>{totalRotasSomado}</strong>.{' '}
                     <button
                       onClick={() => setRascunho({ ...rascunho, totalRotas: '' })}
-                      className="font-semibold text-ml-azul hover:underline"
+                      className="font-semibold text-marca-texto hover:underline"
                     >
                       voltar ao calculado
                     </button>
@@ -568,8 +568,8 @@ export function ResumoDiaCard({
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes</p>
             <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               <span className="w-32">Veículo</span>
-              <span className="w-24 text-ml-azul">Quantidade ✏️</span>
-              <span className="w-20 text-ml-azul">Posições ✏️</span>
+              <span className="w-24 text-marca-texto">Quantidade ✏️</span>
+              <span className="w-20 text-marca-texto">Posições ✏️</span>
             </div>
             <div className="space-y-2">
               {rascunho.mm.map((m, i) => (
@@ -580,7 +580,7 @@ export function ResumoDiaCard({
                     value={m.quantidade}
                     onChange={(e) => setM(i, 'quantidade', e.target.value)}
                     inputMode="numeric"
-                    className="w-24 border-ml-azul bg-blue-50/40 font-bold"
+                    className="w-24 border-marca-texto bg-orange-50/40 font-bold"
                   />
                   <Input
                     placeholder="Posições"
@@ -596,7 +596,7 @@ export function ResumoDiaCard({
 
             {/* Uma linha só, no fim: o total de posições — calculado, mas
                 sempre editável quando o dia fugir da conta. */}
-            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-ml-amarelo bg-yellow-50 px-3 py-2.5">
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-marca bg-marca-suave px-3 py-2.5">
               <span className="text-sm font-bold uppercase tracking-wide text-slate-700">Posições (total)</span>
               <Input
                 value={rascunho.posicoesTotal ?? ''}
@@ -612,7 +612,7 @@ export function ResumoDiaCard({
                     <strong>{posicoesCalculadasRascunho}</strong>.{' '}
                     <button
                       onClick={() => setRascunho({ ...rascunho, posicoesTotal: '' })}
-                      className="font-semibold text-ml-azul hover:underline"
+                      className="font-semibold text-marca-texto hover:underline"
                     >
                       voltar ao calculado
                     </button>
@@ -630,7 +630,7 @@ export function ResumoDiaCard({
             <Button variante="secundario" onClick={() => { setEditando(false); setRascunho(existente ?? novoResumo(data, '')) }}>
               Cancelar
             </Button>
-            <Button variante="ml" onClick={salvar}>💾 Salvar resumo</Button>
+            <Button variante="marca" onClick={salvar}>💾 Salvar resumo</Button>
           </div>
         </div>
       </Card>
@@ -642,7 +642,7 @@ export function ResumoDiaCard({
   const SUB = 'bg-slate-600 text-white font-bold text-center'
   const LBL = 'bg-slate-100 font-bold text-slate-700'
   const VAL = 'bg-slate-50 text-center font-semibold text-slate-900'
-  const DEST = 'bg-ml-amarelo font-bold text-center text-slate-900'
+  const DEST = 'bg-marca font-bold text-center text-slate-900'
   const cel = 'border border-slate-300 px-3 py-1.5 text-sm'
 
   return (
@@ -652,7 +652,7 @@ export function ResumoDiaCard({
           📋 Resumo do dia
           <span className="text-sm font-semibold text-slate-500">{rotuloDia(data)}</span>
           {data > hojeISO() && (
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-800">
+            <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
               🔮 planejamento antecipado
             </span>
           )}
@@ -680,7 +680,7 @@ export function ResumoDiaCard({
               🗑️ Limpar
             </Button>
           )}
-          <Button variante="ml" onClick={() => { setRascunho(existente ?? novoResumo(data, '')); setEditando(true) }}>
+          <Button variante="marca" onClick={() => { setRascunho(existente ?? novoResumo(data, '')); setEditando(true) }}>
             ✏️ {existente ? 'Editar' : 'Preencher'}
           </Button>
         </div>
@@ -794,13 +794,13 @@ export function ResumoDiaCard({
             </p>
             <Link
               to={`/chamadas/${chamadaDoDia.id}`}
-              className="rounded-lg bg-ml-azul px-3 py-1.5 text-sm font-bold text-white hover:opacity-90"
+              className="rounded-lg bg-marca-texto px-3 py-1.5 text-sm font-bold text-white hover:opacity-90"
             >
               Ver respostas →
             </Link>
           </div>
         ) : (
-          <Button variante="ml" className="w-full" onClick={chamarMotoristas}>
+          <Button variante="marca" className="w-full" onClick={chamarMotoristas}>
             📢 Chamar motoristas{totalRotas > 0 ? ` — meta ${totalRotas} (TOTAL ROTAS)` : ''}
           </Button>
         )}
@@ -816,7 +816,7 @@ export function ResumoDiaCard({
           rótulos: <strong>base, SPR, pacotes, veículos DIV, transportadoras (AM) e MM</strong>.
         </p>
         <textarea
-          className="h-32 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-ml-azul"
+          className="h-32 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-marca-texto"
           placeholder={'EMG13 - ITUIUTABA\nSPR DE REFERÊNCIA\t100\nPACOTES\t6653\nVeículos DIV\t54\n…'}
           value={textoModelo}
           onChange={(e) => atualizarPreviaModelo(e.target.value)}
@@ -865,7 +865,7 @@ export function ResumoDiaCard({
             {previaModelo.camposDetectados === 0 ? (
               <p className="mt-1 text-xs text-amber-700">Nenhum campo reconhecido — confira se o texto tem os rótulos do modelo.</p>
             ) : (
-              <Button variante="ml" className="mt-2 w-full" onClick={aplicarModelo}>
+              <Button variante="marca" className="mt-2 w-full" onClick={aplicarModelo}>
                 📥 Preencher o card agora
               </Button>
             )}
@@ -875,7 +875,7 @@ export function ResumoDiaCard({
           <Button variante="secundario" onClick={() => setModalModelo(false)}>
             Cancelar
           </Button>
-          <Button variante="ml" onClick={aplicarModelo} disabled={!previaModelo || previaModelo.camposDetectados === 0}>
+          <Button variante="marca" onClick={aplicarModelo} disabled={!previaModelo || previaModelo.camposDetectados === 0}>
             📥 Preencher o card
           </Button>
         </div>

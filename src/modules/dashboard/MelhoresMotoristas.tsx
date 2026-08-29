@@ -179,7 +179,7 @@ export function MelhoresMotoristas() {
                 key={m.id}
                 className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 ${
                   posicao < 3 && valor > 0
-                    ? 'border-yellow-200 bg-yellow-50/60'
+                    ? 'border-orange-200 bg-marca-suave/60'
                     : 'border-slate-100 bg-white'
                 }`}
               >
@@ -210,7 +210,7 @@ export function MelhoresMotoristas() {
             setAberto((v) => !v)
             setBusca('')
           }}
-          className="mt-2 w-full rounded-lg border border-slate-200 py-1.5 text-xs font-semibold text-ml-azul transition-colors hover:bg-slate-50"
+          className="mt-2 w-full rounded-lg border border-slate-200 py-1.5 text-xs font-semibold text-marca-texto transition-colors hover:bg-slate-50"
         >
           {aberto ? '▲ Mostrar só o pódio' : `▼ Ver todos os ${ranking.length} motoristas`}
         </button>

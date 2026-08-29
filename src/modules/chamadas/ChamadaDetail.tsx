@@ -152,7 +152,7 @@ export function ChamadaDetail() {
       <div className="flex items-center gap-2">
         <Avatar nome={m.nome} tamanho="sm" />
         <div className="min-w-0 flex-1">
-          <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-ml-azul">
+          <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-marca-texto">
             {m.nome}
           </Link>
           <p className="truncate text-[11px] text-slate-500">
@@ -165,7 +165,7 @@ export function ChamadaDetail() {
           <>
             <StatusPill resposta={r} />
             {veioDaDisponibilidade(r) && (
-              <Badge className="border-sky-200 bg-sky-50 text-sky-700">📅 pela disponibilidade</Badge>
+              <Badge className="border-slate-300 bg-slate-100 text-slate-700">📅 pela disponibilidade</Badge>
             )}
           </>
         ) : (
@@ -233,12 +233,12 @@ export function ChamadaDetail() {
           {planejamentoExistente ? (
             <Link
               to={`/planejamento/${planejamentoExistente.id}`}
-              className="rounded-lg bg-ml-amarelo px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
+              className="rounded-lg bg-marca px-4 py-2 text-sm font-bold text-slate-900 hover:opacity-90"
             >
               📋 Ver planejamento →
             </Link>
           ) : (
-            <Button variante="ml" onClick={abrirMontagem}>
+            <Button variante="marca" onClick={abrirMontagem}>
               📋 Montar planejamento
             </Button>
           )}
@@ -292,7 +292,7 @@ export function ChamadaDetail() {
               {resumo.respondidos} de {resumo.total} motoristas ({resumo.total ? Math.round((resumo.respondidos / resumo.total) * 100) : 0}%)
             </p>
             <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Meta de motoristas</p>
-            <ProgressBar valor={resumo.disponiveis} total={chamada.qtdNecessaria} cor="bg-ml-azul" />
+            <ProgressBar valor={resumo.disponiveis} total={chamada.qtdNecessaria} cor="bg-marca-texto" />
             <p className="mt-1 text-xs text-slate-500">
               {resumo.disponiveis} disponíveis de {chamada.qtdNecessaria} necessários
             </p>
@@ -451,7 +451,7 @@ export function ChamadaDetail() {
                       pendente
                         ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-60'
                         : ativo
-                          ? 'border-ml-azul bg-blue-50'
+                          ? 'border-marca-texto bg-orange-50'
                           : naEspera
                             ? 'border-amber-300 bg-amber-50'
                             : 'border-slate-200 hover:bg-slate-50'
@@ -486,7 +486,7 @@ export function ChamadaDetail() {
           <Button variante="secundario" onClick={() => setModalPlanejamento(false)}>
             Cancelar
           </Button>
-          <Button variante="ml" onClick={criarPlanejamento} disabled={selecionados.size === 0}>
+          <Button variante="marca" onClick={criarPlanejamento} disabled={selecionados.size === 0}>
             📋 Criar com {selecionados.size} + {espera.size} na espera
           </Button>
         </div>

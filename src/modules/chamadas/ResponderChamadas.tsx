@@ -98,7 +98,7 @@ export function ResponderChamadas() {
         const mostrarGrade = !r || (!travada && alterando === c.id)
         return (
           <Card key={c.id} className="overflow-hidden">
-            <div className="border-b border-yellow-200 bg-gradient-to-r from-ml-amarelo/70 to-yellow-100 px-4 py-3">
+            <div className="border-b border-orange-200 bg-gradient-to-r from-marca/70 to-yellow-100 px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="font-bold text-slate-900">{c.titulo}</h2>
                 {r &&
@@ -163,7 +163,7 @@ export function ResponderChamadas() {
                           onClick={() => responder(c, s)}
                           className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center text-xs font-semibold transition-all active:scale-95 ${
                             ativo
-                              ? 'border-ml-azul bg-blue-50 text-ml-azul shadow-sm'
+                              ? 'border-marca-texto bg-orange-50 text-marca-texto shadow-sm'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           } ${bloqueado ? 'opacity-40' : ''}`}
                         >
@@ -201,7 +201,7 @@ export function ResponderChamadas() {
         {complemento?.status === 'outro' && (
           <Field label="💬 Mensagem para o Dispatcher">
             <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ml-azul focus:ring-2 focus:ring-ml-azul/20"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-marca-texto focus:ring-2 focus:ring-marca-texto/20"
               rows={3}
               value={observacao}
               onChange={(e) => setObservacao(e.target.value)}
@@ -214,7 +214,7 @@ export function ResponderChamadas() {
             Cancelar
           </Button>
           <Button
-            variante="ml"
+            variante="marca"
             onClick={confirmarComplemento}
             disabled={complemento?.status === 'outro' && !observacao.trim()}
           >

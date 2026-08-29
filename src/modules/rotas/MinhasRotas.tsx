@@ -74,7 +74,7 @@ export function MinhasRotas() {
           <Card key={r.id} className="overflow-hidden">
             <div
               className={`flex flex-wrap items-center justify-between gap-2 px-4 py-3 ${
-                i === 0 ? 'bg-ml-amarelo' : 'bg-sky-100'
+                i === 0 ? 'bg-marca' : 'bg-slate-200'
               }`}
             >
               <div className="text-lg font-extrabold text-slate-900">{r.rotaExpedicao}</div>
@@ -82,7 +82,7 @@ export function MinhasRotas() {
                 className={
                   i === 0
                     ? 'border-yellow-500/40 bg-white/70 text-slate-800'
-                    : 'border-sky-300 bg-white/80 text-sky-800'
+                    : 'border-slate-300 bg-white/80 text-slate-700'
                 }
               >
                 {i === 0 ? '⭐ Rota principal' : '➕ Pacotes extras'}
@@ -130,7 +130,7 @@ export function MinhasRotas() {
             )}
             <div className="border-t border-slate-100 p-3">
               <Button
-                variante="ml"
+                variante="marca"
                 className="w-full"
                 onClick={() => confirmarFinalizacao(r.id, r.rotaExpedicao)}
               >
