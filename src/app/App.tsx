@@ -28,6 +28,7 @@ import { TiposOperacao } from '../modules/rotas/TiposOperacao'
 import { Programacao } from '../modules/programacao/Programacao'
 import { Relatorios } from '../modules/relatorios/Relatorios'
 import { Notificacoes } from '../modules/notificacoes/Notificacoes'
+import { MarcaEmpilhada } from '../components/Marca'
 
 /** Primeira tela do app instalado: a marca enquanto os dados chegam. */
 function TelaCarregando() {
@@ -38,14 +39,7 @@ function TelaCarregando() {
         className="pointer-events-none absolute h-80 w-80 rounded-full bg-marca/20 blur-3xl"
       />
       <div className="relative text-center">
-        <div className="mx-auto animate-pulse rounded-2xl bg-white px-5 py-4 shadow-xl">
-          <img
-            src="/icons/lockup-v3.png"
-            alt="Central DD — Dispatcher & Driver"
-            className="mx-auto h-auto w-56 object-contain"
-          />
-        </div>
-        <p className="mt-3 text-[11px] text-slate-400">a serviço da Rodacoop 📦</p>
+        <MarcaEmpilhada tamanho="medio" pulsando />
         <p className="mt-3 text-sm font-medium text-slate-400">Carregando…</p>
       </div>
     </div>

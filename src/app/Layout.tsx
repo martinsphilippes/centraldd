@@ -7,6 +7,7 @@ import { EMAILS_DISPATCHER } from '../core/firebase-config'
 import { Avatar } from '../components/ui'
 import { InstalarBanner } from '../components/InstalarApp'
 import { PreviaImpressao } from '../components/PreviaImpressao'
+import { SimboloMarca } from '../components/Marca'
 
 // O menu segue a ESTEIRA da operação: partida (disponibilidade ∥ programação),
 // depois chamada → planejamento → rotas, e por fim cadastro e análise.
@@ -75,22 +76,18 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-navy pt-[env(safe-area-inset-top)] lg:flex">
         <div className="flex items-center gap-2.5 border-b border-white/10 px-4 py-4">
-          {/* Só o símbolo, recortado do PNG da marca: em 40px o letreiro
-              inteiro viraria borrão. Ele é transparente e as letras são
-              azul-noite, então precisa da plaquinha branca por baixo para não
-              sumir dentro do menu escuro. */}
-          <img
-            src="/icons/marca-v3.png"
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-1"
-          />
+          {/* Só o símbolo: em 44px o letreiro inteiro viraria borrão. O halo
+              laranja é o que separa o "DD" azul-noite do fundo do menu. */}
+          <SimboloMarca className="h-auto w-14 shrink-0" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold leading-tight text-white">Central DD</div>
-            <div className="truncate text-[10px] font-medium leading-tight text-marca">
+            <div className="truncate text-sm font-extrabold leading-tight tracking-tight text-white">
+              Central <span className="text-marca">DD</span>
+            </div>
+            <div className="truncate text-[9px] font-medium uppercase leading-tight tracking-[0.15em] text-slate-300">
               Dispatcher &amp; Driver
             </div>
             <div className="truncate text-[10px] leading-tight text-slate-400">
-              a serviço da Rodacoop 📦
+              a serviço da <span className="font-bold text-marca">Rodacoop</span> 📦
             </div>
           </div>
         </div>
@@ -146,12 +143,16 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <img
-              src="/icons/marca-v3.png"
+              src="/icons/simbolo-v3.png"
               alt=""
-              className="h-9 w-9 shrink-0 object-contain"
+              className="h-auto w-12 shrink-0 object-contain"
             />
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-sm font-bold">Central DD</div>
+              {/* Aqui o fundo é branco: o símbolo não precisa do halo e o nome
+                  fica no azul-noite da própria logo. */}
+              <div className="truncate text-sm font-extrabold tracking-tight text-navy">
+                Central <span className="text-marca-texto">DD</span>
+              </div>
               <div className="truncate text-[10px] text-slate-500">a serviço da Rodacoop 📦</div>
             </div>
           </div>

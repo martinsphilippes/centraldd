@@ -5,6 +5,7 @@ import { cadastrarPreCadastro, carregarTiposPublicos } from '../../core/firebase
 import { OPERACOES, VEICULOS } from '../../core/constants'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
+import { MarcaEmpilhada } from '../../components/Marca'
 
 const MENSAGENS: Record<string, string> = {
   'auth/invalid-credential': 'E-mail ou senha incorretos.',
@@ -96,21 +97,11 @@ export function Login() {
           roubar contraste do formulário, que fica em branco por cima. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-marca/25 blur-3xl"
+        className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-marca/10 blur-3xl"
       />
       <div className="relative w-full max-w-sm">
         <div className="mb-6 text-center">
-          {/* A logo inteira, com o letreiro — é a primeira tela, aqui cabe.
-              Vai numa placa branca porque as letras são azul-noite e
-              desapareceriam no fundo escuro. */}
-          <div className="mx-auto rounded-2xl bg-white px-5 py-4 shadow-xl ring-1 ring-white/20">
-            <img
-              src="/icons/lockup-v3.png"
-              alt="Central DD — Dispatcher & Driver"
-              className="mx-auto h-auto w-full max-w-[16rem] object-contain"
-            />
-          </div>
-          <p className="mt-3 text-xs text-slate-400">a serviço da Rodacoop 📦</p>
+          <MarcaEmpilhada />
         </div>
         <div className="mb-3">
           <InstalarBanner />
