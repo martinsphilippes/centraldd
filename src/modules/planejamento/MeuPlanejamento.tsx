@@ -79,9 +79,15 @@ export function MeuPlanejamento() {
               <Card key={e.id} className="p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-slate-900">{e.nome}</span>
+                  {/* A POSIÇÃO na fila não aparece para o motorista. Quem cobre
+                      uma falta é decisão do Dispatcher, que olha veículo, cidade
+                      e rodízio — não a ordem da lista. Mostrar "8º" parecia
+                      promessa de vez e virava discussão quando outro era
+                      chamado antes. A fila em si continua: ele sabe que está
+                      nela, só não o número. */}
                   {motoristaId && (e.esperaIds ?? []).includes(motoristaId) ? (
                     <Badge className="border-amber-300 bg-amber-100 text-amber-800">
-                      🕐 {(e.esperaIds ?? []).indexOf(motoristaId) + 1}º da fila de espera
+                      🕐 Fila de espera
                     </Badge>
                   ) : (
                     <Badge
@@ -98,7 +104,7 @@ export function MeuPlanejamento() {
                 {motoristaId && (e.esperaIds ?? []).includes(motoristaId) && (
                   <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     🕐 Você está na <strong>fila de espera</strong>: a meta do dia já fechou, mas se
-                    alguém faltar você é chamado — fique atento aos avisos.
+                    faltar alguém o Dispatcher pode te chamar — fique atento aos avisos.
                   </p>
                 )}
                 <p className="mt-1 text-sm text-slate-600">
