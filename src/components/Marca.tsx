@@ -10,21 +10,19 @@
 // letras em azul-noite, feitas para fundo branco; usá-lo aqui sumiria com
 // metade do nome.
 
-/** Só o símbolo (C→DD), com o halo laranja que o separa do fundo escuro. */
+/**
+ * Só o símbolo (C→DD), na versão de FUNDO ESCURO.
+ *
+ * Recortado da arte escura, não do PNG transparente: naquele, a seta e a
+ * estrada brancas foram vazadas junto com o fundo branco (o pixel do meio da
+ * seta tem alfa 0). Sobre fundo claro isso não aparecia — o branco da página
+ * preenchia o buraco. Sobre o azul-noite, a seta ficava marrom.
+ *
+ * O halo laranja já vem na imagem, e as bordas do recorte foram esmaecidas
+ * para o retângulo do fundo não marcar por cima do azul-noite do app.
+ */
 export function SimboloMarca({ className = '' }: { className?: string }) {
-  return (
-    <img
-      // simbolo-v3 é o recorte JUSTO (2,2:1). A versão quadrada (marca-v3)
-      // sobra espaço vazio em cima e embaixo e abre um buraco antes do
-      // letreiro — ela serve só para os ícones, que precisam ser quadrados.
-      src="/icons/simbolo-v3.png"
-      alt=""
-      className={`object-contain ${className}`}
-      // O halo não é enfeite: o "DD" é azul-noite e, sem ele, encosta no fundo
-      // do menu e some. É o mesmo brilho que a arte original tem por baixo.
-      style={{ filter: 'drop-shadow(0 0 18px rgba(238,118,35,0.45))' }}
-    />
-  )
+  return <img src="/icons/simbolo-escuro-v4.png" alt="" className={`object-contain ${className}`} />
 }
 
 /** O letreiro: Central DD / Dispatcher & Driver / a serviço da Rodacoop. */
