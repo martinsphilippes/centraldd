@@ -778,7 +778,7 @@ export function Programacao() {
         </div>
       </Modal>
 
-      {/* Parametrização compartilhada com o Dashboard */}
+      {/* Parametrização: agora só daqui — o Dashboard é de leitura. */}
       <ParametrosAlocacaoModal aberto={paramsAbertos} onFechar={() => setParamsAbertos(false)} />
 
       {/* Edição completa de um item */}
