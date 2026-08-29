@@ -1,5 +1,5 @@
 // Tela do MOTORISTA: o próprio perfil. Edita os dados de contato (nome,
-// telefone, cidade, veículo) e troca a senha da conta — com a senha atual
+// telefone, veículo) e troca a senha da conta — com a senha atual
 // confirmando que é ele mesmo. Situação (ativo/aprovado) é só do Dispatcher.
 
 import { useState, type FormEvent } from 'react'
@@ -25,7 +25,6 @@ export function MeuPerfil() {
 
   const [nome, setNome] = useState(eu?.nome ?? '')
   const [telefone, setTelefone] = useState(eu?.telefone ?? '')
-  const [cidade, setCidade] = useState(eu?.cidade ?? '')
   const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(eu?.veiculo, db))
   const [avisoPerfil, setAvisoPerfil] = useState('')
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
@@ -39,9 +38,6 @@ export function MeuPerfil() {
   if (!eu) return <EmptyState icone="🚚" titulo="Cadastro não encontrado" />
 
   // Cidades da operação + a que já está no cadastro (caso não esteja na lista).
-  const cidades = [...new Set([...db.cidades.map((c) => c.nome), eu.cidade].filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b, 'pt-BR'),
-  )
   const veiculosOpcoes = opcoesDeVeiculo(db, veiculo)
 
   const salvarPerfil = (e: FormEvent) => {
@@ -52,7 +48,6 @@ export function MeuPerfil() {
     salvarMeuPerfilMotorista(eu.id, {
       nome: nome.trim(),
       telefone: telefone.replace(/\D/g, ''),
-      cidade: cidade.trim(),
       veiculo,
     })
       .then(() => setAvisoPerfil('✅ Dados salvos! O Dispatcher já vê a atualização.'))
@@ -93,8 +88,8 @@ export function MeuPerfil() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">👤 Meu perfil</h1>
         <p className="text-sm text-slate-500">
-          Seus dados de contato e a senha de acesso. Operação e situação do cadastro quem cuida é o
-          Dispatcher.
+          Seus dados de contato e a senha de acesso. Suas <strong>cidades</strong> ficam na tela
+          📍 Cidades; operação e situação do cadastro quem cuida é o Dispatcher.
         </p>
       </div>
 
@@ -113,17 +108,10 @@ export function MeuPerfil() {
                 placeholder="Ex.: 34 99876-5432"
               />
             </Field>
-            <Field label="📍 Minha cidade">
-              {cidades.length > 0 ? (
-                <Select value={cidade} onChange={(e) => setCidade(e.target.value)}>
-                  {!cidade && <option value="">— escolher —</option>}
-                  {cidades.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </Select>
-              ) : (
-                <Input value={cidade} onChange={(e) => setCidade(e.target.value)} />
-              )}
+            {/* O e-mail é o login da conta: mostrar, nunca deixar editar aqui —
+                mudar o endereço tiraria o motorista do próprio acesso. */}
+            <Field label="✉️ E-mail (seu login)">
+              <Input value={usuarioEmail ?? ''} readOnly className="bg-slate-100 text-slate-500" />
             </Field>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

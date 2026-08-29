@@ -322,7 +322,10 @@ export function removerConferencia(id: string) {
  */
 export function salvarMeuPerfilMotorista(
   motoristaId: string,
-  dados: { nome: string; telefone: string; cidade: string; veiculo: string },
+  // Sem a cidade de propósito: quem escolhe cidade é a tela Cidades, pela
+  // preferência (⭐ Prefiro / 👍 Posso), e a cidade-base do cadastro é do
+  // Dispatcher. Mandar daqui sobrescreveria uma das duas.
+  dados: { nome: string; telefone: string; veiculo: string },
 ) {
   return updateDoc(doc(firestore, 'motoristas', motoristaId), {
     ...dados,
