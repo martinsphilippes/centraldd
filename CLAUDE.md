@@ -1,4 +1,4 @@
-# MLDisponibilidade
+# Central DD
 
 App que substitui a enquete de WhatsApp na gestão da disponibilidade diária
 dos motoristas do Mercado Livre.

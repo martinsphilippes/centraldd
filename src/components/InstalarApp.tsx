@@ -30,7 +30,7 @@ function jaInstalado(): boolean {
   )
 }
 
-const CHAVE_DISPENSADO = 'mldisponibilidade:instalar-dispensado'
+const CHAVE_DISPENSADO = 'centraldd:instalar-dispensado'
 
 /** Banner "Instalar aplicativo" — some sozinho quando já instalado ou dispensado. */
 export function InstalarBanner() {

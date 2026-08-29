@@ -48,7 +48,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
       // Atalho de velocidade: perfil já conhecido deste aparelho → entra na hora,
       // sem esperar a rede. A validação com o servidor segue em segundo plano.
-      const chaveCache = `mldisponibilidade:perfil:${user.uid}`
+      const chaveCache = `centraldd:perfil:${user.uid}`
       const emCache = localStorage.getItem(chaveCache)
       if (emCache) {
         try {

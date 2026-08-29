@@ -1,4 +1,4 @@
-# MLDisponibilidade — Planejamento de Arquitetura
+# Central DD — Planejamento de Arquitetura
 
 Sistema de gestão da disponibilidade diária de motoristas que realizam coletas, entregas e
 transporte de encomendas do **Mercado Livre** 📦. Substitui as enquetes de WhatsApp por um

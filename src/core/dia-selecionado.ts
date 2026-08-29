@@ -8,7 +8,7 @@
 // Vale para a sessão do aparelho (sessionStorage): reabrir o app começa do
 // dia com trabalho feito, mas ir e voltar entre telas preserva a escolha.
 
-const CHAVE = 'mldisponibilidade:dia-programacao'
+const CHAVE = 'centraldd:dia-programacao'
 
 export function lerDiaProgramacao(): string {
   try {

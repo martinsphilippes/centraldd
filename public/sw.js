@@ -6,7 +6,7 @@
 //    chegam na hora, e o app ainda abre offline.
 //  - Firebase/dados: sempre direto na rede (tempo real).
 
-const CACHE = 'mldisponibilidade-v10'
+const CACHE = 'centraldd-v11'
 
 self.addEventListener('install', () => self.skipWaiting())
 
@@ -14,10 +14,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const chaves = await caches.keys()
+      // O depósito do arquivo compartilhado mudou de nome junto com o app. O
+      // antigo é POUPADO da limpeza: um arquivo compartilhado logo antes desta
+      // atualização está lá dentro, e o app ainda vai buscá-lo.
+      const preservar = [CACHE, CACHE_COMPARTILHADO, 'mldisponibilidade-compartilhado']
       await Promise.all(
-        chaves
-          .filter((c) => c !== CACHE && c !== CACHE_COMPARTILHADO)
-          .map((c) => caches.delete(c)),
+        chaves.filter((c) => !preservar.includes(c)).map((c) => caches.delete(c)),
       )
       await self.clients.claim()
     })(),
@@ -25,7 +27,7 @@ self.addEventListener('activate', (event) => {
 })
 
 // Onde o arquivo compartilhado espera até o app pegá-lo.
-const CACHE_COMPARTILHADO = 'mldisponibilidade-compartilhado'
+const CACHE_COMPARTILHADO = 'centraldd-compartilhado'
 const CHAVE_COMPARTILHADO = '/__arquivo-compartilhado'
 
 self.addEventListener('fetch', (event) => {
