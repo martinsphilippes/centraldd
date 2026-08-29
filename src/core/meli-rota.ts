@@ -5,7 +5,7 @@
 
 export interface PacoteRotaMeli {
   numeracao: string
-  /** Etiqueta de carga (CD-1, CD-2…) — onde procurar o pacote no veículo. */
+  /** Parada da rota (PD-1, PD-2…) — onde procurar o pacote no veículo. */
   etiqueta: string
   cidade: string
   endereco: string
@@ -53,6 +53,18 @@ const pega = (s: string, re: RegExp): string => re.exec(s)?.[1] ?? ''
  * Extrai a rota completa. Devolve null quando o texto não é a página do Meli
  * ou não tem nenhum pacote reconhecível.
  */
+/**
+ * A etiqueta do documento do Meli vira a PARADA da rota: PD-1, PD-2…
+ *
+ * O Meli escreve o prefixo conforme a base (AI-1, CD-1…), e essa letra não diz
+ * nada para quem está no veículo. O que importa é o NÚMERO da parada, então o
+ * app fala uma língua só: PD. Etiqueta sem número fica como veio.
+ */
+export function etiquetaParada(bruto: string): string {
+  const numero = /(\d+)/.exec(bruto ?? '')?.[1]
+  return numero ? `PD-${Number(numero)}` : (bruto ?? '').trim()
+}
+
 export function parsearRotaMeli(texto: string): RotaMeliLida | null {
   if (!pareceRotaMeli(texto)) return null
 
@@ -110,8 +122,8 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
     return atual
   }
 
-  // Cada pacote aparece como relatedEntity; a etiqueta (CD-n) vem logo depois,
-  // no mesmo bloco do transporte — por isso a associação é por posição.
+  // Cada pacote aparece como relatedEntity; a etiqueta vem logo depois, no
+  // mesmo bloco do transporte — por isso a associação é por posição.
   const pacotes: PacoteRotaMeli[] = []
   const vistos = new Set<string>()
   const reEntidade =
@@ -124,7 +136,7 @@ export function parsearRotaMeli(texto: string): RotaMeliLida | null {
     const inicio = matches[i].index ?? 0
     const fim = matches[i + 1]?.index ?? texto.length
     const bloco = texto.slice(inicio, fim)
-    const etiqueta = pega(bloco, /"printedLabel":"([^"]*)"/)
+    const etiqueta = etiquetaParada(pega(bloco, /"printedLabel":"([^"]*)"/))
     const info = recebedor.get(id)
     pacotes.push({
       numeracao: id,

@@ -104,7 +104,7 @@ export function Conferencia() {
             baseLng: rotaMeli.baseLng,
           }
         : undefined,
-      // O detalhe de cada pacote (CD-n, cidade, endereço) vem junto quando a
+      // O detalhe de cada pacote (PD-n, cidade, endereço) vem junto quando a
       // lista nasceu da página do Meli — é o que enriquece a lista de faltas.
       pacotes: rotaMeli
         ? rotaMeli.pacotes.map((x) => ({

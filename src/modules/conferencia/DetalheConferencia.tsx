@@ -19,7 +19,7 @@ const SELO: Record<Situacao, { texto: string; cor: string }> = {
   aguardando: { texto: '⏳ Aguardando', cor: 'border-slate-200 bg-slate-50 text-slate-500' },
 }
 
-/** CD-2 antes de CD-10: ordena a etiqueta pelo número. */
+/** PD-2 antes de PD-10: ordena a parada pelo número. */
 function ordemEtiqueta(e: string): number {
   const n = /(\d+)/.exec(e)?.[1]
   return n ? Number(n) : 9999
@@ -166,7 +166,7 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
           </button>
         )}
         <Input
-          placeholder="🔎 numeração, CD, cidade, endereço, nome…"
+          placeholder="🔎 numeração, parada, cidade, endereço, nome…"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           className="ml-auto w-64 max-w-full"
@@ -178,7 +178,7 @@ export function DetalheConferencia({ c, podeExcluir }: { c: Conferencia; podeExc
         <table className="w-full text-left text-xs">
           <thead className="sticky top-0 z-10 bg-slate-100 text-slate-600">
             <tr>
-              <th className="px-2 py-1.5">CD</th>
+              <th className="px-2 py-1.5">PD</th>
               <th className="px-2 py-1.5">Numeração</th>
               <th className="px-2 py-1.5">Cidade</th>
               <th className="px-2 py-1.5">Endereço</th>

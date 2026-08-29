@@ -84,7 +84,7 @@ export interface Conferencia {
   }
   /**
    * Detalhe de cada pacote quando a lista veio da página de rota do Meli:
-   * etiqueta de carga (CD-n), cidade, endereço e destinatário. É o que deixa
+   * parada da rota (PD-n), cidade, endereço e destinatário. É o que deixa
    * a lista de faltantes apontar ONDE procurar o pacote.
    */
   pacotes?: {

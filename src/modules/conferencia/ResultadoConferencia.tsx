@@ -9,7 +9,7 @@ import type { Conferencia } from '../../core/types'
 type Pacote = NonNullable<Conferencia['pacotes']>[number]
 
 /**
- * Faltas com o detalhe do documento do Meli: etiqueta de carga (CD-n),
+ * Faltas com o detalhe do documento do Meli: parada da rota (PD-n),
  * cidade e endereço — o motorista sabe ONDE procurar, não só o número.
  */
 function FaltasDetalhadas({ valores, pacotes }: { valores: string[]; pacotes: Map<string, Pacote> }) {
