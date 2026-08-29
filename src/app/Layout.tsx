@@ -75,13 +75,14 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-navy pt-[env(safe-area-inset-top)] lg:flex">
         <div className="flex items-center gap-2.5 border-b border-white/10 px-4 py-4">
-          {/* marca.png é só o símbolo, com folga branca em volta: em 40px o
-              letreiro do logo cheio vira borrão. object-contain garante que
-              nada seja cortado, que era o defeito antes. */}
+          {/* Só o símbolo, recortado do PNG da marca: em 40px o letreiro
+              inteiro viraria borrão. Ele é transparente e as letras são
+              azul-noite, então precisa da plaquinha branca por baixo para não
+              sumir dentro do menu escuro. */}
           <img
-            src="/icons/marca-v2.png"
+            src="/icons/marca-v3.png"
             alt=""
-            className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-0.5"
+            className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-1"
           />
           <div className="min-w-0">
             <div className="truncate text-sm font-bold leading-tight text-white">Central DD</div>
@@ -145,9 +146,9 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <img
-              src="/icons/marca-v2.png"
+              src="/icons/marca-v3.png"
               alt=""
-              className="h-8 w-8 shrink-0 rounded-lg bg-white object-contain"
+              className="h-9 w-9 shrink-0 object-contain"
             />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-sm font-bold">Central DD</div>

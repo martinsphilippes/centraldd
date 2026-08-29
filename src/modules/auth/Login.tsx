@@ -100,14 +100,17 @@ export function Login() {
       />
       <div className="relative w-full max-w-sm">
         <div className="mb-6 text-center">
-          <img
-            src="/icons/icon-512-v2.png"
-            alt="Central DD"
-            className="mx-auto h-24 w-24 rounded-2xl bg-white object-cover shadow-xl ring-1 ring-white/20"
-          />
-          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white">Central DD</h1>
-          <p className="text-sm font-medium text-marca">Dispatcher &amp; Driver</p>
-          <p className="mt-0.5 text-xs text-slate-400">a serviço da Rodacoop 📦</p>
+          {/* A logo inteira, com o letreiro — é a primeira tela, aqui cabe.
+              Vai numa placa branca porque as letras são azul-noite e
+              desapareceriam no fundo escuro. */}
+          <div className="mx-auto rounded-2xl bg-white px-5 py-4 shadow-xl ring-1 ring-white/20">
+            <img
+              src="/icons/lockup-v3.png"
+              alt="Central DD — Dispatcher & Driver"
+              className="mx-auto h-auto w-full max-w-[16rem] object-contain"
+            />
+          </div>
+          <p className="mt-3 text-xs text-slate-400">a serviço da Rodacoop 📦</p>
         </div>
         <div className="mb-3">
           <InstalarBanner />

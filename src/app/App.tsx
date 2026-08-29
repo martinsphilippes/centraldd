@@ -38,14 +38,14 @@ function TelaCarregando() {
         className="pointer-events-none absolute h-80 w-80 rounded-full bg-marca/20 blur-3xl"
       />
       <div className="relative text-center">
-        <img
-          src="/icons/icon-512-v2.png"
-          alt="Central DD"
-          className="mx-auto h-24 w-24 animate-pulse rounded-2xl bg-white object-cover shadow-xl"
-        />
-        <p className="mt-4 text-base font-bold tracking-tight text-white">Central DD</p>
-        <p className="text-xs font-medium text-marca">Dispatcher &amp; Driver</p>
-        <p className="mt-0.5 text-[11px] text-slate-400">a serviço da Rodacoop 📦</p>
+        <div className="mx-auto animate-pulse rounded-2xl bg-white px-5 py-4 shadow-xl">
+          <img
+            src="/icons/lockup-v3.png"
+            alt="Central DD — Dispatcher & Driver"
+            className="mx-auto h-auto w-56 object-contain"
+          />
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400">a serviço da Rodacoop 📦</p>
         <p className="mt-3 text-sm font-medium text-slate-400">Carregando…</p>
       </div>
     </div>
