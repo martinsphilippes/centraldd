@@ -40,7 +40,6 @@ const NAV_DISPATCHER: ItemNav[] = [
 ]
 
 const NAV_MOTORISTA: ItemNav[] = [
-  { para: '/responder', rotulo: 'Responder', icone: '✋', grupo: 'Meu dia' },
   { para: '/minha-disponibilidade', rotulo: 'Disponibilidade', curto: 'Disponib.', icone: '📅', grupo: 'Meu dia' },
   { para: '/meu-planejamento', rotulo: 'Planejamento', curto: 'Planej.', icone: '📋', grupo: 'Meu dia' },
   { para: '/minhas-rotas', rotulo: 'Rotas', icone: '🛣️', grupo: 'Meu dia' },

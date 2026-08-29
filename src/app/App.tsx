@@ -8,7 +8,6 @@ import { AguardandoAprovacao } from '../modules/auth/AguardandoAprovacao'
 import { Dashboard } from '../modules/dashboard/Dashboard'
 import { ChamadasList } from '../modules/chamadas/ChamadasList'
 import { ChamadaDetail } from '../modules/chamadas/ChamadaDetail'
-import { ResponderChamadas } from '../modules/chamadas/ResponderChamadas'
 import { MotoristasList } from '../modules/motoristas/MotoristasList'
 import { MotoristaForm } from '../modules/motoristas/MotoristaForm'
 import { MotoristaDetail } from '../modules/motoristas/MotoristaDetail'
@@ -105,7 +104,6 @@ export default function App() {
           </>
         ) : (
           <>
-            <Route path="/responder" element={<ResponderChamadas />} />
             <Route path="/minhas-rotas" element={<MinhasRotas />} />
             <Route path="/minha-conferencia" element={<MinhaConferencia />} />
             <Route path="/minhas-cidades" element={<MinhasCidades />} />
@@ -113,7 +111,7 @@ export default function App() {
             <Route path="/minha-disponibilidade" element={<MinhaDisponibilidade />} />
             <Route path="/meu-planejamento" element={<MeuPlanejamento />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
-            <Route path="*" element={<Navigate to="/responder" replace />} />
+            <Route path="*" element={<Navigate to="/minha-disponibilidade" replace />} />
           </>
         )}
       </Routes>
