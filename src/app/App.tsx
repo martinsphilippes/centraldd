@@ -39,7 +39,7 @@ function TelaCarregando() {
       />
       <div className="relative text-center">
         <img
-          src="/icons/icon-512.png"
+          src="/icons/icon-512-v2.png"
           alt="Central DD"
           className="mx-auto h-24 w-24 animate-pulse rounded-2xl bg-white object-cover shadow-xl"
         />

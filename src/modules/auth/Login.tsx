@@ -101,7 +101,7 @@ export function Login() {
       <div className="relative w-full max-w-sm">
         <div className="mb-6 text-center">
           <img
-            src="/icons/icon-512.png"
+            src="/icons/icon-512-v2.png"
             alt="Central DD"
             className="mx-auto h-24 w-24 rounded-2xl bg-white object-cover shadow-xl ring-1 ring-white/20"
           />
