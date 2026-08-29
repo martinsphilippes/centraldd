@@ -21,7 +21,13 @@ profissional, rápido e intuitivo.
 
 ## Acesso
 
-Aplicativo em produção: **https://mldisponibilidade.vercel.app** (deploy automático a cada push neste repositório).
+Aplicativo em produção: **https://centraldd.vercel.app** (deploy automático a cada
+push neste repositório).
+
+O endereço antigo, **https://mldisponibilidade.vercel.app**, continua ligado ao
+mesmo projeto e serve o mesmo app. Ele existe para quem já tinha o atalho na tela
+de início não ficar com um ícone quebrado, e sai de cena quando todos os
+motoristas tiverem migrado.
 
 ## Como rodar
 

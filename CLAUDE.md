@@ -37,5 +37,14 @@ Valem para telas, código, comentários e conversa. No Firestore, `papel:
 ## Publicação
 
 `git push` na branch dispara deploy automático na Vercel. Para confirmar que
-subiu, comparar o hash do bundle: `curl -s https://mldisponibilidade.vercel.app/
+subiu, comparar o hash do bundle: `curl -s https://centraldd.vercel.app/
 | grep -o 'index-[A-Za-z0-9_-]*\.js'` — muda quando o deploy termina.
+
+O projeto na Vercel se chama `centraldd` e atende por DOIS endereços:
+`centraldd.vercel.app` (o novo) e `mldisponibilidade.vercel.app` (o antigo, que
+segue no ar para não quebrar o atalho de quem já tinha o app instalado). São o
+mesmo projeto, então servem sempre a mesma versão.
+
+No Firebase, o `projectId` continua `mldisponibilidade` — o Google não permite
+renomear o ID de um projeto, e trocar exigiria migrar usuários e dados sem que
+nenhum motorista visse diferença. Não confundir com o nome do app.
