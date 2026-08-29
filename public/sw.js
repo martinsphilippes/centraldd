@@ -6,7 +6,7 @@
 //    chegam na hora, e o app ainda abre offline.
 //  - Firebase/dados: sempre direto na rede (tempo real).
 
-const CACHE = 'mldisponibilidade-v9'
+const CACHE = 'mldisponibilidade-v10'
 
 self.addEventListener('install', () => self.skipWaiting())
 
