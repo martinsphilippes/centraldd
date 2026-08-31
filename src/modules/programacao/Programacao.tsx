@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  aplicarModeloResumo,
   importarProgramacao,
   registrarDiagnosticoLeitura,
   removerProgramacaoItem,
@@ -10,9 +9,7 @@ import {
 } from '../../core/db'
 import {
   cidadesDoTexto,
-  parsearModeloResumo,
   parsearPlanilhaMeli,
-  type ModeloResumo,
   type ProgramacaoImportada,
 } from '../../core/planilha'
 import {
@@ -54,7 +51,6 @@ export function Programacao() {
   const [modalImportar, setModalImportar] = useState(false)
   const [textoColado, setTextoColado] = useState('')
   const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
-  const [modeloDetectado, setModeloDetectado] = useState<ModeloResumo | null>(null)
   const [importando, setImportando] = useState(false)
   const [lendoPdf, setLendoPdf] = useState('')
   const [erroArquivo, setErroArquivo] = useState('')
@@ -117,23 +113,8 @@ export function Programacao() {
     setTextoColado(texto)
     const p = texto.trim() ? parsearPlanilhaMeli(texto) : null
     setPrevia(p)
-    // Rede de proteção: se não há rotas mas o conteúdo parece o MODELO do
-    // resumo do dia (pacotes/SPR/MM…), oferece preencher o card direto daqui.
-    const alt = texto.trim() && (!p || p.itens.length === 0) ? parsearModeloResumo(texto) : null
-    setModeloDetectado(alt && alt.camposDetectados >= 2 ? alt : null)
   }
 
-  const preencherResumoDetectado = () => {
-    if (!modeloDetectado) return
-    const dia = modeloDetectado.data ?? dataAtiva
-    aplicarModeloResumo(dia, modeloDetectado)
-    if (modeloDetectado.data) setDataSelecionada(modeloDetectado.data)
-    setModalImportar(false)
-    setTextoColado('')
-    setPrevia(null)
-    setModeloDetectado(null)
-    setVisao('dia')
-  }
 
   const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
     const arquivos = Array.from(e.target.files ?? [])
@@ -600,30 +581,6 @@ export function Programacao() {
 
       {/* Importação da planilha Meli */}
       <Modal aberto={modalImportar} titulo="📥 Importar planilha do Meli" onFechar={() => setModalImportar(false)}>
-        {modeloDetectado && (
-          <div className="mb-3 rounded-lg border-2 border-marca bg-marca-suave p-3">
-            <p className="text-sm font-bold text-slate-800">
-              🧠 Isso não é a planilha de rotas — parece o <u>MODELO do resumo do dia</u>!
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              Reconheci:{' '}
-              {[
-                modeloDetectado.base && `base ${modeloDetectado.base}`,
-                modeloDetectado.pacotes && `${modeloDetectado.pacotes} pacotes`,
-                modeloDetectado.sprReferencia && `SPR ${modeloDetectado.sprReferencia}`,
-                modeloDetectado.veiculosDiv && `${modeloDetectado.veiculosDiv} veículos DIV`,
-                modeloDetectado.transportadoras.length > 0 && `${modeloDetectado.transportadoras.length} transportadora(s)`,
-                modeloDetectado.mm.length > 0 && `MM com ${modeloDetectado.mm.length} linha(s)`,
-                modeloDetectado.data && `data ${formatarData(modeloDetectado.data)}`,
-              ]
-                .filter(Boolean)
-                .join(' • ')}
-            </p>
-            <Button variante="marca" className="mt-2 w-full" onClick={preencherResumoDetectado}>
-              📋 Preencher o Resumo do Dia com isso
-            </Button>
-          </div>
-        )}
         <p className="mb-2 text-sm text-slate-600">
           Cole as linhas da planilha diária (Ctrl+C no Excel → Ctrl+V abaixo) ou envie o CSV. Ordem:
         </p>
