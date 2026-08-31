@@ -17,6 +17,7 @@ import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
 import { abrirImpressao } from '../../core/impressao'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
+import { amDoDia } from '../../core/resumo-auto'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input, Modal } from '../../components/ui'
 
@@ -44,73 +45,6 @@ function novoResumo(data: string, base: string): ResumoDia {
 
 const num = (s?: string) => Number(String(s ?? '').replace(/\D/g, '')) || 0
 
-function normVeic(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
-}
-
-/** Conta os veículos da programação do dia por tipo (base do AM automático). */
-function contarVeiculos(prog: { veiculo: string }[]) {
-  let utilitarios = 0
-  let vuc = 0
-  const outros = new Map<string, number>()
-  for (const p of prog) {
-    const v = normVeic(p.veiculo)
-    if (v.includes('UTIL')) utilitarios++
-    else if (v.includes('VUC')) vuc++
-    else {
-      const nome = p.veiculo.trim() || 'Outros'
-      outros.set(nome, (outros.get(nome) ?? 0) + 1)
-    }
-  }
-  return { utilitarios, vuc, outros: [...outros.entries()], total: prog.length }
-}
-
-/** Código-base da rota (antes do sufixo _AM1/_PM1) para cruzar as duas planilhas. */
-function chaveRota(s: string): string {
-  return (s || '').trim().toUpperCase().split(/[_\s/]+/)[0]
-}
-
-/**
- * Cruza a programação do Meli (rota + veículo) com a planilha de Rotas
- * (rota → transportadora) para agrupar Utilitários/VUC por transportadora.
- */
-function resumoPorTransportadora(
-  prog: { rota: string; veiculo: string }[],
-  rotas: { rotaExpedicao: string; rotaOriginal: string; transportadora: string }[],
-) {
-  const transpDe = new Map<string, string>()
-  for (const r of rotas) {
-    const t = r.transportadora.trim()
-    if (!t) continue
-    for (const k of [chaveRota(r.rotaExpedicao), chaveRota(r.rotaOriginal)]) {
-      if (k && !transpDe.has(k)) transpDe.set(k, t)
-    }
-  }
-  const grupos = new Map<string, { util: number; vuc: number }>()
-  const outros = new Map<string, number>()
-  let comTransp = 0
-  for (const p of prog) {
-    const v = normVeic(p.veiculo)
-    if (!v.includes('UTIL') && !v.includes('VUC')) {
-      const n = p.veiculo.trim() || 'Outros'
-      outros.set(n, (outros.get(n) ?? 0) + 1)
-      continue
-    }
-    const t = transpDe.get(chaveRota(p.rota)) ?? ''
-    if (t) comTransp++
-    const nome = t || 'Sem transportadora'
-    const g = grupos.get(nome) ?? { util: 0, vuc: 0 }
-    if (v.includes('UTIL')) g.util++
-    else g.vuc++
-    grupos.set(nome, g)
-  }
-  const ordenados = [...grupos.entries()].sort((a, b) => {
-    if (a[0] === 'Sem transportadora') return 1
-    if (b[0] === 'Sem transportadora') return -1
-    return b[1].util + b[1].vuc - (a[1].util + a[1].vuc)
-  })
-  return { grupos: ordenados, outros: [...outros.entries()], comTransp, total: prog.length }
-}
 
 export function ResumoDiaCard({
   data,
@@ -149,36 +83,30 @@ export function ResumoDiaCard({
 
   const r = editando ? rascunho : existente ?? novoResumo(data, '')
 
-  // Programação importada do dia → base do AM automático.
-  const progDoDia = db.programacao.filter((p) => p.data === data)
-  const rotasProg = progDoDia.length
-  const cont = contarVeiculos(progDoDia)
-  const auto = r.amAutomatico !== false && rotasProg > 0
+  // O AM sai sozinho da planilha do dia: as ROTAS quando existem (veículo e
+  // transportadora vêm na mesma linha), senão a programação do Meli.
+  const am = amDoDia(db, data)
+  const auto = r.amAutomatico !== false && am.fonte !== null
 
-  // Cruza com a planilha de Rotas para agrupar por transportadora (quando possível).
-  const amT = resumoPorTransportadora(progDoDia, db.rotas.filter((r) => r.data === data))
-  const usarTransp = auto && amT.comTransp > 0
+  const linhasAM = auto ? am.linhas : r.transportadoras
+  const outrosAM = auto ? am.outros : []
 
-  // Linhas AM: por transportadora (cruzando as planilhas), por veículo (só Meli), ou manual.
-  const linhasAM = usarTransp
-    ? amT.grupos.map(([nome, g]) => ({ nome, utilitarios: String(g.util), vuc: g.vuc ? String(g.vuc) : '' }))
-    : auto
-      ? [{ nome: 'Programação (Meli)', utilitarios: String(cont.utilitarios), vuc: cont.vuc ? String(cont.vuc) : '' }]
-      : r.transportadoras
-  const outrosAM = usarTransp ? amT.outros : auto ? cont.outros : []
-
-  const totalUtil = auto ? cont.utilitarios : r.transportadoras.reduce((s, t) => s + num(t.utilitarios), 0)
-  const totalVuc = auto ? cont.vuc : r.transportadoras.reduce((s, t) => s + num(t.vuc), 0)
-  // Total de rotas: informado à mão manda; senão vem da programação (quando
+  const totalUtil = auto ? am.utilitarios : r.transportadoras.reduce((s, t) => s + num(t.utilitarios), 0)
+  const totalVuc = auto ? am.vuc : r.transportadoras.reduce((s, t) => s + num(t.vuc), 0)
+  // Total de rotas: informado à mão manda; senão vem da planilha (quando
   // automático) ou da soma das transportadoras.
   const totalRotasCalculado = auto
-    ? cont.total
+    ? am.total
     : r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
   const totalRotas = num(r.totalRotas) > 0 ? num(r.totalRotas) : totalRotasCalculado
   // Posições: soma das quantidades × posições do veículo, a menos que o
   // dispatcher tenha informado o total à mão (o card traz um campo só para isso).
   const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
   const totalPosicoes = num(r.posicoesTotal) > 0 ? num(r.posicoesTotal) : posicoesCalculadas
+  // Base e Veículos DIV: o que o Dispatcher escreveu manda; em branco, a
+  // planilha responde (uma rota = um veículo).
+  const baseExibida = r.base && r.base !== 'BASE - CIDADE' ? r.base : am.base || r.base
+  const veiculosDivExibido = r.veiculosDiv || (auto ? String(am.total) : '')
 
   /**
    * O dia é editável no formulário; o id do resumo é a própria data.
@@ -234,7 +162,7 @@ export function ResumoDiaCard({
     if (chamadaDoDia) return
     const id = uid()
     const meta = totalRotas > 0 ? totalRotas : 45
-    const titulo = `Disponibilidade — ${r.base}`
+    const titulo = `Disponibilidade — ${baseExibida}`
     salvarChamada({
       id,
       titulo,
@@ -359,14 +287,14 @@ export function ResumoDiaCard({
       .c{text-align:center}
       .destaque{background:#fde68a;font-weight:700;text-align:center}
     </style></head><body>
-    <table><tr><td class="cab" colspan="3">${r.base}</td></tr></table>
+    <table><tr><td class="cab" colspan="3">${baseExibida}</td></tr></table>
     <table>
       <tr><td class="lbl">SPR DE REFERÊNCIA</td><td class="val" colspan="2">${r.sprReferencia}</td></tr>
     </table>
     <table>
-      <tr><td class="sub" colspan="3">${r.base}</td></tr>
+      <tr><td class="sub" colspan="3">${baseExibida}</td></tr>
       <tr><td class="lbl">PACOTES</td><td class="val" colspan="2">${r.pacotes}</td></tr>
-      <tr><td class="lbl">Veículos DIV</td><td class="val" colspan="2">${r.veiculosDiv}</td></tr>
+      <tr><td class="lbl">Veículos DIV</td><td class="val" colspan="2">${veiculosDivExibido}</td></tr>
       <tr><td class="destaque" colspan="3">${formatarData(data)}</td></tr>
     </table>
     <table>
@@ -463,35 +391,28 @@ export function ResumoDiaCard({
                 checked={rascunho.amAutomatico !== false}
                 onChange={(e) => setRascunho({ ...rascunho, amAutomatico: e.target.checked })}
               />
-              🔄 Puxar Utilitários/VUC automaticamente da programação do Meli
+              🔄 Puxar Utilitários/VUC automaticamente da planilha do dia
             </label>
             {rascunho.amAutomatico !== false ? (
               <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                {rotasProg > 0 ? (
+                {am.fonte ? (
                   <>
-                    Da programação de {formatarData(data)}: <strong>{cont.utilitarios} utilitários</strong> +{' '}
-                    <strong>{cont.vuc} VUC</strong>
-                    {cont.outros.length > 0 && ` + ${cont.outros.map(([t, q]) => `${q} ${t}`).join(', ')}`} ={' '}
-                    <strong>{cont.total} rotas</strong>.
-                    {usarTransp ? (
-                      <>
-                        {' '}
-                        Agrupado por transportadora (cruzando com a planilha de Rotas):{' '}
-                        <strong>{amT.grupos.map(([n]) => n).join(', ')}</strong>.
-                      </>
-                    ) : (
-                      <>
-                        {' '}
-                        <span className="text-amber-700">
-                          Para separar por transportadora, importe/atualize a aba <strong>Rotas</strong> — o sistema
-                          cruza as duas planilhas pela rota.
-                        </span>
-                      </>
-                    )}{' '}
-                    Atualiza sozinho a cada importação.
+                    {am.fonte === 'rotas'
+                      ? 'Da planilha de Rotas de '
+                      : 'Da programação do Meli de '}
+                    {formatarData(data)}: <strong>{am.utilitarios} utilitários</strong> +{' '}
+                    <strong>{am.vuc} VUC</strong>
+                    {am.outros.length > 0 && ` + ${am.outros.map(([t, q]) => `${q} ${t}`).join(', ')}`} ={' '}
+                    <strong>{am.total} rotas</strong>, agrupado por transportadora:{' '}
+                    <strong>{am.linhas.map((l) => l.nome).join(', ')}</strong>. Atualiza sozinho a cada
+                    importação.
                   </>
                 ) : (
-                  <>Ainda não há programação importada para este dia — importe a planilha do Meli, ou desmarque acima para preencher à mão.</>
+                  <>
+                    Ainda não há planilha importada para este dia — importe as{' '}
+                    <strong>Rotas</strong> (ou a programação do Meli), ou desmarque acima para preencher à
+                    mão.
+                  </>
                 )}
               </p>
             ) : null}
@@ -695,7 +616,7 @@ export function ResumoDiaCard({
       <div className="mx-auto grid max-w-md gap-3">
         <table className="w-full border-collapse">
           <tbody>
-            <tr><td className={`${cel} ${CAB} text-base`}>{r.base}</td></tr>
+            <tr><td className={`${cel} ${CAB} text-base`}>{baseExibida}</td></tr>
           </tbody>
         </table>
 
@@ -710,14 +631,14 @@ export function ResumoDiaCard({
 
         <table className="w-full border-collapse">
           <tbody>
-            <tr><td className={`${cel} ${SUB}`} colSpan={2}>{r.base}</td></tr>
+            <tr><td className={`${cel} ${SUB}`} colSpan={2}>{baseExibida}</td></tr>
             <tr>
               <td className={`${cel} ${LBL}`}>PACOTES</td>
               <td className={`${cel} ${VAL}`}>{r.pacotes || '—'}</td>
             </tr>
             <tr>
               <td className={`${cel} ${LBL}`}>Veículos DIV</td>
-              <td className={`${cel} ${VAL}`}>{r.veiculosDiv || '—'}</td>
+              <td className={`${cel} ${VAL}`}>{veiculosDivExibido || '—'}</td>
             </tr>
             <tr><td className={`${cel} ${DEST}`} colSpan={2}>{formatarData(data)}</td></tr>
           </tbody>
@@ -727,7 +648,7 @@ export function ResumoDiaCard({
           <tbody>
             <tr>
               <td className={`${cel} ${SUB} text-left`}>
-                AM {usarTransp ? '· por transportadora' : auto ? '· automático' : '· Transportadora'}
+                AM {auto ? '· por transportadora (automático)' : '· Transportadora'}
               </td>
               <td className={`${cel} ${SUB}`}>Utilitários</td>
               <td className={`${cel} ${SUB}`}>VUC</td>
@@ -770,13 +691,11 @@ export function ResumoDiaCard({
         </table>
 
         <p className="text-center text-[11px] text-slate-400">
-          {usarTransp
-            ? '🔄 AM automático por transportadora (Meli × Rotas): '
-            : auto
-              ? '🔄 AM automático da programação: '
-              : 'Total do resumo: '}
+          {auto
+            ? `🔄 AM automático (${am.fonte === 'rotas' ? 'planilha de Rotas' : 'programação do Meli'}): `
+            : 'Total do resumo: '}
           {totalUtil} utilitários + {totalVuc} VUC = {totalRotas} rotas
-          {!auto && rotasProg > 0 && ` • programação importada tem ${rotasProg} rota(s)`}
+          {!auto && am.fonte && ` • a planilha do dia tem ${am.total} rota(s)`}
         </p>
 
         {/* Do resumo direto para a chamada: um toque convoca a frota do dia. */}
