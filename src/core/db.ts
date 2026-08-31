@@ -567,35 +567,6 @@ export function removerProgramacaoItem(id: string) {
 }
 
 /**
- * Importa a programação do Meli. O id = data + rota: reimportar o mesmo dia
- * atualiza o plano sem duplicar e SEM perder os ajustes já feitos pelo
- * dispatcher (driverFinal/motoristaId são preservados quando já alterados).
- */
-export async function importarProgramacao(
-  itens: Omit<ProgramacaoItem, 'id' | 'driverFinal' | 'motoristaId' | 'atualizadaEm'>[],
-  vincular: (driver: string) => string | null,
-) {
-  const agora = new Date().toISOString()
-  const existentes = new Map(state.programacao.map((p) => [p.id, p]))
-  await Promise.all(
-    itens.map((n) => {
-      const id = `${n.data}_${n.rota}`.replace(/[\s/]+/g, '-')
-      const anterior = existentes.get(id)
-      // Preserva a decisão do dispatcher se ele já tinha mexido neste item.
-      const jaAjustado = anterior && anterior.driverFinal !== anterior.driverPlanejado
-      const item: ProgramacaoItem = {
-        ...n,
-        id,
-        driverFinal: jaAjustado ? anterior.driverFinal : n.driverPlanejado,
-        motoristaId: jaAjustado ? anterior.motoristaId : vincular(n.driverPlanejado),
-        atualizadaEm: agora,
-      }
-      return setDoc(doc(firestore, 'programacao', id), item)
-    }),
-  )
-}
-
-/**
  * Importa rotas em lote. O id vem da "Rota expedição" (única por planilha):
  * reimportar a mesma planilha ATUALIZA as rotas existentes em vez de duplicar,
  * preservando o motorista já direcionado em cada uma.

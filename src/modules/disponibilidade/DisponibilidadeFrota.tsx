@@ -38,7 +38,7 @@ export function DisponibilidadeFrota() {
   const souDono = usuarioEmail?.toLowerCase() === 'martinsphilippes@gmail.com'
   const ficticios = db.motoristas.filter((m) => m.id.startsWith('teste-') && m.ativo)
   // A simulação segue a esteira: só faz sentido depois que o dia tem
-  // programação lançada (planilha do Meli importada ou resumo do dia).
+  // programação lançada (planilha de rotas importada ou resumo do dia).
   const temProgramacao =
     db.programacao.some((p) => p.data === diaSelecionado) ||
     db.resumos.some((r) => r.id === diaSelecionado)
@@ -257,7 +257,7 @@ export function DisponibilidadeFrota() {
               title={
                 temProgramacao
                   ? 'Marca os motoristas fictícios como disponíveis neste dia'
-                  : 'Lance a programação do dia (planilha do Meli ou resumo) para liberar a simulação'
+                  : 'Lance a programação do dia (importe as rotas ou preencha o resumo) para liberar a simulação'
               }
             >
               🧪 Simular disponíveis ({ficticios.length})
@@ -327,7 +327,7 @@ export function DisponibilidadeFrota() {
           <Link to="/programacao" className="font-semibold text-marca-texto hover:underline">
             programação lançada
           </Link>{' '}
-          (planilha do Meli ou resumo do dia) — {rotuloDia(diaSelecionado).toLowerCase()}.
+          (planilha de rotas ou resumo do dia) — {rotuloDia(diaSelecionado).toLowerCase()}.
         </p>
       )}
 

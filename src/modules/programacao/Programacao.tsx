@@ -1,16 +1,12 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  importarProgramacao,
-  registrarDiagnosticoLeitura,
   removerProgramacaoItem,
   salvarProgramacaoItem,
   useDB,
 } from '../../core/db'
 import {
   cidadesDoTexto,
-  parsearPlanilhaMeli,
-  type ProgramacaoImportada,
 } from '../../core/planilha'
 import {
   aderenciaHistorica,
@@ -48,17 +44,10 @@ export function Programacao() {
   const db = useDB()
   const [visao, setVisao] = useState<Visao>('dia')
   const [periodoRodizio, setPeriodoRodizio] = useState<PeriodoRodizio>('30')
-  const [modalImportar, setModalImportar] = useState(false)
-  const [textoColado, setTextoColado] = useState('')
-  const [previa, setPrevia] = useState<{ itens: ProgramacaoImportada[]; ignoradas: number } | null>(null)
-  const [importando, setImportando] = useState(false)
-  const [lendoPdf, setLendoPdf] = useState('')
-  const [erroArquivo, setErroArquivo] = useState('')
   const [editando, setEditando] = useState<ProgramacaoItem | null>(null)
   const [sugestoes, setSugestoes] = useState<Sugestao[] | null>(null)
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [paramsAbertos, setParamsAbertos] = useState(false)
-  const arquivoRef = useRef<HTMLInputElement>(null)
 
   const motoristas = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
@@ -109,56 +98,6 @@ export function Programacao() {
     return candidatos.length === 1 ? candidatos[0].id : null
   }
 
-  const atualizarPrevia = (texto: string) => {
-    setTextoColado(texto)
-    const p = texto.trim() ? parsearPlanilhaMeli(texto) : null
-    setPrevia(p)
-  }
-
-
-  const lerArquivo = (e: ChangeEvent<HTMLInputElement>) => {
-    const arquivos = Array.from(e.target.files ?? [])
-    e.target.value = '' // permite reenviar os mesmos arquivos
-    if (arquivos.length === 0) return
-    setErroArquivo('')
-    setLendoPdf('⏳ Lendo…')
-    void (async () => {
-      try {
-        const partes: string[] = []
-        for (const a of arquivos) {
-          setLendoPdf(`⏳ Lendo ${a.name}…`)
-          partes.push(await a.text())
-        }
-        const texto = partes.join('\n')
-        registrarDiagnosticoLeitura('programacao-meli', texto, {
-          arquivo: arquivos.map((a) => a.name).join(', '),
-        })
-        // As leituras se SOMAM: enviar outro arquivo acrescenta as linhas dele.
-        const anterior = textoColado.trim() ? textoColado.replace(/\s+$/, '') + '\n' : ''
-        atualizarPrevia(anterior + texto)
-      } catch (err) {
-        const detalhe = err instanceof Error ? err.message : String(err)
-        setErroArquivo(`Não consegui ler (${detalhe}). Cole os dados ou envie um CSV.`)
-      } finally {
-        setLendoPdf('')
-      }
-    })()
-  }
-
-  const confirmarImportacao = async () => {
-    if (!previa || previa.itens.length === 0) return
-    setImportando(true)
-    try {
-      await importarProgramacao(previa.itens, vincular)
-      setDataSelecionada(previa.itens[0].data)
-      setModalImportar(false)
-      setTextoColado('')
-      setPrevia(null)
-      setVisao('dia')
-    } finally {
-      setImportando(false)
-    }
-  }
 
   const definirMotorista = (p: ProgramacaoItem, motoristaId: string) => {
     if (!motoristaId) {
@@ -312,9 +251,6 @@ export function Programacao() {
           <Button variante="secundario" onClick={() => setParamsAbertos(true)}>
             ⚙️ Parâmetros
           </Button>
-          <Button variante="secundario" onClick={() => setModalImportar(true)}>
-            📄 Planilha Meli
-          </Button>
         </div>
       </div>
 
@@ -349,7 +285,7 @@ export function Programacao() {
             <EmptyState
               icone="📆"
               titulo="Nenhuma programação importada"
-              descricao="Cole a planilha diária do Meli em “Importar planilha Meli” para preencher a alocação por rota."
+              descricao="A alocação por rota do dia vem da planilha de Rotas — importe por 🛣️ Importar rotas, no card acima."
             />
           ) : (
             <>
@@ -579,58 +515,6 @@ export function Programacao() {
         </>
       )}
 
-      {/* Importação da planilha Meli */}
-      <Modal aberto={modalImportar} titulo="📥 Importar planilha do Meli" onFechar={() => setModalImportar(false)}>
-        <p className="mb-2 text-sm text-slate-600">
-          Cole as linhas da planilha diária (Ctrl+C no Excel → Ctrl+V abaixo) ou envie o CSV. Ordem:
-        </p>
-        <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
-          DATA • DRIVER • ROTA • CIDADE • VEÍCULO • ONDAS • DOCA
-        </p>
-        <textarea
-          className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-marca-texto"
-          placeholder={'13/08/2026\tAdalberto\tVL9\tSÃO SIMÃO/SANTA VITORIA\tVUC\t1ª ONDA\t1\n…'}
-          value={textoColado}
-          onChange={(e) => atualizarPrevia(e.target.value)}
-        />
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
-          <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-            {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar CSV ou TXT')}
-          </Button>
-          {previa && (
-            <>
-              <span className="text-sm font-semibold text-slate-700">
-                ✅ {previa.itens.length} rota(s)
-                {previa.ignoradas > 0 && ` • ${previa.ignoradas} linha(s) ignorada(s)`}
-              </span>
-              <button
-                onClick={() => atualizarPrevia('')}
-                className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-                title="Descartar tudo o que foi lido e recomeçar"
-              >
-                🧹 Recomeçar
-              </button>
-            </>
-          )}
-        </div>
-        {erroArquivo && (
-          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erroArquivo}</p>
-        )}
-        <p className="mt-3 text-[11px] text-slate-500">
-          💡 Linhas de seção (UTILITARIO, DUPLAS) são puladas sozinhas. Os drivers são vinculados
-          automaticamente ao cadastro pelo nome. Reimportar o mesmo dia atualiza o plano sem apagar
-          os ajustes que você já fez.
-        </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variante="secundario" onClick={() => setModalImportar(false)}>
-            Cancelar
-          </Button>
-          <Button variante="marca" onClick={() => void confirmarImportacao()} disabled={!previa || previa.itens.length === 0 || importando}>
-            {importando ? 'Importando…' : `📥 Importar ${previa?.itens.length ?? 0} rota(s)`}
-          </Button>
-        </div>
-      </Modal>
 
       {/* Sugestão automática de alocação */}
       <Modal aberto={!!sugestoes} titulo={`🤖 Sugestão de alocação — ${rotuloDia(dataAtiva)}`} onFechar={() => setSugestoes(null)}>

@@ -40,53 +40,6 @@ export type ProgramacaoImportada = Omit<
   'id' | 'driverFinal' | 'motoristaId' | 'atualizadaEm'
 >
 
-/** "13/08/2026" → "2026-08-13" (null se não for data). */
-function dataParaISO(celula: string): string | null {
-  const m = celula.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (!m) return null
-  return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
-}
-
-/**
- * Converte a planilha diária do Meli em itens de programação. Ordem esperada:
- * DATA | DRIVER | ROTA | CIDADE | VEÍCULO | ONDAS | DOCA
- * Linhas de seção (UTILITARIO, DUPLAS, cabeçalho) são ignoradas automaticamente
- * — só entram linhas que começam com uma data válida.
- */
-export function parsearPlanilhaMeli(texto: string): {
-  itens: ProgramacaoImportada[]
-  ignoradas: number
-} {
-  const linhas = texto.split(/\r?\n/).filter((l) => l.trim() !== '')
-  const itens: ProgramacaoImportada[] = []
-  let ignoradas = 0
-
-  for (const linha of linhas) {
-    const sep = detectarSeparador(linha)
-    const celulas = linha.split(sep).map(limpar)
-    const data = dataParaISO(celulas[0] ?? '')
-    if (!data) {
-      // Cabeçalho ou linha de seção (UTILITARIO / DUPLAS) — ignora sem contar erro.
-      if (!/^data$/i.test(celulas[0] ?? '') && celulas.filter(Boolean).length > 2) ignoradas++
-      continue
-    }
-    const [, driver, rota, cidade, veiculo, onda, doca] = celulas
-    if (!driver || !rota) {
-      ignoradas++
-      continue
-    }
-    itens.push({
-      data,
-      driverPlanejado: driver,
-      rota,
-      cidade: cidade ?? '',
-      veiculo: veiculo ?? '',
-      onda: onda ?? '',
-      doca: doca ?? '',
-    })
-  }
-  return { itens, ignoradas }
-}
 
 /**
  * Extrai as cidades de um texto de rota ("CACHOEIRA D./CAPINOPOLIS + AJUDA" →
