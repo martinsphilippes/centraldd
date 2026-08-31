@@ -1,8 +1,8 @@
 // A "Esteira do Dia": o fluxo da operação de uma data, etapa por etapa.
 //
 //   🛣️ Rotas do dia   ╲
-//   📅 Disponibilidade  ⟶  📢 Chamada  ⟶  📋 Planejamento  ⟶  🛣️ Direcionamento
-//   📆 Programação    ╱
+//   📆 Programação      ⟶  📢 Chamada  ⟶  📋 Planejamento  ⟶  🛣️ Direcionamento
+//   📅 Disponibilidade ╱
 //
 // As três são PARTIDAS PARALELAS, mas a das ROTAS vem primeiro na lista por
 // ser a que carrega o dia: é dela que saem o total de rotas e o resumo, e é o
@@ -200,8 +200,8 @@ export function EsteiraDia({
             atual={!rotasCarregadas}
             aoTocar={rotasCarregadas ? undefined : () => setModalRotas(true)}
           />
-          <CartaoEtapa etapa={disponibilidade} atual={!partiu} />
           <CartaoEtapa etapa={programacao} atual={!partiu} />
+          <CartaoEtapa etapa={disponibilidade} atual={!partiu} />
         </div>
         <Seta />
         <CartaoEtapa etapa={etapaChamada} atual={atualChamada} />
