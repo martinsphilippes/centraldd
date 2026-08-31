@@ -91,12 +91,6 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
-    // Nome antigo de 'planejamento'. Some quando os documentos forem copiados.
-    match /escalas/{id} {
-      allow read: if logado();
-      allow write: if ehDispatcher();
-    }
-
     match /respostas/{id} {
       allow read: if logado();
       // Motorista aprovado grava apenas a própria resposta; dispatcher pode tudo.
@@ -106,15 +100,6 @@ service cloud.firestore {
 
     // Disponibilidade por data marcada pelo próprio motorista.
     match /disponibilidade/{id} {
-      allow read: if logado();
-      allow create, update: if ehDispatcher() ||
-        (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());
-      allow delete: if ehDispatcher() ||
-        (logado() && resource.data.motoristaId == meuMotoristaId());
-    }
-
-    // Nome antigo de 'disponibilidade'. Some quando os documentos forem copiados.
-    match /agenda/{id} {
       allow read: if logado();
       allow create, update: if ehDispatcher() ||
         (logado() && request.resource.data.motoristaId == meuMotoristaId() && motoristaAprovado());

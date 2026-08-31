@@ -58,7 +58,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           setMotoristaId(p.motoristaId)
           setUsuarioEmail(user.email)
           setErroSessao(null)
-          iniciarSincronizacao(papelCache === 'dispatcher')
+          iniciarSincronizacao()
           setStatusAuth('logado')
         } catch {
           localStorage.removeItem(chaveCache)
@@ -82,7 +82,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
             )
             setErroSessao(null)
             setUsuarioEmail(user.email)
-            iniciarSincronizacao(papelLido === 'dispatcher')
+            iniciarSincronizacao()
             setStatusAuth('logado')
           } else if (user.email && EMAILS_DISPATCHER.includes(user.email.toLowerCase())) {
             // E-mail autorizado sem perfil → dispatcher no primeiro login

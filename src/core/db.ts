@@ -81,56 +81,10 @@ export function useDBCarregado(): boolean {
   return useSyncExternalStore(subscribe, () => carregado)
 }
 
-/**
- * Coleções renomeadas. Os documentos gravados com o nome antigo continuam
- * sendo lidos (e são copiados para o nome novo assim que um Dispatcher abre
- * o app), então a troca de nome não perde nem esconde nada.
- * Quando o Firestore não tiver mais documentos nos nomes antigos, este bloco
- * e os dois listeners extras podem sair.
- */
-const RENOMEADAS: { nova: 'disponibilidade' | 'planejamento'; antiga: string }[] = [
-  { nova: 'disponibilidade', antiga: 'agenda' },
-  { nova: 'planejamento', antiga: 'escalas' },
-]
-
 type Linha = { id: string } & Record<string, unknown>
-/** Documentos vindos do nome atual da coleção. */
-const atuais: Partial<Record<keyof DB, Linha[]>> = {}
-/** Documentos vindos do nome antigo (só das coleções renomeadas). */
-const antigos: Partial<Record<keyof DB, Linha[]>> = {}
-
-/** Junta os dois nomes numa lista só — em id repetido, o novo manda. */
-function mesclar(nome: keyof DB) {
-  const novos = atuais[nome] ?? []
-  const restantes = (antigos[nome] ?? []).filter((a) => !novos.some((n) => n.id === a.id))
-  state = { ...state, [nome]: [...novos, ...restantes] }
-}
-
-/** Cópias em andamento — cada delete redispara o snapshot antigo. */
-const copiando = new Set<string>()
-
-/** Copia para o nome novo o que só existe no antigo. Silencioso: sem permissão, não faz nada. */
-async function copiarParaNomeNovo(nova: keyof DB, antiga: string) {
-  if (copiando.has(antiga)) return
-  const jaTem = new Set((atuais[nova] ?? []).map((d) => d.id))
-  const pendentes = (antigos[nova] ?? []).filter((d) => !jaTem.has(d.id))
-  if (pendentes.length === 0) return
-  copiando.add(antiga)
-  try {
-    for (const linha of pendentes) {
-      const { id, ...dados } = linha
-      await setDoc(doc(firestore, nova, id), dados)
-      await deleteDoc(doc(firestore, antiga, id))
-    }
-  } catch {
-    // Sem permissão de escrita: fica só a leitura do nome antigo, nada se perde.
-  } finally {
-    copiando.delete(antiga)
-  }
-}
 
 /** Liga os listeners de tempo real (chamado após o login). */
-export function iniciarSincronizacao(migrar = false) {
+export function iniciarSincronizacao() {
   if (unsubs.length > 0) return
   const colecoes: (keyof DB)[] = [
     'motoristas',
@@ -154,23 +108,10 @@ export function iniciarSincronizacao(migrar = false) {
   for (const nome of colecoes) {
     unsubs.push(
       onSnapshot(collection(firestore, nome), (snap) => {
-        atuais[nome] = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
-        mesclar(nome)
+        const linhas: Linha[] = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
+        state = { ...state, [nome]: linhas }
         chegaram.add(nome)
         if (chegaram.size === colecoes.length) carregado = true
-        emit()
-      }),
-    )
-  }
-
-  // Coleções renomeadas: continua ouvindo o nome antigo para nada sumir da
-  // tela enquanto os documentos não foram copiados.
-  for (const { nova, antiga } of RENOMEADAS) {
-    unsubs.push(
-      onSnapshot(collection(firestore, antiga), (snap) => {
-        antigos[nova] = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
-        mesclar(nova)
-        if (migrar) void copiarParaNomeNovo(nova, antiga)
         emit()
       }),
     )
@@ -181,8 +122,6 @@ export function iniciarSincronizacao(migrar = false) {
 export function pararSincronizacao() {
   for (const u of unsubs) u()
   unsubs.length = 0
-  for (const k of Object.keys(atuais) as (keyof DB)[]) delete atuais[k]
-  for (const k of Object.keys(antigos) as (keyof DB)[]) delete antigos[k]
   state = VAZIO
   carregado = false
   emit()
