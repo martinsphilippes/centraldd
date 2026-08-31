@@ -246,8 +246,17 @@ export interface ParametrosAlocacao {
   pesoCidadesPreferidas: number
   /** Bônus menor para cidade que o motorista marcou como "Posso fazer". */
   pesoCidadePossivel: number
-  /** Bônus de quem ficou disponível no domingo — vale na semana seguinte. */
+  /**
+   * Bônus de quem ficou disponível num DIA DIFÍCIL da semana e não rodou —
+   * o crédito vale no próximo dia fraco e se gasta ao ser usado.
+   */
   pesoPrioridadeDomingo: number
+  /** Feriados da operação, um por linha ('25/12' vale todo ano). */
+  feriados: string
+  /** Peso da fidelidade (frequência de disponibilidade na janela). */
+  pesoFidelidade: number
+  /** Janela, em dias, usada para medir a fidelidade. */
+  janelaFidelidadeDias: number
   /**
    * A prioridade do domingo só entra em dia com MENOS rotas do que este
    * número (dia fraco, em que não há trabalho para todos). 0 = desligada.

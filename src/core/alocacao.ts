@@ -5,8 +5,9 @@
 import type { DB, Motorista, ParametrosAlocacao, ProgramacaoItem, Rota } from './types'
 import { cidadesDoTexto } from './planilha'
 import { STATUS_DISPONIVEIS } from './constants'
+import { comCreditoDeDiaDificil, fidelidadeDeTodos } from './dias-dificeis'
 import { algumaCidadeBate, normalizarTexto } from './texto'
-import { hojeISO, parseISODate } from './dates'
+import { hojeISO } from './dates'
 
 /**
  * Experiência na cidade e experiência na rota saíram da parametrização: o
@@ -24,6 +25,9 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoCidadePossivel: 2,
   pesoPrioridadeDomingo: 5,
   limiarRotasPrioridadeDomingo: 0,
+  feriados: '',
+  pesoFidelidade: 0,
+  janelaFidelidadeDias: 60,
   pesoRodizio: 5,
   janelaRodizioDias: 7,
   maxVezesSeguidasMesmaCidade: 0,
@@ -93,21 +97,6 @@ export function parseEquivalencias(texto: string): Map<string, Set<string>> {
   return mapa
 }
 
-/**
- * Quem ficou DISPONÍVEL no último domingo antes do dia. É a moeda da
- * prioridade: trabalhou/segurou o domingo, sai na frente na semana seguinte
- * (a janela vale até o domingo seguinte).
- */
-export function disponiveisNoDomingoAnterior(db: DB, data: string): Set<string> {
-  const d = parseISODate(data)
-  if (Number.isNaN(d.getTime())) return new Set()
-  d.setDate(d.getDate() - (d.getDay() === 0 ? 7 : d.getDay()))
-  const domingo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  const ids = new Set<string>()
-  for (const a of db.disponibilidade)
-    if (a.data === domingo && STATUS_DISPONIVEIS.includes(a.status)) ids.add(a.motoristaId)
-  return ids
-}
 
 /** true quando a prioridade do domingo vale para um dia com N rotas. */
 function prioridadeDomingoAtiva(p: ParametrosAlocacao, totalRotas: number): boolean {
@@ -172,10 +161,16 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
     })
   }
 
-  // Dia fraco: quem segurou o domingo ganha prioridade nesta semana.
-  const comPrioridadeDomingo = prioridadeDomingoAtiva(p, itensDoDia.length)
-    ? disponiveisNoDomingoAnterior(db, data)
+  // Dia fraco: quem ficou disponível num dia difícil e NÃO rodou passa na
+  // frente. O crédito se gasta quando a pessoa roda num dia fraco.
+  const comCredito = prioridadeDomingoAtiva(p, itensDoDia.length)
+    ? comCreditoDeDiaDificil(db, data, p)
     : new Set<string>()
+  // Fidelidade: vale em qualquer dia, não só nos fracos.
+  const fidelidade =
+    p.pesoFidelidade > 0
+      ? fidelidadeDeTodos(db, data, p.janelaFidelidadeDias, p)
+      : new Map<string, number>()
 
   // Pontua cada par (rota do dia × candidato).
   interface Par {
@@ -232,9 +227,14 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
         pontos += p.exigirDisponibilidadeMarcada ? 0 : p.bonusDisponivelMarcado
         motivos.push('✅ disponível na disponibilidade')
       }
-      if (comPrioridadeDomingo.has(m.id)) {
+      if (comCredito.has(m.id)) {
         pontos += p.pesoPrioridadeDomingo
-        motivos.push('🙏 ficou disponível no domingo — prioridade da semana')
+        motivos.push('🙏 ficou disponível em dia difícil e não rodou — tem crédito')
+      }
+      const fid = fidelidade.get(m.id) ?? 0
+      if (fid > 0) {
+        pontos += p.pesoFidelidade * fid
+        motivos.push(`🤝 fidelidade ${Math.round(fid * 100)}% na janela`)
       }
 
       pares.push({ item, motorista: m, pontos, confianca: 0, motivos, alertas })
@@ -307,10 +307,14 @@ export function alocarMotoristasNasRotas(
   dataReferencia: string = hojeISO(),
 ): AlocacaoRota[] {
   const equivalencias = parseEquivalencias(p.equivalenciasVeiculo)
-  // Dia fraco: quem segurou o domingo ganha prioridade nesta semana.
-  const comPrioridadeDomingo = prioridadeDomingoAtiva(p, rotas.length)
-    ? disponiveisNoDomingoAnterior(db, dataReferencia)
+  // Dia fraco: crédito de quem ficou disponível em dia difícil e não rodou.
+  const comCredito = prioridadeDomingoAtiva(p, rotas.length)
+    ? comCreditoDeDiaDificil(db, dataReferencia, p)
     : new Set<string>()
+  const fidelidade =
+    p.pesoFidelidade > 0
+      ? fidelidadeDeTodos(db, dataReferencia, p.janelaFidelidadeDias, p)
+      : new Map<string, number>()
   const dataMinima = p.janelaHistoricoDias > 0 ? hojeISO(-p.janelaHistoricoDias) : '0000-01-01'
   const dataMinimaRodizio = hojeISO(-Math.max(1, p.janelaRodizioDias))
 
@@ -369,9 +373,14 @@ export function alocarMotoristasNasRotas(
         pontos += 2
         motivos.push('🚐 veículo compatível')
       }
-      if (comPrioridadeDomingo.has(m.id)) {
+      if (comCredito.has(m.id)) {
         pontos += p.pesoPrioridadeDomingo
-        motivos.push('🙏 ficou disponível no domingo — prioridade da semana')
+        motivos.push('🙏 ficou disponível em dia difícil e não rodou — tem crédito')
+      }
+      const fid = fidelidade.get(m.id) ?? 0
+      if (fid > 0) {
+        pontos += p.pesoFidelidade * fid
+        motivos.push(`🤝 fidelidade ${Math.round(fid * 100)}% na janela`)
       }
       pares.push({ rota, motorista: m, pontos, motivos, preferida })
     }

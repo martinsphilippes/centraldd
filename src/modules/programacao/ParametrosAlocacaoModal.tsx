@@ -101,23 +101,53 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
             {num('bonusDisponivelMarcado', 0, 10)}
           </Item>
           <Item
-            titulo="🙏 Prioridade de quem ficou disponível no domingo"
+            titulo="🙏 Crédito de quem segurou um dia difícil"
             explicacao={
               p.limiarRotasPrioridadeDomingo > 0
-                ? `Quem marcou DISPONÍVEL no domingo ganha ${p.pesoPrioridadeDomingo} ponto(s) de prioridade na semana seguinte — mas só nos dias FRACOS, com menos de ${p.limiarRotasPrioridadeDomingo} rota(s). Em dia cheio, com trabalho para todos, a prioridade não é necessária e não entra.`
-                : 'Recompensa quem segura o domingo: na semana seguinte, ele sai na frente nos dias fracos (com menos rotas que o limiar). Preencha o limiar de rotas para ligar — 0 deixa desligada.'
+                ? `Ficou DISPONÍVEL num dia difícil (domingo, feriado ou dia em que faltou gente) e NÃO rodou? Sai com um crédito de ${p.pesoPrioridadeDomingo} ponto(s) e passa na frente no próximo dia FRACO — com menos de ${p.limiarRotasPrioridadeDomingo} rota(s). Ao rodar num dia fraco, o crédito é GASTO e a pessoa volta para o fim da fila: é isso que faz o segundo dia fraco da semana cair para quem já rodou no domingo. O crédito vale por uma semana.`
+                : 'Paga quem ficou disponível num dia difícil e não pegou rota: ele fura a fila no próximo dia fraco, e o crédito se gasta ao ser usado. Preencha o limiar de rotas para ligar — 0 deixa desligado.'
             }
           >
             <div className="flex flex-wrap gap-3">
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                Peso da prioridade
+                Peso do crédito
                 {num('pesoPrioridadeDomingo', 0, 10, 'w-20')}
               </label>
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                Vale em dia com menos de … rotas (0 = desligada)
+                Vale em dia com menos de … rotas (0 = desligado)
                 {num('limiarRotasPrioridadeDomingo', 0, 200, 'w-20')}
               </label>
             </div>
+          </Item>
+          <Item
+            titulo="🤝 Fidelidade (frequência no período)"
+            explicacao={
+              p.pesoFidelidade > 0
+                ? `Com que frequência a pessoa esteve disponível nos últimos ${p.janelaFidelidadeDias} dias, contando DIA DIFÍCIL EM DOBRO. Quem esteve em tudo leva os ${p.pesoFidelidade} ponto(s) inteiros; quem apareceu na metade leva metade. Diferente do crédito, vale em QUALQUER dia — é o que impede quem só aparece em dia bom de tomar a vaga de quem está sempre.`
+                : 'Premia quem aparece com constância, e não só quando o dia é bom. Conta a frequência de disponibilidade na janela, com dia difícil valendo em dobro. Peso 0 deixa desligada.'
+            }
+          >
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                Peso da fidelidade
+                {num('pesoFidelidade', 0, 10, 'w-20')}
+              </label>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                Janela (dias)
+                {num('janelaFidelidadeDias', 7, 365, 'w-24')}
+              </label>
+            </div>
+          </Item>
+          <Item
+            titulo="📅 Feriados da operação"
+            explicacao="Quais datas contam como dia difícil, além dos domingos e dos dias em que faltou gente. Uma por linha. Use 25/12 para valer todo ano, ou 2026-12-25 para uma data só."
+          >
+            <textarea
+              className="h-20 w-full rounded-lg border border-slate-300 p-2 font-mono text-xs outline-none focus:border-marca-texto"
+              placeholder={'25/12\n01/01\n2026-04-21'}
+              value={p.feriados}
+              onChange={(e) => setP({ ...p, feriados: e.target.value })}
+            />
           </Item>
           <Item
             titulo="📆 Janela do histórico (dias)"

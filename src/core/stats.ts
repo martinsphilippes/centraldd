@@ -3,7 +3,8 @@
 import type { Chamada, DB, Motorista, Resposta, StatusResposta } from './types'
 import { STATUS_DISPONIVEIS } from './constants'
 import { hojeISO } from './dates'
-import { disponiveisNoDomingoAnterior, parametrosAtuais } from './alocacao'
+import { parametrosAtuais } from './alocacao'
+import { comCreditoDeDiaDificil, fidelidadeDeTodos } from './dias-dificeis'
 import { compararRodizio, distribuirPorFrota, frotaDoDia, historicoDeTrabalho, type DistribuicaoFrota } from './vagas'
 
 export interface ResumoChamada {
@@ -134,8 +135,8 @@ export function serieDisponibilidade(db: DB, dataIni: string, dataFim: string): 
  * Sugestão do planejamento: TODOS os disponíveis ranqueados pela
  * parametrização — os primeiros `qtdNecessaria` entram, o excedente vira a
  * fila de espera (pronto para substituir falta). Critérios, nesta ordem:
- * disponível cheio antes de parcial → prioridade do domingo (quando ativa
- * para o dia) → melhor histórico de disponibilidade → quem respondeu antes.
+ * disponível cheio antes de parcial → crédito de dia difícil (quando ativo
+ * para o dia) → fidelidade na janela → melhor histórico → quem respondeu antes.
  */
 export function sugerirPlanejamento(
   db: DB,
@@ -146,12 +147,18 @@ export function sugerirPlanejamento(
     estatisticasMotoristas(db, '0000-01-01', '9999-12-31').map((e) => [e.motorista.id, e]),
   )
   const p = parametrosAtuais(db)
-  const comDomingo =
+  const comCredito =
     p.limiarRotasPrioridadeDomingo > 0 &&
     p.pesoPrioridadeDomingo > 0 &&
     chamada.qtdNecessaria < p.limiarRotasPrioridadeDomingo
-      ? disponiveisNoDomingoAnterior(db, chamada.data)
+      ? comCreditoDeDiaDificil(db, chamada.data, p)
       : new Set<string>()
+  // Fidelidade: desempata SEMPRE, não só no dia fraco. É o critério que
+  // separa quem aparece todo dia de quem aparece só quando o dia é bom.
+  const fidelidade =
+    p.pesoFidelidade > 0
+      ? fidelidadeDeTodos(db, chamada.data, p.janelaFidelidadeDias, p)
+      : new Map<string, number>()
   // Rodízio: quem está há mais tempo sem trabalhar sobe na lista. É o que faz
   // a frota alternar quando há menos vaga que gente — sem isso, os mesmos
   // nomes entrariam todo dia e os outros nunca.
@@ -164,8 +171,11 @@ export function sugerirPlanejamento(
     .sort((a, b) => {
       const pp = peso(a.status) - peso(b.status)
       if (pp !== 0) return pp
-      const d = Number(comDomingo.has(b.motoristaId)) - Number(comDomingo.has(a.motoristaId))
+      const d = Number(comCredito.has(b.motoristaId)) - Number(comCredito.has(a.motoristaId))
       if (d !== 0) return d
+      const fa = fidelidade.get(a.motoristaId) ?? 0
+      const fb = fidelidade.get(b.motoristaId) ?? 0
+      if (fb !== fa) return fb - fa
       if (p.rodizioPorVeiculo) {
         const rod = compararRodizio(a.motoristaId, b.motoristaId, rodizio)
         if (rod !== 0) return rod
