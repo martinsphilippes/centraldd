@@ -1,12 +1,14 @@
 // A "Esteira do Dia": o fluxo da operação de uma data, etapa por etapa.
 //
-//   📅 Disponibilidade  ╲
-//               ⟶  📢 Chamada  ⟶  📋 Planejamento  ⟶  🛣️ Rotas
-//   📆 Programação ╱
+//   🛣️ Rotas do dia   ╲
+//   📅 Disponibilidade  ⟶  📢 Chamada  ⟶  📋 Planejamento  ⟶  🛣️ Direcionamento
+//   📆 Programação    ╱
 //
-// Disponibilidade e Programação são PARTIDAS PARALELAS — qualquer uma pode vir
-// primeiro (dá para programar antes e deixar a frota responder depois:
-// a resposta da chamada preenche a disponibilidade do dia sozinha).
+// As três são PARTIDAS PARALELAS, mas a das ROTAS vem primeiro na lista por
+// ser a que carrega o dia: é dela que saem o total de rotas e o resumo, e é o
+// resumo que define a meta da chamada. As outras duas podem vir em qualquer
+// ordem (dá para programar antes e deixar a frota responder depois: a resposta
+// da chamada preenche a disponibilidade do dia sozinha).
 
 import { Link } from 'react-router-dom'
 import { useDB } from '../../core/db'
@@ -90,8 +92,8 @@ export function EsteiraDia({
     titulo: 'Programação',
     resumo:
       itensProg > 0 || resumoDia
-        ? `${itensProg > 0 ? `${itensProg} rota(s) do Meli` : ''}${itensProg > 0 && resumoDia ? ' · ' : ''}${resumoDia ? 'resumo pronto' : ''}`
-        : 'importe o Meli ou o resumo',
+        ? `${itensProg > 0 ? `${itensProg} rota(s) alocada(s)` : ''}${itensProg > 0 && resumoDia ? ' · ' : ''}${resumoDia ? 'resumo pronto' : ''}`
+        : 'confira o resumo do dia',
     feita: itensProg > 0 || !!resumoDia,
     para: '/programacao',
     acao: itensProg > 0 || resumoDia ? 'Ver programação' : 'Programar',
@@ -163,9 +165,11 @@ export function EsteiraDia({
           <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
             Partida — qualquer ordem
           </p>
+          {/* Rotas primeiro: é a importação que carrega o dia — dela saem o
+              total de rotas e o resumo, que definem a meta da chamada. */}
+          <CartaoEtapa etapa={carregarRotas} atual={!rotasCarregadas} />
           <CartaoEtapa etapa={disponibilidade} atual={!partiu} />
           <CartaoEtapa etapa={programacao} atual={!partiu} />
-          <CartaoEtapa etapa={carregarRotas} atual={!rotasCarregadas} />
         </div>
         <Seta />
         <CartaoEtapa etapa={etapaChamada} atual={atualChamada} />
