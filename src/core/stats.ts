@@ -157,7 +157,7 @@ export function sugerirPlanejamento(
   // separa quem aparece todo dia de quem aparece só quando o dia é bom.
   const fidelidade =
     p.pesoFidelidade > 0
-      ? fidelidadeDeTodos(db, chamada.data, p.janelaFidelidadeDias, p)
+      ? fidelidadeDeTodos(db, chamada.data, p.janelaFidelidadeDias)
       : new Map<string, number>()
   // Rodízio: quem está há mais tempo sem trabalhar sobe na lista. É o que faz
   // a frota alternar quando há menos vaga que gente — sem isso, os mesmos

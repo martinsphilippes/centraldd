@@ -25,7 +25,6 @@ export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   pesoCidadePossivel: 2,
   pesoPrioridadeDomingo: 5,
   limiarRotasPrioridadeDomingo: 0,
-  feriados: '',
   pesoFidelidade: 0,
   janelaFidelidadeDias: 60,
   pesoRodizio: 5,
@@ -169,7 +168,7 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
   // Fidelidade: vale em qualquer dia, não só nos fracos.
   const fidelidade =
     p.pesoFidelidade > 0
-      ? fidelidadeDeTodos(db, data, p.janelaFidelidadeDias, p)
+      ? fidelidadeDeTodos(db, data, p.janelaFidelidadeDias)
       : new Map<string, number>()
 
   // Pontua cada par (rota do dia × candidato).
@@ -313,7 +312,7 @@ export function alocarMotoristasNasRotas(
     : new Set<string>()
   const fidelidade =
     p.pesoFidelidade > 0
-      ? fidelidadeDeTodos(db, dataReferencia, p.janelaFidelidadeDias, p)
+      ? fidelidadeDeTodos(db, dataReferencia, p.janelaFidelidadeDias)
       : new Map<string, number>()
   const dataMinima = p.janelaHistoricoDias > 0 ? hojeISO(-p.janelaHistoricoDias) : '0000-01-01'
   const dataMinimaRodizio = hojeISO(-Math.max(1, p.janelaRodizioDias))

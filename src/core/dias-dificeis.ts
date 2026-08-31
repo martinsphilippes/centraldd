@@ -34,28 +34,75 @@ export function ehDomingo(data: string): boolean {
 }
 
 /**
- * Feriados cadastrados na parametrização, um por linha. Aceita a data cheia
- * ('2026-12-25') e o dia/mês ('25/12'), que vale todo ano — é o formato que
- * evita recadastrar Natal e Ano-Novo toda virada.
+ * Domingo de Páscoa do ano (algoritmo de Gauss/Computus, calendário
+ * gregoriano). É dele que saem os feriados móveis.
  */
-export function ehFeriado(data: string, p: ParametrosAlocacao): boolean {
-  const linhas = (p.feriados ?? '')
-    .split(/[\n,;]/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-  if (linhas.length === 0) return false
-  const [ano, mes, dia] = data.split('-')
-  const diaMes = `${dia}/${mes}`
-  return linhas.some((l) => {
-    const limpo = l.replace(/\s/g, '')
-    if (limpo === data) return true
-    if (/^\d{2}\/\d{2}$/.test(limpo)) return limpo === diaMes
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(limpo)) {
-      const [d, m, a] = limpo.split('/')
-      return `${a}-${m}-${d}` === `${ano}-${mes}-${dia}`
-    }
-    return false
-  })
+function domingoDePascoa(ano: number): Date {
+  const a = ano % 19
+  const b = Math.floor(ano / 100)
+  const c = ano % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const mes = Math.floor((h + l - 7 * m + 114) / 31)
+  const dia = ((h + l - 7 * m + 114) % 31) + 1
+  return new Date(ano, mes - 1, dia)
+}
+
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function somarDias(d: Date, dias: number): Date {
+  const novo = new Date(d)
+  novo.setDate(novo.getDate() + dias)
+  return novo
+}
+
+/** Feriados nacionais fixos, no formato MM-DD. */
+const FIXOS = [
+  '01-01', // Confraternização Universal
+  '04-21', // Tiradentes
+  '05-01', // Dia do Trabalho
+  '09-07', // Independência
+  '10-12', // Nossa Senhora Aparecida
+  '11-02', // Finados
+  '11-15', // Proclamação da República
+  '11-20', // Consciência Negra (nacional desde a Lei 14.759/2023)
+  '12-25', // Natal
+] as const
+
+const cachePorAno = new Map<number, Set<string>>()
+
+/**
+ * Feriados nacionais do ano — sem cadastro nenhum, porque feriado nacional é
+ * regra e não escolha da operação.
+ *
+ * Entram os fixos em lei e a Sexta-feira Santa, que é móvel. Carnaval e Corpus
+ * Christi ficam de FORA de propósito: não são feriado nacional, são ponto
+ * facultativo. E não faz falta — quando a operação sente esses dias, a regra
+ * do "faltou gente" já os marca como difíceis sozinha.
+ */
+export function feriadosNacionais(ano: number): Set<string> {
+  const emCache = cachePorAno.get(ano)
+  if (emCache) return emCache
+  const datas = new Set(FIXOS.map((md) => `${ano}-${md}`))
+  datas.add(iso(somarDias(domingoDePascoa(ano), -2))) // Sexta-feira Santa
+  cachePorAno.set(ano, datas)
+  return datas
+}
+
+/** A data é feriado nacional? */
+export function ehFeriado(data: string): boolean {
+  const ano = Number(data.slice(0, 4))
+  if (!Number.isFinite(ano)) return false
+  return feriadosNacionais(ano).has(data)
 }
 
 /**
@@ -75,9 +122,9 @@ export function faltouGente(db: DB, data: string): boolean {
   return disponiveis < chamada.qtdNecessaria
 }
 
-/** Domingo, feriado cadastrado ou dia em que faltou gente. */
-export function ehDiaDificil(db: DB, data: string, p: ParametrosAlocacao): boolean {
-  return ehDomingo(data) || ehFeriado(data, p) || faltouGente(db, data)
+/** Domingo, feriado nacional ou dia em que faltou gente. */
+export function ehDiaDificil(db: DB, data: string): boolean {
+  return ehDomingo(data) || ehFeriado(data) || faltouGente(db, data)
 }
 
 /** Quem rodou no dia (tinha rota direcionada para ele). */
@@ -133,7 +180,7 @@ export function comCreditoDeDiaDificil(
   // Uma semana: o crédito não acumula de mês em mês, senão um punhado de
   // pessoas travaria a fila para o resto da frota.
   const janela = janelaDeDatas(data, 7)
-  const dificeis = janela.filter((d) => ehDiaDificil(db, d, p))
+  const dificeis = janela.filter((d) => ehDiaDificil(db, d))
   for (const dificil of dificeis) {
     const disponiveis = disponiveisEm(db, dificil)
     const rodaram = rodaramEm(db, dificil)
@@ -161,7 +208,6 @@ export function fidelidadeDe(
   motoristaId: string,
   ate: string,
   janelaDias: number,
-  p: ParametrosAlocacao,
 ): number {
   const datas = janelaDeDatas(ate, Math.max(1, janelaDias))
   // Só contam dias em que a operação existiu: dia sem rota nenhuma não é
@@ -171,7 +217,7 @@ export function fidelidadeDe(
   let possivel = 0
   let presente = 0
   for (const d of comOperacao) {
-    const peso = ehDiaDificil(db, d, p) ? 2 : 1
+    const peso = ehDiaDificil(db, d) ? 2 : 1
     possivel += peso
     if (disponiveisEm(db, d).has(motoristaId)) presente += peso
   }
@@ -183,7 +229,6 @@ export function fidelidadeDeTodos(
   db: DB,
   ate: string,
   janelaDias: number,
-  p: ParametrosAlocacao,
 ): Map<string, number> {
   const datas = janelaDeDatas(ate, Math.max(1, janelaDias))
   const comOperacao = datas.filter((d) => db.rotas.some((r) => r.data === d))
@@ -192,7 +237,7 @@ export function fidelidadeDeTodos(
   let possivel = 0
   const presencas = new Map<string, number>()
   for (const d of comOperacao) {
-    const peso = ehDiaDificil(db, d, p) ? 2 : 1
+    const peso = ehDiaDificil(db, d) ? 2 : 1
     possivel += peso
     for (const id of disponiveisEm(db, d)) presencas.set(id, (presencas.get(id) ?? 0) + peso)
   }
