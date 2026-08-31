@@ -20,7 +20,6 @@ import { hojeISO } from './dates'
 export const PARAMETROS_PADRAO: ParametrosAlocacao = {
   id: 'alocacao',
   janelaHistoricoDias: 90,
-  pesoRespeitarPlanoMeli: 5,
   pesoCidadesPreferidas: 6,
   pesoCidadePossivel: 2,
   pesoPrioridadeDomingo: 5,
@@ -200,10 +199,6 @@ export function sugerirAlocacao(db: DB, data: string, p: ParametrosAlocacao): Su
       // ---- Pontuação ----
       let pontos = 0
       const idx = porMotorista.get(m.id)
-      if (item.motoristaId === m.id || norm(item.driverPlanejado).startsWith(norm(m.nome).split(' ')[0])) {
-        pontos += p.pesoRespeitarPlanoMeli
-        motivos.push('📋 era o plano do Meli')
-      }
       // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
       // mais direta sobre onde ele rende melhor.
       const preferidas = listaDeTexto(m.cidadesPreferidas)
