@@ -479,7 +479,7 @@ export function salvarResumoDia(r: ResumoDia) {
 }
 
 /**
- * Preenche o Resumo do Dia a partir de um modelo lido (colado/CSV/PDF/foto).
+ * Preenche o Resumo do Dia a partir de um modelo lido (colado ou CSV).
  * Campos não reconhecidos preservam o que já estava no card.
  */
 export function removerResumoDia(id: string) {
@@ -519,7 +519,7 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
   }
   const num = (s: string) => Number(String(s).replace(/\D/g, '')) || 0
   // A leitura só ACRESCENTA ou refina — nunca apaga o que o card já tinha.
-  // Uma foto ruim que leu metade das linhas não pode destruir a outra metade.
+  // Uma leitura parcial não pode destruir a metade que já estava certa.
   // Nomes com ruído de OCR ("RODACEEP" = RODACOOP) casam pelo começo do nome.
   let transportadoras = base.transportadoras.map((t) => ({ ...t }))
   for (const lida of m.transportadoras) {
@@ -574,13 +574,13 @@ export function aplicarModeloResumo(dataDia: string, m: import('./planilha').Mod
 }
 
 /**
- * Guarda o texto bruto da última leitura de OCR (foto/PDF) para diagnóstico:
- * quando uma importação "não funciona" no aparelho, dá para ver exatamente o
- * que o motor de leitura enxergou lá — sem depender de print do usuário.
+ * Guarda o texto bruto da última leitura de arquivo para diagnóstico: quando
+ * uma importação "não funciona" no aparelho, dá para ver exatamente o que o
+ * app recebeu lá — sem depender de print do usuário.
  */
-export function registrarDiagnosticoOcr(origem: string, texto: string, info: Record<string, unknown> = {}) {
+export function registrarDiagnosticoLeitura(origem: string, texto: string, info: Record<string, unknown> = {}) {
   // Um registro por ORIGEM: a leitura das rotas não apaga a do modelo.
-  const id = `ultimo-ocr-${origem}`
+  const id = `ultima-leitura-${origem}`
   void setDoc(doc(firestore, 'diagnosticos', id), {
     id,
     origem,

@@ -122,7 +122,7 @@ const MM_POR_POSICOES: Record<string, string> = { '8': '3/4', '12': 'TOCO', '16'
 
 /**
  * Lê o MODELO do resumo do dia (o card EMG13 com pacotes, SPR, AM e MM) a
- * partir de texto colado, CSV, PDF ou foto. Reconhece pelos rótulos, então
+ * partir de texto colado, CSV, PDF ou peca. Reconhece pelos rótulos, então
  * a ordem das linhas não importa e linhas extras são ignoradas.
  */
 /**
@@ -259,7 +259,7 @@ export function parsearModeloResumo(texto: string): ModeloResumo {
 /**
  * Conserta o código da rota de expedição lido por OCR.
  *
- * O formato real (foto da planilha e página do Meli) é PREFIXO + número +
+ * O formato real (peca da planilha e página do Meli) é PREFIXO + número +
  * "_" + período: I15_AM1, VN9_AM1, D13_AM1, G7_AM1, VD2_PM1, B26_PM1. O OCR
  * erra de três jeitos recorrentes:
  *  - a letra I vira o dígito 1 ("I15_AM1" → "115 AM1");
@@ -320,78 +320,6 @@ export function repararRotaExpedicao(bruto: string): string {
 }
 
 /** Letras que o OCR troca entre si. Só as visualmente parecidas mesmo. */
-const LETRAS_SOSIA: Record<string, string[]> = {
-  I: ['J', 'L', 'T', 'F'],
-  J: ['I', 'L'],
-  L: ['I', 'J'],
-  O: ['D', 'Q', 'C'],
-  D: ['O'],
-  S: ['G', '5'],
-  G: ['S', 'C', '6'],
-  B: ['R', 'E', '8'],
-  R: ['B', 'P'],
-  V: ['U', 'Y'],
-  U: ['V'],
-  H: ['N', 'M'],
-  N: ['H', 'M'],
-  M: ['N', 'H'],
-  C: ['G', 'O'],
-  E: ['B', 'F'],
-  F: ['E', 'I'],
-  P: ['R'],
-  T: ['I'],
-}
-
-/**
- * Corrige o PREFIXO da rota usando os códigos que a operação já usou antes.
- *
- * É a única saída para letra trocada: "VJ" e "VI" são idênticos numa foto, e
- * nenhuma regra interna da planilha desempata. Mas se esta base sempre teve
- * VJ e nunca VI, a leitura "VI" é erro — e o histórico sabe disso.
- *
- * Também desfaz o prefixo comprido demais: "DI4" vira "D14" quando "D" é
- * prefixo conhecido e "DI" não é.
- */
-export function repararComHistorico(codigo: string, conhecidos: Set<string>): string {
-  if (conhecidos.size === 0) return codigo
-
-  // Código que veio SÓ com números ("822_PM1"): a primeira letra virou dígito
-  // na foto. Se a sósia dela for um prefixo conhecido, era isso.
-  const soNumero = /^(\d)(\d+)[ _]([AP]M[I1L|]?\d?)$/.exec(codigo)
-  if (soNumero) {
-    const DIGITO_SOSIA: Record<string, string[]> = {
-      '8': ['B'], '0': ['O', 'D'], '1': ['I', 'L'], '5': ['S'], '6': ['G'], '2': ['Z'], '4': ['A'], '7': ['T'],
-    }
-    const candidatos = (DIGITO_SOSIA[soNumero[1]] ?? []).filter((l) => conhecidos.has(l))
-    if (candidatos.length === 1) {
-      const onda = soNumero[3].replace(/[IL|]/g, '1')
-      return `${candidatos[0]}${Number(soNumero[2])}_${/\d$/.test(onda) ? onda : onda + '1'}`
-    }
-  }
-
-  const m = /^([A-Z]+)(\d+)_([AP]M\d)$/.exec(codigo)
-  if (!m) return codigo
-  const [, prefixo, numero, onda] = m
-  if (conhecidos.has(prefixo)) return codigo
-
-  // 1. A última letra do prefixo era, na verdade, um dígito ("DI4" → "D14").
-  const SOSIA_DIGITO: Record<string, string> = { I: '1', L: '1', O: '0', S: '5', B: '8', G: '6', Z: '2', T: '7', A: '4' }
-  if (prefixo.length >= 2) {
-    const menor = prefixo.slice(0, -1)
-    const virouDigito = SOSIA_DIGITO[prefixo[prefixo.length - 1]]
-    if (conhecidos.has(menor) && virouDigito) return `${menor}${Number(virouDigito + numero)}_${onda}`
-  }
-
-  // 2. Uma letra trocada por outra parecida — só vale se a resposta for única.
-  const candidatos = new Set<string>()
-  for (let i = 0; i < prefixo.length; i++) {
-    for (const letra of LETRAS_SOSIA[prefixo[i]] ?? []) {
-      const tentativa = prefixo.slice(0, i) + letra + prefixo.slice(i + 1)
-      if (conhecidos.has(tentativa)) candidatos.add(tentativa)
-    }
-  }
-  return candidatos.size === 1 ? `${[...candidatos][0]}${numero}_${onda}` : codigo
-}
 
 /** "AM1 89" / "AMI_89" → "AM1_89" (rota original: período + sequência). */
 export function repararRotaOriginal(bruto: string): string {
@@ -419,7 +347,7 @@ const COLUNAS_ROTA: Record<(typeof COLUNAS)[number], string[]> = {
 /**
  * Cabeçalho → de que coluna é cada posição.
  *
- * Sem isto a leitura era por POSIÇÃO fixa, e uma foto de PARTE da planilha
+ * Sem isto a leitura era por POSIÇÃO fixa, e uma peca de PARTE da planilha
  * (só "Rota expedição" e "Rota original", por exemplo) entrava toda torta: o
  * código da rota caía na casa da cidade. Lendo o cabeçalho, qualquer recorte
  * de colunas — em qualquer ordem — entra no lugar certo.
@@ -449,7 +377,7 @@ function mapearCabecalho(celulas: string[]): Map<number, (typeof COLUNAS)[number
 }
 
 /**
- * O que a operação já conhece — é o que deixa a foto ser lida sem cabeçalho.
+ * O que a operação já conhece — é o que deixa a peca ser lida sem cabeçalho.
  * Cidades e veículos vêm do cadastro; os prefixos, das rotas já importadas.
  */
 export interface ContextoLeitura {
@@ -464,10 +392,10 @@ const CARA_DE_ROTA = /^[A-Z]{0,3}[0-9OILZABSGT]{1,3}[ _]{0,2}[AP]M[I1L|]{0,2}\d?
 const CARA_DE_ORIGINAL = /^[AP]M[I1L|]{0,2}\d?[ _]+\d{1,3}$/i
 
 /**
- * Recorte de foto: pega o código da rota e a rota original pelo FORMATO deles,
+ * Recorte de peca: pega o código da rota e a rota original pelo FORMATO deles,
  * onde quer que estejam na linha.
  *
- * Em foto, o OCR não entrega coluna firme — "B19 PMI1 PM1 17" às vezes vem
+ * Em peca, o OCR não entrega coluna firme — "B19 PMI1 PM1 17" às vezes vem
  * com o 17 numa célula, às vezes colado na anterior. Procurar o padrão na
  * linha inteira acerta nos dois casos; contar casinha, não.
  */
@@ -491,7 +419,7 @@ const CARA_DE_BASE = /^[A-Z]{2,5}\d{1,3}$/i
 /**
  * Descobre as colunas pelo CONTEÚDO delas, sem depender do cabeçalho.
  *
- * Numa foto de planilha o cabeçalho é o primeiro a se perder: é texto claro
+ * Numa peca de planilha o cabeçalho é o primeiro a se perder: é texto claro
  * sobre faixa colorida, e o OCR devolve coisas como "Base ado verde". Já o
  * conteúdo se identifica sozinho — "PM1_21" só pode ser rota original, "5:58"
  * só pode ser DPS — e o que é ambíguo (cidade × veículo × transportadora) o
@@ -510,7 +438,7 @@ function mapearPeloConteudo(
   const maioria = (valores: string[], teste: (v: string) => boolean) =>
     valores.filter(teste).length >= valores.length * 0.7
 
-  // Um veículo do cadastro pode aparecer abreviado na foto ("Veículo de
+  // Um veículo do cadastro pode aparecer abreviado na peca ("Veículo de
   // Passeio" cortado em "Passeio"), então basta uma das palavras bater.
   const pareceVeiculo = (v: string) => {
     const chave = normalizarTexto(v)
@@ -537,7 +465,7 @@ function mapearPeloConteudo(
 
   // Km e Ocupação são os dois decimais. Na planilha o DPS fica ENTRE eles, e
   // essa vizinhança resolve sem cabeçalho. Se as duas caírem do mesmo lado do
-  // DPS (ou não houver DPS na foto), vale a ordem da planilha: Km vem antes.
+  // DPS (ou não houver DPS na peca), vale a ordem da planilha: Km vem antes.
   const posDps = [...mapa.entries()].find(([, c]) => c === 'dps')?.[0]
   const ordenadas = [...numericas].sort((a, b) => a - b)
   const antes = ordenadas.filter((i) => posDps !== undefined && i < posDps)
@@ -553,7 +481,7 @@ function mapearPeloConteudo(
 }
 
 /**
- * Linha que não se parece com nenhuma das colunas detectadas é sobra da foto
+ * Linha que não se parece com nenhuma das colunas detectadas é sobra da peca
  * (o cabeçalho mastigado, um rodapé) e não pode virar rota.
  */
 function pareceLinhaDeDados(
@@ -572,16 +500,16 @@ function pareceLinhaDeDados(
   return fortes === 0 || batem > 0
 }
 
-/** Nomes internos das colunas — o bloco da foto é decidido comparando estes. */
+/** Nomes internos das colunas — o bloco da peca é decidido comparando estes. */
 export type ColunaRota = (typeof COLUNAS)[number]
 
 /**
- * Lê UMA foto: que colunas ela traz e quais linhas. É o mesmo caminho que a
- * montagem usa, exposto para a tela poder decidir em que BLOCO a foto entra
+ * Lê UMA peca: que colunas ela traz e quais linhas. É o mesmo caminho que a
+ * montagem usa, exposto para a tela poder decidir em que BLOCO a peca entra
  * no momento em que ela chega — e não pela ordem da fila, que muda quando se
- * apaga uma foto do meio.
+ * apaga uma peca do meio.
  */
-export function lerFotoDaPlanilha(
+export function lerParteDaPlanilha(
   bruto: string,
   ctx: ContextoLeitura = {},
 ): { colunas: ColunaRota[]; linhas: string[][]; mapa: Map<number, ColunaRota> | null } {
@@ -615,13 +543,13 @@ export function lerFotoDaPlanilha(
   }
 }
 
-/** O que uma foto trouxe: quais colunas e quantas linhas. */
-export interface FotoColuna {
+/** O que uma peca trouxe: quais colunas e quantas linhas. */
+export interface ParteColuna {
   colunas: string[]
   linhas: number
-  /** Sem cabeçalho reconhecido não dá para saber de que coluna a foto é. */
+  /** Sem cabeçalho reconhecido não dá para saber de que coluna a peca é. */
   reconhecida: boolean
-  /** Em que bloco de linhas esta foto entrou (1, 2, 3…). */
+  /** Em que bloco de linhas esta peca entrou (1, 2, 3…). */
   bloco: number
 }
 
@@ -638,17 +566,17 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
 }
 
 /**
- * Junta fotos TIRADAS POR COLUNA lado a lado, em vez de empilhar.
+ * Junta pecas TIRADAS POR COLUNA lado a lado, em vez de empilhar.
  *
  * Fotografar a planilha inteira obriga a afastar, e aí letra e número somem.
- * Fotografando 2 ou 3 colunas de cada vez, cada foto sai grande e o OCR acerta
- * — desde que o app recomponha a tabela. É o que esta função faz: cada foto
+ * Fotografando 2 ou 3 colunas de cada vez, cada peca sai grande e o OCR acerta
+ * — desde que o app recomponha a tabela. É o que esta função faz: cada peca
  * diz, pelo próprio cabeçalho, de que colunas ela é, e as linhas se encaixam.
  *
- * O encaixe é pela ORDEM das linhas, que é como as fotos foram tiradas. Se
- * duas fotos tiverem uma coluna em comum (a Rota expedição, por exemplo), essa
+ * O encaixe é pela ORDEM das linhas, que é como as pecas foram tiradas. Se
+ * duas pecas tiverem uma coluna em comum (a Rota expedição, por exemplo), essa
  * coluna vira a âncora e o encaixe passa a ser conferido, não presumido —
- * por isso vale a pena repetir uma coluna em todas as fotos.
+ * por isso vale a pena repetir uma coluna em todas as pecas.
  */
 /**
  * Texto colado com UMA CÉLULA POR LINHA.
@@ -753,23 +681,23 @@ function verticalParaTabela(texto: string, ctx: ContextoLeitura): string | null 
   return [cabecalho, ...saida.map((l) => l.join('\t'))].join('\n')
 }
 
-export function juntarFotosPorColuna(
-  /** Cada foto com o bloco de linhas a que ela pertence (1, 2, 3…). */
+export function juntarPartesPorColuna(
+  /** Cada peca com o bloco de linhas a que ela pertence (1, 2, 3…). */
   entradas: { texto: string; bloco: number }[],
   ctx: ContextoLeitura = {},
 ): {
   texto: string
-  fotos: FotoColuna[]
+  pecas: ParteColuna[]
   avisos: string[]
 } {
   const avisos: string[] = []
-  const fotos: FotoColuna[] = []
+  const pecas: ParteColuna[] = []
   const soltos: string[][] = []
-  type Bloco = { mapa: Map<number, ColunaRota>; linhas: string[][]; foto: number; bloco: number }
+  type Bloco = { mapa: Map<number, ColunaRota>; linhas: string[][]; peca: number; bloco: number }
   const lidos: Bloco[] = []
 
   for (const entrada of entradas) {
-    const { mapa, linhas: grade } = lerFotoDaPlanilha(entrada.texto, ctx)
+    const { mapa, linhas: grade } = lerParteDaPlanilha(entrada.texto, ctx)
     if (grade.length === 0) continue
     if (!mapa) {
       // Sem reconhecer as colunas, ainda dá para pescar o código de rota pelo
@@ -784,11 +712,11 @@ export function juntarFotosPorColuna(
         if (r.rotaOriginal) linha[COLUNAS.indexOf('rotaOriginal')] = r.rotaOriginal
         soltos.push(linha)
       }
-      fotos.push({ colunas: [], linhas: pescadas.length, reconhecida: false, bloco: 0 })
+      pecas.push({ colunas: [], linhas: pescadas.length, reconhecida: false, bloco: 0 })
       continue
     }
-    lidos.push({ mapa, linhas: grade, foto: fotos.length, bloco: entrada.bloco })
-    fotos.push({
+    lidos.push({ mapa, linhas: grade, peca: pecas.length, bloco: entrada.bloco })
+    pecas.push({
       colunas: [...new Set([...mapa.values()])].map((c) => ROTULO_COLUNA[c]),
       linhas: grade.length,
       reconhecida: true,
@@ -799,11 +727,11 @@ export function juntarFotosPorColuna(
   const cabecalho = COLUNAS.map((c) => ROTULO_COLUNA[c]).join('\t')
   if (lidos.length === 0) {
     const corpo = soltos.map((l) => l.join('\t')).join('\n')
-    return { texto: corpo ? [cabecalho, corpo].join('\n') : '', fotos, avisos }
+    return { texto: corpo ? [cabecalho, corpo].join('\n') : '', pecas, avisos }
   }
 
-  // O BLOCO de cada foto vem decidido de fora, no momento em que ela chega.
-  // Inferir pela ordem da fila era frágil: bastava apagar uma foto do meio e
+  // O BLOCO de cada peca vem decidido de fora, no momento em que ela chega.
+  // Inferir pela ordem da fila era frágil: bastava apagar uma peca do meio e
   // reenviá-la para o app casar as colunas de uma leva com as linhas de outra.
   const grupos: Bloco[][] = []
   for (const numero of [...new Set(lidos.map((b) => b.bloco))].sort((a, b) => a - b)) {
@@ -814,17 +742,17 @@ export function juntarFotosPorColuna(
   grupos.forEach((blocos, iGrupo) => {
     const rotulo = grupos.length > 1 ? `bloco ${blocos[0]?.bloco ?? iGrupo + 1}: ` : ''
 
-    // Dentro do bloco, todas as fotos precisam ter as MESMAS linhas. Quando
+    // Dentro do bloco, todas as pecas precisam ter as MESMAS linhas. Quando
     // uma leu menos, ela é a culpada — e é ela que precisa ser refeita.
     const cheia = Math.max(...blocos.map((b) => b.linhas.length))
     const curtas = blocos.filter((b) => b.linhas.length < cheia)
     for (const b of curtas) {
       avisos.push(
-        `${rotulo}a Foto ${b.foto + 1} leu ${b.linhas.length} linha(s) e as outras deste bloco leram ${cheia} — alguma linha ficou de fora dela. Refaça SÓ essa foto (🗑️ ao lado dela), senão as linhas se encaixam trocadas a partir da que faltou.`,
+        `${rotulo}a Foto ${b.peca + 1} leu ${b.linhas.length} linha(s) e as outras deste bloco leram ${cheia} — alguma linha ficou de fora dela. Refaça SÓ essa peca (🗑️ ao lado dela), senão as linhas se encaixam trocadas a partir da que faltou.`,
       )
     }
 
-    // Âncora: coluna repetida entre as fotos do bloco serve de conferência.
+    // Âncora: coluna repetida entre as pecas do bloco serve de conferência.
     const contagem = new Map<(typeof COLUNAS)[number], number>()
     for (const b of blocos)
       for (const c of new Set(b.mapa.values())) contagem.set(c, (contagem.get(c) ?? 0) + 1)
@@ -842,7 +770,7 @@ export function juntarFotosPorColuna(
           const valor = celulas[pos] ?? ''
           if (valor) linha[COLUNAS.indexOf(coluna)] = valor
         }
-        // Numa foto estreita a célula escorrega ("B15 PM1 PM1 21" às vezes vem
+        // Numa peca estreita a célula escorrega ("B15 PM1 PM1 21" às vezes vem
         // em duas células, às vezes em quatro). Onde o código de rota não saiu
         // com cara de código, vale o padrão lido na linha inteira.
         const temCodigo = [...b.mapa.values()].some(
@@ -863,7 +791,7 @@ export function juntarFotosPorColuna(
     }
 
     if (ancora) {
-      // Com âncora dá para conferir de verdade: se as fotos discordarem na
+      // Com âncora dá para conferir de verdade: se as pecas discordarem na
       // mesma linha, o encaixe escorregou e é melhor o Dispatcher saber.
       let divergiu = 0
       for (let i = 0; i < altura; i++) {
@@ -878,18 +806,18 @@ export function juntarFotosPorColuna(
       }
       if (divergiu > 0) {
         avisos.push(
-          `${rotulo}${divergiu} linha(s) em que as fotos discordam na coluna ${ROTULO_COLUNA[ancora]} — o encaixe pode ter escorregado; confira ou tire as fotos de novo com as mesmas linhas`,
+          `${rotulo}${divergiu} linha(s) em que as pecas discordam na coluna ${ROTULO_COLUNA[ancora]} — o encaixe pode ter escorregado; confira ou tire as pecas de novo com as mesmas linhas`,
         )
       }
     } else if (blocos.length > 1) {
       avisos.push(
-        `${rotulo}as fotos não têm nenhuma coluna em comum, então o encaixe é pela ordem das linhas — para o app poder CONFERIR o encaixe, inclua a coluna "Rota expedição" em todas as fotos`,
+        `${rotulo}as pecas não têm nenhuma coluna em comum, então o encaixe é pela ordem das linhas — para o app poder CONFERIR o encaixe, inclua a coluna "Rota expedição" em todas as pecas`,
       )
     }
   })
 
   const corpo = [...saida, ...soltos].map((l) => l.join('\t')).join('\n')
-  return { texto: [cabecalho, corpo].filter(Boolean).join('\n'), fotos, avisos }
+  return { texto: [cabecalho, corpo].filter(Boolean).join('\n'), pecas, avisos }
 }
 
 export function parsearPlanilhaRotas(
@@ -909,7 +837,6 @@ export function parsearPlanilhaRotas(
   /** Colunas que NENHUMA linha trouxe — ficam em branco, e isso é esperado. */
   colunasVazias: string[]
 } {
-  const conhecidos = new Set((ctx.prefixos ?? []).map((p) => p.toUpperCase()))
   const descartadas: { conteudo: string; motivo: string; linha: RotaImportada }[] = []
   const vazia = (): RotaImportada => {
     const r = {} as RotaImportada
@@ -946,7 +873,7 @@ export function parsearPlanilhaRotas(
   const SUFIXO_ROTA = /^[A-Z]{0,3}[MW][I1L]{0,2}\d{0,2}$/i
   const BASE_CURTA = /^[A-Z]{2,5}\d{1,3}$/
 
-  // Descobre as colunas ANTES de ler: pelo cabeçalho, se ele veio na foto;
+  // Descobre as colunas ANTES de ler: pelo cabeçalho, se ele veio na peca;
   // senão, pelo formato do conteúdo. Só cai na posição fixa se nada casar.
   const grade = linhas.map((l) => l.split(detectarSeparador(l)).map(limpar))
   let mapa: Map<number, (typeof COLUNAS)[number]> | null = null
@@ -970,7 +897,7 @@ export function parsearPlanilhaRotas(
       const rota = {} as Record<(typeof COLUNAS)[number], string>
       for (const c of COLUNAS) rota[c] = ''
       for (const [i, coluna] of mapa) rota[coluna] = celulas[i] ?? ''
-      // Recorte estreito (foto de duas ou três colunas): o padrão manda, porque
+      // Recorte estreito (peca de duas ou três colunas): o padrão manda, porque
       // a casinha da célula não é confiável no OCR.
       if (celulas.length <= 4 && mapa.size <= 3) {
         const achado = lerRecorte(linha)
@@ -984,12 +911,12 @@ export function parsearPlanilhaRotas(
           linha,
           rota.rotaExpedicao
             ? `"${rota.rotaExpedicao}" não tem número, então não é código de rota`
-            : 'ficou sem código de rota — nesta linha nenhuma foto trouxe a coluna Rota expedição',
+            : 'ficou sem código de rota — nesta linha nenhuma peca trouxe a coluna Rota expedição',
           { ...rota, rotaOriginal: repararRotaOriginal(rota.rotaOriginal) },
         )
         continue
       }
-      rota.rotaExpedicao = repararComHistorico(repararRotaExpedicao(rota.rotaExpedicao), conhecidos)
+      rota.rotaExpedicao = repararRotaExpedicao(rota.rotaExpedicao)
       rota.rotaOriginal = repararRotaOriginal(rota.rotaOriginal)
       rotas.push(rota)
       continue
@@ -1003,7 +930,7 @@ export function parsearPlanilhaRotas(
       celulas.splice(1, 2, `${celulas[1]} ${celulas[2]}`)
     }
     // Precisa de pelo menos cidade + rota expedição — e um código de rota
-    // sempre tem número, então "Rota expedição" lido da foto não vira linha.
+    // sempre tem número, então "Rota expedição" lido da peca não vira linha.
     if (celulas.length < 2 || !celulas[0] || !celulas[1] || !/\d/.test(celulas[1])) {
       descartar(linha, 'não reconheci cidade + código de rota nesta linha')
       continue
@@ -1012,11 +939,11 @@ export function parsearPlanilhaRotas(
     COLUNAS.forEach((c, i) => {
       rota[c] = celulas[i] ?? ''
     })
-    rota.rotaExpedicao = repararComHistorico(repararRotaExpedicao(rota.rotaExpedicao), conhecidos)
+    rota.rotaExpedicao = repararRotaExpedicao(rota.rotaExpedicao)
     rota.rotaOriginal = repararRotaOriginal(rota.rotaOriginal)
     rotas.push(rota)
   }
-  // A mesma rota lida duas vezes (passadas de OCR, fotos com sobreposição)
+  // A mesma rota lida duas vezes (passadas de OCR, pecas com sobreposição)
   // vira UMA linha: a leitura extra só preenche as células que faltavam.
   const porChave = new Map<string, RotaImportada>()
   const ordem: string[] = []
@@ -1049,7 +976,7 @@ export function parsearPlanilhaRotas(
     r.transportadora = [...g.entries()].sort((a, b) => b[1] - a[1])[0][0]
   }
   // Uma rota ORIGINAL ("PM1_21") nunca é um código de expedição. Se sobrou
-  // alguma na coluna errada — encaixe de foto que escorregou, coluna trocada —
+  // alguma na coluna errada — encaixe de peca que escorregou, coluna trocada —
   // ela sai aqui, em vez de virar rota inventada no dia.
   const validas = finais.filter((r) => {
     const ehOriginal = CARA_DE_ORIGINAL.test(r.rotaExpedicao.replace(/_/g, ' '))
@@ -1121,7 +1048,7 @@ export function parsearPlanilhaRotas(
   }
 
   // Número fora da faixa esperada dentro do mesmo prefixo (VJ1…VJ13 e de repente um
-  // VJ114): quase sempre é dígito duplicado pela foto. Avisa, não adivinha.
+  // VJ114): quase sempre é dígito duplicado pela peca. Avisa, não adivinha.
   const porPrefixo = new Map<string, number[]>()
   for (const r of validas) {
     const m = /^([A-Z]+)(\d+)_/.exec(r.rotaExpedicao)
@@ -1149,7 +1076,7 @@ export function parsearPlanilhaRotas(
 
 /**
  * Ajustes que dependem de olhar a coluna inteira e o que a operação conhece:
- * o veículo cortado pela foto volta ao nome completo, e a ocupação que perdeu
+ * o veículo cortado pela peca volta ao nome completo, e a ocupação que perdeu
  * a vírgula é recomposta (é sempre uma porcentagem, nunca passa de 100).
  */
 function ajustarPorColuna(rotas: RotaImportada[], ctx: ContextoLeitura) {
@@ -1157,7 +1084,7 @@ function ajustarPorColuna(rotas: RotaImportada[], ctx: ContextoLeitura) {
   for (const r of rotas) {
     if (r.veiculo && veiculos.length > 0) {
       const chave = normalizarTexto(r.veiculo)
-      // "Passeio" na foto é o "Veículo de Passeio" do cadastro — só completa
+      // "Passeio" na peca é o "Veículo de Passeio" do cadastro — só completa
       // quando a resposta é única, senão fica como foi lido.
       const iguais = veiculos.filter((v) => normalizarTexto(v) === chave)
       const contidos = veiculos.filter((v) => normalizarTexto(v).includes(chave))

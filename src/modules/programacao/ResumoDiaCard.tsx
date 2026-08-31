@@ -4,7 +4,7 @@ import {
   aplicarModeloResumo,
   aprenderComResumo,
   enviarNotificacao,
-  registrarDiagnosticoOcr,
+  registrarDiagnosticoLeitura,
   removerResumoDia,
   salvarChamada,
   salvarResumoDia,
@@ -17,7 +17,6 @@ import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
 import { abrirImpressao } from '../../core/impressao'
 import { parsearModeloResumo, type ModeloResumo } from '../../core/planilha'
-import { extrairTextoDeArquivos, obterUltimaDimensaoOcr, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input, Modal } from '../../components/ui'
 
@@ -125,7 +124,7 @@ export function ResumoDiaCard({
   const [editando, setEditando] = useState(false)
   const existente = db.resumos.find((r) => r.id === data)
 
-  // Importação do modelo (colar / CSV / PDF / foto)
+  // Importação do modelo (colar ou CSV)
   const [modalModelo, setModalModelo] = useState(false)
   // Importação das ROTAS do dia (o mesmo importador da tela de Rotas) — as
   // duas importações do dia ficam lado a lado aqui na Programação.
@@ -270,10 +269,9 @@ export function ResumoDiaCard({
     // sem depender de mais nenhum toque (o modal fecha e o card confirma).
     const aplicarDireto = (texto: string) => {
       const modelo = parsearModeloResumo(texto)
-      registrarDiagnosticoOcr('resumo-modelo', texto, {
+      registrarDiagnosticoLeitura('resumo-modelo', texto, {
         arquivo: arquivos.map((a) => a.name).join(', '),
         camposDetectados: modelo.camposDetectados,
-        miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
       })
       if (modelo.camposDetectados > 0) {
         // A data escrita NO MODELO manda: o card daquele dia é preenchido
@@ -284,7 +282,7 @@ export function ResumoDiaCard({
         setModalModelo(false)
         setTextoModelo('')
         setPreviaModelo(null)
-        // O que a foto não entregou abre direto para completar — sem caçar campo.
+        // O que o arquivo não trouxe abre direto para completar — sem caçar campo.
         const faltando: string[] = []
         if (!salvo.sprReferencia) faltando.push('SPR de referência')
         if (!salvo.veiculosDiv) faltando.push('Veículos DIV')
@@ -294,15 +292,8 @@ export function ResumoDiaCard({
         if (faltando.length > 0) {
           setRascunho(salvo)
           setEditando(true)
-          const { largura, altura } = obterUltimaDimensaoOcr()
-          const pequenaDemais = largura > 0 && largura < 700
-          const dica = pequenaDemais
-            ? ` 📸 A imagem enviada tem só ${largura}×${altura} pixels — pequena demais para o leitor enxergar os números (eles ficam com ~6 px). Envie um PRINT da tela inteira, ou a foto original sem reduzir, que a leitura melhora muito.`
-            : modelo.camposDetectados <= 4
-              ? ' 📸 A foto saiu desfocada: um print da tela (ou foto de perto, sem tremer) costuma resolver — reenviar por cima só acrescenta, não apaga o que já está certo.'
-              : ''
           setAvisoAplicado(
-            `⚠️ Preenchi o que a foto permitiu (${modelo.camposDetectados} campo(s)). Complete: ${faltando.join(', ')} — e toque em Salvar.${dica}`,
+            `⚠️ Preenchi o que o arquivo trouxe (${modelo.camposDetectados} campo(s)). Complete: ${faltando.join(', ')} — e toque em Salvar.`,
           )
         } else {
           setAvisoAplicado(
@@ -313,18 +304,21 @@ export function ResumoDiaCard({
       } else {
         atualizarPreviaModelo(texto)
         setErroModelo(
-          'Li o arquivo, mas não reconheci os rótulos do modelo (PACOTES, SPR, Veículos DIV, MM…). O texto lido está na caixa acima — tente uma imagem mais nítida (print em vez de foto da tela) ou cole o texto.',
+          'Li o arquivo, mas não reconheci os rótulos do modelo (PACOTES, SPR, Veículos DIV, MM…). O texto lido está na caixa acima — confira se é o arquivo certo ou cole o texto.',
         )
       }
     }
     setLendoModelo('⏳ Lendo…')
     void (async () => {
       try {
-        // O card do resumo é curto e crítico: leitura minuciosa (todas as
-        // passadas de recuperação), mesmo que demore alguns segundos a mais.
-        aplicarDireto(await extrairTextoDeArquivos(arquivos, setLendoModelo, { preciso: true }))
+        const textos: string[] = []
+        for (const a of arquivos) {
+          setLendoModelo(`⏳ Lendo ${a.name}…`)
+          textos.push(await a.text())
+        }
+        aplicarDireto(textos.join('\n'))
       } catch (err) {
-        setErroModelo(`Não consegui ler (${(err as Error).message ?? 'erro'}). Tente uma foto mais nítida ou cole o texto.`)
+        setErroModelo(`Não consegui ler (${(err as Error).message ?? 'erro'}). Cole o texto do modelo na caixa acima.`)
       } finally {
         setLendoModelo('')
       }
@@ -693,7 +687,7 @@ export function ResumoDiaCard({
       )}
       {!existente && !avisoAplicado && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Ainda não há resumo para {formatarData(data)}. Toque em <strong>📥 Importar modelo</strong> (foto/PDF) ou{' '}
+          Ainda não há resumo para {formatarData(data)}. Toque em <strong>📥 Importar modelo</strong> ou{' '}
           <strong>Preencher</strong>.
         </p>
       )}
@@ -809,10 +803,10 @@ export function ResumoDiaCard({
       {/* Importar as rotas do dia (mesmo importador da tela de Rotas) */}
       <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} data={data} />
 
-      {/* Importar o modelo do resumo (colar / CSV / PDF / foto) */}
+      {/* Importar o modelo do resumo (colar ou CSV) */}
       <Modal aberto={modalModelo} titulo={`📥 Importar modelo — ${formatarData(data)}`} onFechar={() => setModalModelo(false)}>
         <p className="mb-2 text-sm text-slate-600">
-          Cole o texto do modelo do dia, ou envie o arquivo (CSV, PDF ou foto). O sistema reconhece pelos
+          Cole o texto do modelo do dia, ou envie o arquivo (CSV/TXT). O sistema reconhece pelos
           rótulos: <strong>base, SPR, pacotes, veículos DIV, transportadoras (AM) e MM</strong>.
         </p>
         <textarea
@@ -822,9 +816,9 @@ export function ResumoDiaCard({
           onChange={(e) => atualizarPreviaModelo(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoModeloRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivoModelo} className="hidden" />
+          <input ref={arquivoModeloRef} type="file" multiple accept=".csv,.txt,.tsv" onChange={lerArquivoModelo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoModeloRef.current?.click()} disabled={!!lendoModelo}>
-            {lendoModelo || '📄 Enviar CSV, PDF ou foto'}
+            {lendoModelo || '📄 Enviar CSV ou TXT'}
           </Button>
         </div>
         {erroModelo && (

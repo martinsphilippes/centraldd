@@ -1,18 +1,17 @@
-// Importador da planilha de ROTAS (colar / CSV / PDF / fotos) — o mesmo
+// Importador da planilha de ROTAS (.xlsx do Meli, CSV ou colar) — o mesmo
 // modal serve a tela de Rotas e a Programação do dia, para as duas
 // importações do dia (rotas + resumo) ficarem lado a lado.
 
 import { useRef, useState, type ChangeEvent } from 'react'
-import { importarRotas, registrarDiagnosticoOcr, useDB } from '../../core/db'
+import { importarRotas, registrarDiagnosticoLeitura, useDB } from '../../core/db'
 import {
-  juntarFotosPorColuna,
-  lerFotoDaPlanilha,
+  juntarPartesPorColuna,
+  lerParteDaPlanilha,
   parsearPlanilhaRotas,
   type ColunaRota,
-  type FotoColuna,
+  type ParteColuna,
   type RotaImportada,
 } from '../../core/planilha'
-import { extrairTextoDeArquivo, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import { xlsxAbaEscolhida } from '../../core/xlsx'
 import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
@@ -36,11 +35,11 @@ export function ImportarRotasModal({
   const db = useDB()
   const [textoColado, setTextoColado] = useState('')
   // Cada arquivo enviado fica guardado SEPARADO: é isso que deixa o app
-  // encaixar fotos tiradas por coluna lado a lado, em vez de empilhar.
+  // encaixar recortes feitos por coluna lado a lado, em vez de empilhar.
   const [pedacos, setPedacos] = useState<{ texto: string; bloco: number }[]>([])
-  const [fotos, setFotos] = useState<FotoColuna[]>([])
-  const [avisosFotos, setAvisosFotos] = useState<string[]>([])
-  // Ligado pelo botão: a PRÓXIMA foto começa um bloco de linhas novo mesmo que
+  const [pecas, setPecas] = useState<ParteColuna[]>([])
+  const [avisosPecas, setAvisosPecas] = useState<string[]>([])
+  // Ligado pelo botão: a PRÓXIMA parte começa um bloco de linhas novo mesmo que
   // as colunas dela não repitam nenhuma das que já vieram.
   const [forcarBlocoNovo, setForcarBlocoNovo] = useState(false)
   // Qual aba foi lida de cada Excel — o arquivo do Meli tem várias.
@@ -60,10 +59,10 @@ export function ImportarRotasModal({
   const [erroArquivo, setErroArquivo] = useState('')
   const arquivoRef = useRef<HTMLInputElement>(null)
 
-  // Os códigos que a operação já usou corrigem a letra que a foto não mostra:
+  // Os códigos que a operação já usou corrigem letra trocada numa colagem:
   // "VI" vira "VJ" quando esta base sempre teve VJ e nunca VI.
   // Cidades e veículos do cadastro entram junto: é com esse vocabulário que o
-  // app identifica de que coluna é cada foto quando o cabeçalho não sai legível.
+  // app identifica de que coluna é cada parte quando o cabeçalho não vem junto.
   const contexto = {
     prefixos: [
       ...new Set(
@@ -82,7 +81,7 @@ export function ImportarRotasModal({
     ].filter(Boolean),
   }
 
-  /** Recompõe a tabela a partir de tudo que já entrou (fotos + texto colado). */
+  /** Recompõe a tabela a partir de tudo que já entrou (arquivos + texto colado). */
   const recalcular = (novosPedacos: { texto: string; bloco: number }[], novoTexto: string) => {
     const ultimo = Math.max(0, ...novosPedacos.map((p) => p.bloco))
     const partes = [
@@ -91,38 +90,38 @@ export function ImportarRotasModal({
     ]
     if (partes.length === 0) {
       setPrevia(null)
-      setFotos([])
-      setAvisosFotos([])
+      setPecas([])
+      setAvisosPecas([])
       return
     }
-    const junto = juntarFotosPorColuna(partes, contexto)
-    setFotos(junto.fotos.slice(0, novosPedacos.length))
-    setAvisosFotos(junto.avisos)
+    const junto = juntarPartesPorColuna(partes, contexto)
+    setPecas(junto.pecas.slice(0, novosPedacos.length))
+    setAvisosPecas(junto.avisos)
     setPrevia(parsearPlanilhaRotas(junto.texto, contexto))
   }
 
   /**
-   * Em que bloco esta foto entra? No bloco que AINDA NÃO TEM nenhuma das
-   * colunas dela — é o que faz uma foto refeita voltar para o lugar de origem,
-   * mesmo chegando por último. Se todos os blocos já têm essas colunas, é
-   * porque a foto é de outras linhas: abre bloco novo.
+   * Em que bloco esta parte entra? No bloco que AINDA NÃO TEM nenhuma das
+   * colunas dela — é o que faz uma parte reenviada voltar para o lugar de
+   * origem, mesmo chegando por último. Se todos os blocos já têm essas
+   * colunas, é porque a parte é de outras linhas: abre bloco novo.
    */
   const blocoPara = (texto: string, atuais: { texto: string; bloco: number }[]): number => {
     const numeros = [...new Set(atuais.map((p) => p.bloco))].sort((a, b) => a - b)
     if (forcarBlocoNovo) return (numeros[numeros.length - 1] ?? 0) + 1
-    const minhas = new Set<ColunaRota>(lerFotoDaPlanilha(texto, contexto).colunas)
+    const minhas = new Set<ColunaRota>(lerParteDaPlanilha(texto, contexto).colunas)
     if (minhas.size === 0) return numeros[numeros.length - 1] ?? 1
     for (const n of numeros) {
       const doBloco = new Set<ColunaRota>()
       for (const p of atuais.filter((x) => x.bloco === n))
-        for (const c of lerFotoDaPlanilha(p.texto, contexto).colunas) doBloco.add(c)
+        for (const c of lerParteDaPlanilha(p.texto, contexto).colunas) doBloco.add(c)
       if (![...minhas].some((c) => doBloco.has(c))) return n
     }
     return (numeros[numeros.length - 1] ?? 0) + 1
   }
 
-  /** O cartão de uma foto: o que ela trouxe e o botão de tirar da montagem. */
-  const LINHA_FOTO = (f: FotoColuna, i: number) => (
+  /** O cartão de uma parte: o que ela trouxe e o botão de tirar da montagem. */
+  const LINHA_PECA = (f: ParteColuna, i: number) => (
     <div
       className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
         f.reconhecida
@@ -130,22 +129,22 @@ export function ImportarRotasModal({
           : 'border-amber-300 bg-amber-50 text-amber-800'
       }`}
     >
-      <span className="font-bold">📸 Foto {i + 1}</span>
+      <span className="font-bold">📄 Parte {i + 1}</span>
       {f.reconhecida ? (
         <span>
           {f.colunas.join(' · ')} — {f.linhas} linha(s)
         </span>
       ) : (
         <span>
-          não reconheci as colunas desta foto — ela entrou como linha solta. Tente de novo, mais de
-          perto.
+          não reconheci as colunas desta parte — ela entrou como linha solta. Confira se veio da
+          aba certa da planilha.
         </span>
       )}
       <button
         className="ml-auto rounded px-1.5 text-slate-500 hover:bg-white hover:text-red-600"
-        title="Tirar esta foto da montagem"
+        title="Tirar esta parte da montagem"
         onClick={() => {
-          // As outras fotos NÃO são renumeradas: cada uma guarda o bloco dela,
+          // As outras partes NÃO são renumeradas: cada uma guarda o bloco dela,
           // então a que for reenviada volta para o lugar certo.
           const restantes = pedacos.filter((_, j) => j !== i)
           setPedacos(restantes)
@@ -171,7 +170,7 @@ export function ImportarRotasModal({
     void (async () => {
       try {
         // Cada arquivo é lido em SEPARADO e guardado como um pedaço próprio:
-        // assim uma foto de duas colunas pode se encaixar ao lado da outra,
+        // assim um recorte com duas colunas pode se encaixar ao lado do outro,
         // em vez de virar mais linhas embaixo.
         const novos: string[] = []
         for (const a of arquivos) {
@@ -185,11 +184,11 @@ export function ImportarRotasModal({
             novos.push(aba.texto)
             continue
           }
-          const lido = await extrairTextoDeArquivo(a, setLendoPdf)
-          registrarDiagnosticoOcr('rotas', lido, {
-            arquivo: a.name,
-            miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
-          })
+          // Sobrou texto puro: .csv, .tsv, .txt. Imagem e PDF saíram — a planilha
+          // do Meli é sempre .xlsx, e ler imagem só trazia letra e número
+          // errados.
+          const lido = await a.text()
+          registrarDiagnosticoLeitura('rotas', lido, { arquivo: a.name })
           novos.push(lido)
         }
         let todos = [...pedacos]
@@ -202,7 +201,7 @@ export function ImportarRotasModal({
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
         setErroArquivo(
-          `Não consegui ler (${detalhe}). O caminho mais certo é enviar a planilha .xlsx ou colar as linhas — foto sempre erra letra e número.`,
+          `Não consegui ler (${detalhe}). Envie a planilha .xlsx do Meli ou cole as linhas direto.`,
         )
       } finally {
         setLendoPdf('')
@@ -222,8 +221,8 @@ export function ImportarRotasModal({
       await importarRotas(rotasFinais, data)
       setTextoColado('')
       setPedacos([])
-      setFotos([])
-      setAvisosFotos([])
+      setPecas([])
+      setAvisosPecas([])
       setForcarBlocoNovo(false)
       setAbasLidas([])
       setManuais([])
@@ -240,26 +239,24 @@ export function ImportarRotasModal({
         📅 As rotas entram no dia <strong>{formatarData(data)}</strong> — e ficam só nele.
       </p>
       <p className="mb-2 text-sm text-slate-600">
-        <strong>Envie a planilha .xlsx</strong> ou <strong>cole as linhas</strong> (Ctrl+C no
-        Excel → Ctrl+V abaixo). Os dois caminhos leem o valor exato de cada célula. Foto e PDF
-        também funcionam, mas passam por reconhecimento de imagem e podem trocar letra por número
-        (I vira 1, G vira 6) — use só quando não tiver o arquivo. Ordem das colunas:
+        <strong>Envie a planilha .xlsx</strong> do Meli ou <strong>cole as linhas</strong>
+        (Ctrl+C no Excel → Ctrl+V abaixo). Os dois caminhos leem o valor exato de cada célula.
+        Ordem das colunas:
       </p>
       <p className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
         Cidade • Rota expedição • Rota original • Base • Veículo • Km • DPS • Ocupação % • Transportadora
       </p>
       <p className="mb-3 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-[11px] leading-relaxed text-slate-800">
-        📸 <strong>Foto por partes:</strong> em vez de afastar para pegar a planilha inteira (e
-        perder nitidez), fotografe <strong>2 ou 3 colunas de cada vez, de perto</strong>, e mande
-        uma foto de cada — o app reconhece as colunas sozinho e encaixa lado a lado. A única regra
-        é <strong>as mesmas linhas, na mesma ordem</strong>, dentro de cada rodada.
+        📄 <strong>Dá para mandar por partes:</strong> se colar só algumas colunas de cada vez, o
+        app reconhece quais são e encaixa lado a lado sozinho. A única regra é{' '}
+        <strong>as mesmas linhas, na mesma ordem</strong>, dentro de cada rodada.
         <br />
-        <strong>Acabou uma parte da planilha?</strong> Role para as próximas linhas e continue
-        mandando fotos: elas viram um <strong>bloco novo</strong> e as rotas{' '}
-        <strong>somam</strong> às anteriores — nada é substituído. O app abre bloco novo sozinho
-        quando uma coluna se repete; se as colunas forem outras, avise no botão{' '}
-        <strong>🧱 Próxima foto é de outras linhas</strong>. Repetir a coluna{' '}
-        <strong>Rota expedição</strong> em cada foto deixa o app conferir o encaixe.
+        <strong>Acabou uma parte da planilha?</strong> Continue mandando as próximas linhas: elas
+        viram um <strong>bloco novo</strong> e as rotas <strong>somam</strong> às anteriores —
+        nada é substituído. O app abre bloco novo sozinho quando uma coluna se repete; se as
+        colunas forem outras, avise no botão{' '}
+        <strong>🧱 Próxima parte é de outras linhas</strong>. Repetir a coluna{' '}
+        <strong>Rota expedição</strong> em cada parte deixa o app conferir o encaixe.
       </p>
       <textarea
         className="h-40 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-marca-texto"
@@ -268,17 +265,17 @@ export function ImportarRotasModal({
         onChange={(e) => atualizarPrevia(e.target.value)}
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <input ref={arquivoRef} type="file" multiple accept=".xlsx,.csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
+        <input ref={arquivoRef} type="file" multiple accept=".xlsx,.csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
         <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-          {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar Excel, CSV, PDF ou foto')}
+          {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar planilha .xlsx ou CSV')}
         </Button>
         {pedacos.length > 0 && (
           <Button
             variante={forcarBlocoNovo ? 'marca' : 'secundario'}
             onClick={() => setForcarBlocoNovo((v) => !v)}
-            title="Marque quando a próxima foto for de OUTRAS linhas da planilha e as colunas dela não repetirem nenhuma das que já vieram"
+            title="Marque quando a próxima parte for de OUTRAS linhas da planilha e as colunas dela não repetirem nenhuma das que já vieram"
           >
-            {forcarBlocoNovo ? '🧱 Próxima foto abre bloco novo ✓' : '🧱 Próxima foto é de outras linhas'}
+            {forcarBlocoNovo ? '🧱 Próxima parte abre bloco novo ✓' : '🧱 Próxima parte é de outras linhas'}
           </Button>
         )}
         {previa && (
@@ -290,8 +287,8 @@ export function ImportarRotasModal({
             <button
               onClick={() => {
                 setPedacos([])
-                setFotos([])
-                setAvisosFotos([])
+                setPecas([])
+                setAvisosPecas([])
                 setForcarBlocoNovo(false)
                 setAbasLidas([])
                 atualizarPrevia('')
@@ -304,11 +301,11 @@ export function ImportarRotasModal({
           </>
         )}
       </div>
-      {fotos.length > 0 && (
+      {pecas.length > 0 && (
         <div className="mt-2 space-y-1">
-          {fotos.map((f, i) => {
-            const abreBloco = f.bloco > 0 && (i === 0 || fotos[i - 1].bloco !== f.bloco)
-            const doBloco = fotos.filter((x) => x.bloco === f.bloco)
+          {pecas.map((f, i) => {
+            const abreBloco = f.bloco > 0 && (i === 0 || pecas[i - 1].bloco !== f.bloco)
+            const doBloco = pecas.filter((x) => x.bloco === f.bloco)
             return (
               <div key={i}>
                 {abreBloco && (
@@ -316,17 +313,17 @@ export function ImportarRotasModal({
                     🧱 Bloco {f.bloco} · {Math.max(...doBloco.map((x) => x.linhas))} rota(s)
                   </p>
                 )}
-                {LINHA_FOTO(f, i)}
+                {LINHA_PECA(f, i)}
               </div>
             )
           })}
         </div>
       )}
-      {avisosFotos.length > 0 && (
+      {avisosPecas.length > 0 && (
         <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
-          <p className="text-xs font-bold text-amber-900">⚠️ Sobre o encaixe das fotos:</p>
+          <p className="text-xs font-bold text-amber-900">⚠️ Sobre o encaixe das partes:</p>
           <ul className="mt-1 list-inside list-disc text-xs text-amber-800">
-            {avisosFotos.map((a) => (
+            {avisosPecas.map((a) => (
               <li key={a}>{a}</li>
             ))}
           </ul>
@@ -386,7 +383,7 @@ export function ImportarRotasModal({
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
           <span className="text-xs text-amber-900">
             ➕ <strong>{manuais.length} linha(s)</strong> vão entrar <strong>sem código de rota</strong>,
-            com o resto dos dados que a foto trouxe. Elas aparecem em destaque na tela de{' '}
+            com o resto dos dados que a planilha trouxe. Elas aparecem em destaque na tela de{' '}
             <strong>Rotas</strong>, onde você completa o código e o que mais precisar.
           </span>
           <button

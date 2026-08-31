@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   aplicarModeloResumo,
   importarProgramacao,
-  registrarDiagnosticoOcr,
+  registrarDiagnosticoLeitura,
   removerProgramacaoItem,
   salvarProgramacaoItem,
   useDB,
@@ -15,7 +15,6 @@ import {
   type ModeloResumo,
   type ProgramacaoImportada,
 } from '../../core/planilha'
-import { extrairTextoDeArquivos, obterUltimaMiniaturaOcr } from '../../core/pdf'
 import {
   aderenciaHistorica,
   parametrosAtuais,
@@ -144,17 +143,21 @@ export function Programacao() {
     setLendoPdf('⏳ Lendo…')
     void (async () => {
       try {
-        const texto = await extrairTextoDeArquivos(arquivos, setLendoPdf)
-        registrarDiagnosticoOcr('programacao-meli', texto, {
+        const partes: string[] = []
+        for (const a of arquivos) {
+          setLendoPdf(`⏳ Lendo ${a.name}…`)
+          partes.push(await a.text())
+        }
+        const texto = partes.join('\n')
+        registrarDiagnosticoLeitura('programacao-meli', texto, {
           arquivo: arquivos.map((a) => a.name).join(', '),
-          miniatura: obterUltimaMiniaturaOcr().slice(0, 700000),
         })
-        // As leituras se SOMAM: enviar outra foto acrescenta as linhas dela.
+        // As leituras se SOMAM: enviar outro arquivo acrescenta as linhas dele.
         const anterior = textoColado.trim() ? textoColado.replace(/\s+$/, '') + '\n' : ''
         atualizarPrevia(anterior + texto)
       } catch (err) {
         const detalhe = err instanceof Error ? err.message : String(err)
-        setErroArquivo(`Não consegui ler (${detalhe}). Tente uma foto/PDF mais nítido, cole os dados ou use CSV.`)
+        setErroArquivo(`Não consegui ler (${detalhe}). Cole os dados ou envie um CSV.`)
       } finally {
         setLendoPdf('')
       }
@@ -634,9 +637,9 @@ export function Programacao() {
           onChange={(e) => atualizarPrevia(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv,.pdf,image/*" onChange={lerArquivo} className="hidden" />
+          <input ref={arquivoRef} type="file" multiple accept=".csv,.txt,.tsv" onChange={lerArquivo} className="hidden" />
           <Button variante="secundario" onClick={() => arquivoRef.current?.click()} disabled={!!lendoPdf}>
-            {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar CSV, PDF ou foto')}
+            {lendoPdf || (previa ? '📄 Enviar MAIS um arquivo (soma às linhas)' : '📄 Enviar CSV ou TXT')}
           </Button>
           {previa && (
             <>

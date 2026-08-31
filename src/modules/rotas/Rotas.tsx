@@ -344,7 +344,7 @@ export function Rotas() {
           <EmptyState
             icone="🛣️"
             titulo="Nenhuma rota cadastrada"
-            descricao="A roteirização do dia entra pelo planejamento: na Programação, use 🛣️ Importar rotas (planilha, PDF ou fotos) junto com o resumo do dia."
+            descricao="A roteirização do dia entra pelo planejamento: na Programação, use 🛣️ Importar rotas (planilha .xlsx ou colar) junto com o resumo do dia."
           />
           <div className="text-center">
             <Link to="/programacao">
@@ -378,7 +378,7 @@ export function Rotas() {
                     {r.rotaExpedicao.trim() ? (
                       r.rotaExpedicao
                     ) : (
-                      // Rota que entrou pela importação sem código (a foto não
+                      // Rota que entrou pela importação sem código (a planilha não
                       // trouxe a coluna). Sem ele não dá para direcionar nem
                       // reimportar sem duplicar, então ela pede para ser aberta.
                       <button
