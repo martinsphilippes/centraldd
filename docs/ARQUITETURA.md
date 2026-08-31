@@ -2,8 +2,8 @@
 
 Sistema de gestão da disponibilidade diária de motoristas que realizam coletas, entregas e
 transporte de encomendas do **Mercado Livre** 📦. Substitui as enquetes de WhatsApp por um
-fluxo profissional: o motorista responde em segundos, o coordenador acompanha em tempo real
-e monta a escala com poucos cliques.
+fluxo profissional: o motorista responde em segundos, o Dispatcher acompanha em tempo real
+e monta a planejamento com poucos cliques.
 
 ---
 
@@ -13,7 +13,7 @@ e monta a escala com poucos cliques.
 ┌─────────────────────────────────────────────────────────────┐
 │                        UI (React + TS)                       │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ ┌──────┐ │
-│  │Dashboard │ │ Chamadas │ │Motoristas│ │Escalas │ │Relat.│ │
+│  │Dashboard │ │ Chamadas │ │Motoristas│ │Planej. │ │Relat.│ │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └───┬────┘ └──┬───┘ │
 │       └────────────┴─────┬──────┴───────────┴─────────┘     │
 │                          ▼                                   │
@@ -41,9 +41,9 @@ e monta a escala com poucos cliques.
 ```
 Motorista 1 ──── N Resposta N ──── 1 Chamada
     │                                   │
-    └──────── N EscalaMotorista N ──────┘
+    └──────── N PlanejamentoMotorista N ──────┘
                      │
-                  Escala
+                  Planejamento
 ```
 
 ### Motorista
@@ -97,14 +97,14 @@ Motorista 1 ──── N Resposta N ──── 1 Chamada
 | ferias         | ✈️    | não                    |
 | outro          | 📝    | não (com observação)   |
 
-### Escala
+### Planejamento
 | Campo        | Tipo     | Descrição                                  |
 |--------------|----------|--------------------------------------------|
 | id           | string   | identificador                              |
 | chamadaId    | string   | chamada de origem                          |
-| nome         | string   | ex.: "Escala Entregas 13/08"               |
+| nome         | string   | ex.: "Planejamento Entregas 13/08"               |
 | data         | ISO      | dia da operação                            |
-| motoristaIds | string[] | motoristas escalados                       |
+| motoristaIds | string[] | motoristas escolhidos                       |
 | status       | enum     | `rascunho` \| `publicada` \| `concluida`   |
 | criadaEm     | ISO      | criação                                    |
 
@@ -120,8 +120,8 @@ create table chamadas (id uuid pk, titulo text, data date, operacao text,
 create table respostas (id uuid pk, chamada_id uuid fk, motorista_id uuid fk,
   status text, horario time, periodo text, observacao text, respondida_em timestamptz,
   unique (chamada_id, motorista_id));
-create table escalas (id uuid pk, chamada_id uuid fk, nome text, data date, status text, criada_em timestamptz);
-create table escala_motoristas (escala_id uuid fk, motorista_id uuid fk, primary key (escala_id, motorista_id));
+create table planejamentos (id uuid pk, chamada_id uuid fk, nome text, data date, status text, criada_em timestamptz);
+create table planejamento_motoristas (planejamento_id uuid fk, motorista_id uuid fk, primary key (planejamento_id, motorista_id));
 ```
 
 Preparado para multi-tenant: basta acrescentar `transportadora_id` e `centro_distribuicao_id`
@@ -129,14 +129,14 @@ Preparado para multi-tenant: basta acrescentar `transportadora_id` e `centro_dis
 
 ## 3. Perfis e permissões
 
-| Ação                                | Coordenador | Motorista |
+| Ação                                | Dispatcher | Motorista |
 |-------------------------------------|:-----------:|:---------:|
 | Ver dashboard completo              | ✅          | —         |
 | Criar/encerrar chamadas             | ✅          | —         |
 | Ver quem respondeu / cobrar pendentes| ✅         | —         |
 | Responder disponibilidade           | —           | ✅        |
-| Ver próprias escalas                | ✅          | ✅        |
-| Montar/publicar escalas             | ✅          | —         |
+| Ver próprias planejamentos                | ✅          | ✅        |
+| Montar/publicar planejamentos             | ✅          | —         |
 | Cadastro de motoristas              | ✅          | —         |
 | Relatórios e exportação             | ✅          | —         |
 
@@ -146,20 +146,20 @@ está separada por perfil, então nada muda nas telas.
 
 ## 4. Fluxos principais
 
-**Fluxo do coordenador**
+**Fluxo do Dispatcher**
 1. Cria a chamada (data, operação, horário, quantidade necessária) → status `aberta`.
 2. Acompanha em tempo real: respondidos × pendentes, disponíveis × indisponíveis,
    filtros por cidade, equipe, horário e operação.
 3. Cobra pendentes (WhatsApp/ligação/notificação) direto da lista.
-4. Monta a escala com poucos cliques (sugestão automática: disponíveis primeiro,
+4. Monta a planejamento com poucos cliques (sugestão automática: disponíveis primeiro,
    ordenados por melhor histórico de disponibilidade).
-5. Publica a escala e envia mensagem em massa aos escalados via WhatsApp.
+5. Publica a planejamento e envia mensagem em massa aos escolhidos via WhatsApp.
 
 **Fluxo do motorista**
 1. Abre o app → vê as chamadas abertas do dia/semana.
 2. Toca em um dos 8 status (com horário/observação quando aplicável). Pronto.
 3. Pode alterar a resposta enquanto a chamada estiver aberta.
-4. Vê as escalas em que foi escalado.
+4. Vê as planejamentos em que foi escolhido.
 
 ## 5. Navegação e telas
 
@@ -167,13 +167,13 @@ está separada por perfil, então nada muda nas telas.
 /                     Dashboard (indicadores + gráficos + atalhos)
 /chamadas             Lista de chamadas (abertas/encerradas)
 /chamadas/nova        Criar chamada
-/chamadas/:id         Painel da chamada (tempo real, filtros, cobrança, montar escala)
+/chamadas/:id         Painel da chamada (tempo real, filtros, cobrança, montar planejamento)
 /responder            Visão do motorista: responder chamadas abertas
 /motoristas           Frota (busca, filtros, contato rápido)
 /motoristas/novo      Cadastro
 /motoristas/:id       Perfil + histórico individual de disponibilidade
-/escalas              Lista de escalas
-/escalas/:id          Detalhe (escalados, contato, mensagem em massa, exportar)
+/planejamentos              Lista de planejamentos
+/planejamentos/:id          Detalhe (escolhidos, contato, mensagem em massa, exportar)
 /relatorios           Relatórios (dia/semana/mês, rankings, taxa de resposta, exportações)
 ```
 
@@ -194,7 +194,7 @@ Mercado Livre (amarelo `#FFE600`, azul `#3483FA`), denso em informação e rápi
 - **Ligação**: `tel:+55<numero>`
 - **Notificação**: central de notificações in-app (persistida no store); estruturada para
   virar push (FCM/APNs) na versão mobile.
-- **Mensagem em massa**: gera a mensagem da escala e abre o WhatsApp por motorista
+- **Mensagem em massa**: gera a mensagem da planejamento e abre o WhatsApp por motorista
   (fila de envio), ou copia a lista formatada para colar no grupo.
 
 ## 8. Relatórios
@@ -204,7 +204,7 @@ Agregações calculadas na camada de domínio (`core/stats.ts`):
 - taxa de resposta por chamada e por motorista;
 - ranking de mais disponíveis e de maior indisponibilidade;
 - histórico individual (linha do tempo por motorista);
-- escalas realizadas;
+- planejamentos realizadas;
 - exportação **CSV**, **Excel** e **PDF** (impressão formatada) sem dependências externas.
 
 ## 9. Expansões futuras (já estruturado para)
@@ -218,14 +218,14 @@ Agregações calculadas na camada de domínio (`core/stats.ts`):
 | Controle de veículos            | entidade `Veiculo` (campo `veiculo` já existe no motorista)         |
 | Painel web + apps Android/iOS   | domínio/da­dos em TS puro, portável para React Native/Capacitor      |
 | Push notifications              | central de notificações já persistida; trocar transporte             |
-| Escala inteligente              | `sugerirEscala()` já ordena por disponibilidade + histórico; evoluir para score |
+| Planejamento inteligente              | `sugerirPlanejamento()` já ordena por disponibilidade + histórico; evoluir para score |
 
 ## 10. Roadmap de implementação (por módulos)
 
 1. **Fundação**: scaffold, tema, tipos, store reativo, seed de demonstração.
 2. **Motoristas**: CRUD, busca, filtros, contato rápido, histórico.
 3. **Chamadas**: criação, painel em tempo real, resposta do motorista em um toque.
-4. **Escalas**: montagem assistida, publicação, comunicação em massa.
+4. **Planejamentos**: montagem assistida, publicação, comunicação em massa.
 5. **Dashboard + Relatórios**: indicadores, gráficos, rankings, exportações.
 
 Cada etapa deixa o aplicativo **funcional de ponta a ponta**.

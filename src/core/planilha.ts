@@ -1120,7 +1120,7 @@ export function parsearPlanilhaRotas(
     }
   }
 
-  // Número fora de escala dentro do mesmo prefixo (VJ1…VJ13 e de repente um
+  // Número fora da faixa esperada dentro do mesmo prefixo (VJ1…VJ13 e de repente um
   // VJ114): quase sempre é dígito duplicado pela foto. Avisa, não adivinha.
   const porPrefixo = new Map<string, number[]>()
   for (const r of validas) {

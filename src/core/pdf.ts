@@ -17,7 +17,7 @@ const TOLERANCIA_LINHA = 3
 /** Espaço horizontal mínimo para considerar que começou outra coluna. */
 const ESPACO_COLUNA = 6
 /** Planejamento de renderização das páginas para o OCR (maior = mais nítido). */
-const ESCALA_OCR = 2.5
+const ZOOM_OCR = 2.5
 
 async function carregarPdfjs() {
   const pdfjs = await import('pdfjs-dist')
@@ -728,7 +728,7 @@ async function extrairComOcr(
         getViewport: (o: { scale: number }) => { width: number; height: number }
         render: (o: unknown) => { promise: Promise<void> }
       }
-      const viewport = pagina.getViewport({ scale: ESCALA_OCR })
+      const viewport = pagina.getViewport({ scale: ZOOM_OCR })
       const canvas = document.createElement('canvas')
       canvas.width = Math.ceil(viewport.width)
       canvas.height = Math.ceil(viewport.height)

@@ -70,7 +70,7 @@ export function MotoristaDetail() {
         <StatCard icone="💬" valor={`${Math.round((estat?.taxaResposta ?? 0) * 100)}%`} rotulo="Taxa de resposta" />
         <StatCard icone="✅" valor={`${Math.round((estat?.taxaDisponibilidade ?? 0) * 100)}%`} rotulo="Disponibilidade" />
         <StatCard icone="🗓️" valor={estat?.respondidas ?? 0} rotulo="Chamadas respondidas" />
-        <StatCard icone="📋" valor={planejamento.length} rotulo="Escalas participadas" />
+        <StatCard icone="📋" valor={planejamento.length} rotulo="Planejamento participados" />
       </div>
 
       {disponibilidadeFutura.length > 0 && (
