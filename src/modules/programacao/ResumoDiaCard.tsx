@@ -9,7 +9,6 @@ import {
   uid,
   useDB,
 } from '../../core/db'
-import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { OPERACOES, STATUS_DISPONIVEIS } from '../../core/constants'
 import { respostasDaChamada } from '../../core/stats'
 import { formatarData, formatarDataLonga, hojeISO, rotuloDia } from '../../core/dates'
@@ -55,9 +54,6 @@ export function ResumoDiaCard({
   const [editando, setEditando] = useState(false)
   const existente = db.resumos.find((r) => r.id === data)
 
-  // Importação das ROTAS do dia (o mesmo importador da tela de Rotas). É a
-  // única importação da Programação: o resumo sai dela.
-  const [modalRotas, setModalRotas] = useState(false)
   const [avisoAplicado, setAvisoAplicado] = useState('')
 
   // Base sugerida a partir da programação (primeira que aparecer) — só como padrão.
@@ -482,11 +478,6 @@ export function ResumoDiaCard({
           )}
         </h2>
         <div className="flex flex-wrap gap-2">
-          {/* Importar rotas é a PRIMEIRA opção: é dela que sai o resumo do
-              dia inteiro — o modelo deixou de ser importado à parte. */}
-          <Button variante="marca" onClick={() => setModalRotas(true)}>
-            🛣️ Importar rotas
-          </Button>
           <Button variante="secundario" onClick={imprimir}>🖨️ Imprimir / PDF</Button>
           {existente && (
             <Button
@@ -516,9 +507,9 @@ export function ResumoDiaCard({
       )}
       {!existente && !avisoAplicado && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Ainda não há resumo para {formatarData(data)}. Toque em <strong>🛣️ Importar rotas</strong> —
-          o card se preenche sozinho com o que a planilha traz. Pacotes, SPR e MM entram em{' '}
-          <strong>Preencher</strong>.
+          Ainda não há resumo para {formatarData(data)}. Use <strong>🛣️ Importar rotas</strong>, lá
+          em cima na Esteira do dia — o card se preenche sozinho com o que a planilha traz.
+          Pacotes, SPR e MM entram em <strong>Preencher</strong>.
         </p>
       )}
 
@@ -627,9 +618,6 @@ export function ResumoDiaCard({
           </Button>
         )}
       </div>
-
-      {/* Importar as rotas do dia (mesmo importador da tela de Rotas) */}
-      <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} data={data} />
 
     </Card>
   )

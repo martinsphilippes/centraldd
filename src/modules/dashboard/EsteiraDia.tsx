@@ -10,11 +10,13 @@
 // ordem (dá para programar antes e deixar a frota responder depois: a resposta
 // da chamada preenche a disponibilidade do dia sozinha).
 
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { useDB } from '../../core/db'
 import { formatarData } from '../../core/dates'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
-import { Card } from '../../components/ui'
+import { Button, Card } from '../../components/ui'
 
 interface Etapa {
   icone: string
@@ -25,17 +27,24 @@ interface Etapa {
   acao: string
 }
 
-function CartaoEtapa({ etapa, atual }: { etapa: Etapa; atual: boolean }) {
+function CartaoEtapa({
+  etapa,
+  atual,
+  aoTocar,
+}: {
+  etapa: Etapa
+  atual: boolean
+  /** Quando existe, o cartão ABRE algo aqui mesmo em vez de navegar. */
+  aoTocar?: () => void
+}) {
   const tom = etapa.feita
     ? 'border-emerald-300 bg-emerald-50'
     : atual
       ? 'border-marca bg-marca-suave'
       : 'border-slate-200 bg-white'
-  return (
-    <Link
-      to={etapa.para}
-      className={`flex min-w-36 flex-1 flex-col gap-0.5 rounded-xl border-2 p-2.5 transition-shadow hover:shadow-md ${tom}`}
-    >
+  const classe = `flex min-w-36 flex-1 flex-col gap-0.5 rounded-xl border-2 p-2.5 text-left transition-shadow hover:shadow-md ${tom}`
+  const miolo = (
+    <>
       <span className="text-xs font-bold text-slate-800">
         {etapa.feita ? '✅' : etapa.icone} {etapa.titulo}
       </span>
@@ -43,6 +52,17 @@ function CartaoEtapa({ etapa, atual }: { etapa: Etapa; atual: boolean }) {
       <span className={`mt-auto text-[11px] font-bold ${atual ? 'text-amber-700' : 'text-marca-texto'}`}>
         {etapa.acao} →
       </span>
+    </>
+  )
+  // Sem rotas carregadas, o cartão levava para /programacao — que é onde o
+  // Dispatcher já está. O toque não fazia nada; agora abre o importador.
+  return aoTocar ? (
+    <button type="button" onClick={aoTocar} className={classe}>
+      {miolo}
+    </button>
+  ) : (
+    <Link to={etapa.para} className={classe}>
+      {miolo}
     </Link>
   )
 }
@@ -57,6 +77,7 @@ export function EsteiraDia({
   aoMudarData?: (d: string) => void
 }) {
   const db = useDB()
+  const [modalRotas, setModalRotas] = useState(false)
 
   const disponibilidadeMarcada = db.disponibilidade.filter(
     (a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status),
@@ -151,7 +172,14 @@ export function EsteiraDia({
   return (
     <Card className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold text-slate-900">🧭 Esteira do dia</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-bold text-slate-900">🧭 Esteira do dia</h2>
+          {/* A importação abre a esteira: fica junto do título, e não lá
+              embaixo no card do resumo, porque é o primeiro toque do dia. */}
+          <Button variante="marca" onClick={() => setModalRotas(true)}>
+            🛣️ Importar rotas
+          </Button>
+        </div>
         <input
           type="date"
           value={data}
@@ -167,7 +195,11 @@ export function EsteiraDia({
           </p>
           {/* Rotas primeiro: é a importação que carrega o dia — dela saem o
               total de rotas e o resumo, que definem a meta da chamada. */}
-          <CartaoEtapa etapa={carregarRotas} atual={!rotasCarregadas} />
+          <CartaoEtapa
+            etapa={carregarRotas}
+            atual={!rotasCarregadas}
+            aoTocar={rotasCarregadas ? undefined : () => setModalRotas(true)}
+          />
           <CartaoEtapa etapa={disponibilidade} atual={!partiu} />
           <CartaoEtapa etapa={programacao} atual={!partiu} />
         </div>
@@ -178,6 +210,8 @@ export function EsteiraDia({
         <Seta />
         <CartaoEtapa etapa={etapaDirecionamento} atual={atualDirecionamento} />
       </div>
+      <ImportarRotasModal aberto={modalRotas} onFechar={() => setModalRotas(false)} data={data} />
+
       <p className="mt-2 text-center text-[11px] text-slate-400">
         A partida precisa das rotas carregadas: o resumo define a meta da chamada, a resposta
         preenche a disponibilidade e a planejamento conduz o direcionamento — {formatarData(data)}.
