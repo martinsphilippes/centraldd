@@ -6,6 +6,8 @@
 // escolhe sozinha a coluna que mais parece conter códigos — com a opção de o
 // usuário trocar a coluna na tela, se a escolha automática errar.
 
+import type { Conferencia } from './types'
+
 /** Uma coluna candidata a conter as numerações. */
 export interface ColunaLida {
   indice: number
@@ -199,5 +201,40 @@ export function compararConferencia(esperados: string[], enviados: string[]): Re
     sobrando,
     conferidos: esperados.length - faltando.length,
     total: esperados.length,
+  }
+}
+
+/**
+ * Quantas PARADAS (PD) a rota tem, e quantas são ponto comercial.
+ *
+ * Parada não é pacote: várias encomendas caem no mesmo PD quando vão para o
+ * mesmo endereço. Quem dirige quer saber em quantos lugares vai ter que
+ * ENCOSTAR — é esse número que dimensiona o dia, não a contagem de caixas.
+ *
+ * Comercial pesa diferente: tem hora para abrir e para fechar. Saber quantos
+ * são muda a ordem em que o motorista monta o próprio roteiro.
+ */
+export function contarParadas(c: Conferencia): {
+  total: number
+  comerciais: number
+  naoComerciais: number
+  /** false = o documento não trouxe a marcação de comércio; não dá para separar. */
+  temInfoComercial: boolean
+} {
+  const paradas = new Map<string, boolean>()
+  let algumMarcado = false
+  for (const p of c.pacotes ?? []) {
+    const etiqueta = (p.etiqueta ?? '').trim()
+    if (!etiqueta) continue
+    if (p.comercial != null) algumMarcado = true
+    // Uma parada é comercial se QUALQUER pacote dela estiver marcado assim.
+    paradas.set(etiqueta, (paradas.get(etiqueta) ?? false) || p.comercial === true)
+  }
+  const comerciais = [...paradas.values()].filter(Boolean).length
+  return {
+    total: paradas.size,
+    comerciais,
+    naoComerciais: paradas.size - comerciais,
+    temInfoComercial: algumMarcado,
   }
 }

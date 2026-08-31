@@ -6,6 +6,7 @@ import { removerConferencia, salvarConferencia, uid, useDB } from '../../core/db
 import { compararConferencia } from '../../core/conferencia'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { Conferencia as Conf } from '../../core/types'
+import { ParadasDetalhadas, SeloParadas } from '../../components/SeloParadas'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 import { normalizarTexto } from '../../core/texto'
 import type { RotaMeliLida } from '../../core/meli-rota'
@@ -197,6 +198,7 @@ export function Conferencia() {
                   <span className="text-xs text-slate-400">📅 {rotuloDia(c.data)}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
+                  <SeloParadas c={c} />
                   {c.ocultaMotorista && aberta === c.id && (
                     <Badge className="border-slate-200 bg-slate-100 text-slate-500">
                       🧹 limpa pelo motorista
@@ -209,6 +211,7 @@ export function Conferencia() {
               {aberta === c.id && (
                 <>
                   <div className="mt-2 space-y-2">
+                    <ParadasDetalhadas c={c} />
                     <ResultadoConferencia c={c} />
                     <CarimbosConferencia c={c} />
                   </div>
