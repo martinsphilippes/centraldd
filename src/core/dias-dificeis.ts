@@ -81,19 +81,24 @@ const FIXOS = [
 const cachePorAno = new Map<number, Set<string>>()
 
 /**
- * Feriados nacionais do ano — sem cadastro nenhum, porque feriado nacional é
- * regra e não escolha da operação.
+ * Feriados do ano — sem cadastro nenhum, porque feriado é regra e não escolha
+ * da operação.
  *
- * Entram os fixos em lei e a Sexta-feira Santa, que é móvel. Carnaval e Corpus
- * Christi ficam de FORA de propósito: não são feriado nacional, são ponto
- * facultativo. E não faz falta — quando a operação sente esses dias, a regra
- * do "faltou gente" já os marca como difíceis sozinha.
+ * Entram os nove fixos em lei, a Sexta-feira Santa e o Carnaval (segunda e
+ * terça). O Carnaval não é feriado nacional na lei, é ponto facultativo — mas
+ * entra porque a entrega para, e o dono pediu que contasse.
+ *
+ * Quarta-feira de Cinzas fica de fora: costuma ser meio expediente, e quando
+ * pesa de verdade a regra do "faltou gente" a marca sozinha.
  */
 export function feriadosNacionais(ano: number): Set<string> {
   const emCache = cachePorAno.get(ano)
   if (emCache) return emCache
+  const pascoa = domingoDePascoa(ano)
   const datas = new Set(FIXOS.map((md) => `${ano}-${md}`))
-  datas.add(iso(somarDias(domingoDePascoa(ano), -2))) // Sexta-feira Santa
+  datas.add(iso(somarDias(pascoa, -2))) // Sexta-feira Santa
+  datas.add(iso(somarDias(pascoa, -48))) // segunda de Carnaval
+  datas.add(iso(somarDias(pascoa, -47))) // terça de Carnaval
   cachePorAno.set(ano, datas)
   return datas
 }

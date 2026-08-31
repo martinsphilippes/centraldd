@@ -104,7 +104,7 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
             titulo="🙏 Crédito de quem segurou um dia difícil"
             explicacao={
               p.limiarRotasPrioridadeDomingo > 0
-                ? `Ficou DISPONÍVEL num dia difícil (domingo, feriado nacional ou dia em que faltou gente) e NÃO rodou? Sai com um crédito de ${p.pesoPrioridadeDomingo} ponto(s) e passa na frente no próximo dia FRACO — com menos de ${p.limiarRotasPrioridadeDomingo} rota(s). Ao rodar num dia fraco, o crédito é GASTO e a pessoa volta para o fim da fila: é isso que faz o segundo dia fraco da semana cair para quem já rodou no domingo. O crédito vale por uma semana.`
+                ? `Ficou DISPONÍVEL num dia difícil (domingo, feriado, Carnaval ou dia em que faltou gente) e NÃO rodou? Sai com um crédito de ${p.pesoPrioridadeDomingo} ponto(s) e passa na frente no próximo dia FRACO — com menos de ${p.limiarRotasPrioridadeDomingo} rota(s). Ao rodar num dia fraco, o crédito é GASTO e a pessoa volta para o fim da fila: é isso que faz o segundo dia fraco da semana cair para quem já rodou no domingo. O crédito vale por uma semana.`
                 : 'Paga quem ficou disponível num dia difícil e não pegou rota: ele fura a fila no próximo dia fraco, e o crédito se gasta ao ser usado. Preencha o limiar de rotas para ligar — 0 deixa desligado.'
             }
           >
@@ -123,7 +123,7 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
             titulo="🤝 Fidelidade (frequência no período)"
             explicacao={
               p.pesoFidelidade > 0
-                ? `Com que frequência a pessoa esteve disponível nos últimos ${p.janelaFidelidadeDias} dias, contando DIA DIFÍCIL EM DOBRO (domingo, feriado nacional ou dia em que faltou gente). Quem esteve em tudo leva os ${p.pesoFidelidade} ponto(s) inteiros; quem apareceu na metade leva metade. Diferente do crédito, vale em QUALQUER dia — é o que impede quem só aparece em dia bom de tomar a vaga de quem está sempre.`
+                ? `Com que frequência a pessoa esteve disponível nos últimos ${p.janelaFidelidadeDias} dias, contando DIA DIFÍCIL EM DOBRO (domingo, feriado, Carnaval ou dia em que faltou gente). Quem esteve em tudo leva os ${p.pesoFidelidade} ponto(s) inteiros; quem apareceu na metade leva metade. Diferente do crédito, vale em QUALQUER dia — é o que impede quem só aparece em dia bom de tomar a vaga de quem está sempre.`
                 : 'Premia quem aparece com constância, e não só quando o dia é bom. Conta a frequência de disponibilidade na janela, com dia difícil valendo em dobro. Peso 0 deixa desligada.'
             }
           >
