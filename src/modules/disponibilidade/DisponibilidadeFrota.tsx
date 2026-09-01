@@ -196,17 +196,32 @@ export function DisponibilidadeFrota() {
     }
   }
 
+  /*
+   * O NOME em linha própria, e selos e botões embaixo.
+   *
+   * Antes tudo dividia a mesma linha, e o nome — que era o único com
+   * `truncate` — encolhia até sumir quando havia selo e botão do lado. Numa
+   * coluna estreita sobrava só a bolinha das iniciais, que não identifica
+   * ninguém. Agora o nome tem a largura do cartão e quebra em duas linhas se
+   * precisar; quem cede espaço são os botões, que são curtos e repetidos.
+   */
   const LinhaMotorista = ({ m, a }: { m: Motorista; a?: DiaDisponibilidade }) => (
-    <li className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2.5">
-      <Avatar nome={m.nome} tamanho="sm" />
-      <div className="min-w-0 flex-1">
-        <Link to={`/motoristas/${m.id}`} className="block truncate text-sm font-semibold text-slate-800 hover:text-marca-texto">
-          {m.nome}
-        </Link>
-        <p className="truncate text-[11px] text-slate-500">
-          {m.cidade} • {m.veiculo}
-        </p>
+    <li className="rounded-lg border border-slate-200 p-2.5">
+      <div className="flex items-start gap-2">
+        <Avatar nome={m.nome} tamanho="sm" />
+        <div className="min-w-0 flex-1">
+          <Link
+            to={`/motoristas/${m.id}`}
+            className="block break-words text-[13px] font-semibold leading-tight text-slate-800 hover:text-marca-texto"
+          >
+            {m.nome}
+          </Link>
+          <p className="break-words text-[11px] leading-tight text-slate-500">
+            {m.cidade} • {m.veiculo}
+          </p>
+        </div>
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {concluidosDoDia.has(m.id) ? (
         <Badge className="border-emerald-200 bg-emerald-100 text-emerald-800">🏁 dia encerrado</Badge>
       ) : (
@@ -231,7 +246,7 @@ export function DisponibilidadeFrota() {
           )}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
           title="Cobrar pelo WhatsApp"
         >
           💬 Cobrar
@@ -253,7 +268,7 @@ export function DisponibilidadeFrota() {
                   status: 'disponivel',
                 })
               }
-              className="rounded-lg border border-marca bg-marca-suave px-2.5 py-1.5 text-xs font-bold text-marca-texto hover:bg-orange-100"
+              className="rounded-lg border border-marca bg-marca-suave px-2 py-1 text-[11px] font-bold text-marca-texto hover:bg-orange-100"
               title={`Marcar ${m.nome} como DISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
             >
               ⚡ Disponível
@@ -268,7 +283,7 @@ export function DisponibilidadeFrota() {
                   status: 'indisponivel',
                 })
               }
-              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+              className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100"
               title={`Marcar ${m.nome} como INDISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
             >
               ❌ Indisponível
@@ -277,7 +292,7 @@ export function DisponibilidadeFrota() {
           {a && (
             <button
               onClick={() => removerDiaDisponibilidade(`${m.id}_${diaSelecionado}`)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-50"
               title={`Apagar a marcação de ${m.nome} — volta para "não informou"`}
             >
               ↩️
@@ -285,10 +300,11 @@ export function DisponibilidadeFrota() {
           )}
         </span>
       )}
+      </div>
       {a && (
-        <span className="basis-full rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
+        <p className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
           🕒 Marcou <strong className="text-slate-800">{formatarQuandoCurto(a.atualizadaEm)}</strong>
-        </span>
+        </p>
       )}
     </li>
   )
@@ -578,7 +594,11 @@ export function DisponibilidadeFrota() {
       </div>
 
       {/* Listas do dia */}
-      <div className={`grid gap-4 ${filaEspera.length > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+      <div
+        className={`grid gap-4 sm:grid-cols-2 ${
+          filaEspera.length > 0 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'
+        }`}
+      >
         <Card className="p-4">
           <h2 className="mb-3 font-bold text-emerald-700">✅ Disponíveis ({disponiveisSelecionados.length})</h2>
           {disponiveisSelecionados.length === 0 ? (
