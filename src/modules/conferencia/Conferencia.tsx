@@ -68,6 +68,8 @@ export function Conferencia() {
   const [esperados, setEsperados] = useState<string[]>([])
   const [arquivo, setArquivo] = useState('')
   const [rotaMeli, setRotaMeli] = useState<RotaMeliLida | null>(null)
+  // Os campos manuais ficam escondidos quando o arquivo já respondeu tudo.
+  const [ajustando, setAjustando] = useState(false)
 
   const motoristas = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
@@ -131,19 +133,48 @@ export function Conferencia() {
     setEsperados([])
     setArquivo('')
     setRotaMeli(null)
+    setAjustando(false)
     setNovo(true)
   }
 
   /**
-   * Página do Meli lida: preenche o que der sozinho — o título vira o nome da
-   * rota e, se o motorista do documento estiver no cadastro (mesmo nome, sem
-   * acento), ele já fica selecionado.
+   * A rota do dia cujo código bate com o do documento. O mesmo código volta em
+   * dias diferentes, então a mais RECENTE ganha — é a que está sendo carregada.
+   */
+  const acharRotaPeloCodigo = (codigo: string) => {
+    const alvo = (codigo ?? '').trim().toUpperCase()
+    if (!alvo) return undefined
+    return db.rotas
+      .filter(
+        (r) =>
+          r.rotaExpedicao.trim().toUpperCase() === alvo ||
+          r.rotaOriginal.trim().toUpperCase() === alvo,
+      )
+      .sort((a, b) => b.data.localeCompare(a.data))[0]
+  }
+
+  /**
+   * Página do Meli lida: o documento JÁ DIZ de quem é a carga.
+   *
+   * Ele traz o código da rota, e a rota importada traz o motorista direcionado
+   * e o dia. Perguntar o nome de novo era pedir ao Dispatcher que repetisse
+   * uma informação que o arquivo tinha — e abria espaço para escolher a pessoa
+   * errada numa lista de dezenas de nomes parecidos.
+   *
+   * O nome escrito no documento é a segunda opção, para a rota que ainda não
+   * tem motorista direcionado.
    */
   const aplicarRotaMeli = (rota: RotaMeliLida | undefined) => {
     setRotaMeli(rota ?? null)
     if (!rota) return
     if (rota.rota) setTitulo((t) => t.trim() || `Rota ${rota.rota}`)
-    if (rota.motorista) {
+    const achada = acharRotaPeloCodigo(rota.rota)
+    if (achada) {
+      setRotaId(achada.id)
+      setData(achada.data)
+      if (achada.motoristaId) setMotoristaId(achada.motoristaId)
+    }
+    if (!achada?.motoristaId && rota.motorista) {
       const alvo = normalizarTexto(rota.motorista)
       const achado = motoristas.find((m) => normalizarTexto(m.nome) === alvo)
       if (achado) setMotoristaId(achado.id)
@@ -326,44 +357,11 @@ export function Conferencia() {
 
       <Modal aberto={novo} titulo="➕ Nova conferência" onFechar={() => setNovo(false)}>
         <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="🚚 Motorista">
-              <Select value={motoristaId} onChange={(e) => setMotoristaId(e.target.value)}>
-                {motoristas.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="📅 Dia">
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="🛣️ Rota (opcional)">
-              <Select value={rotaId} onChange={(e) => setRotaId(e.target.value)}>
-                <option value="">— sem rota —</option>
-                {rotasDoDia.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.rotaExpedicao} · {r.cidade}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Título (opcional)">
-              <Input
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ex.: Carga da manhã"
-              />
-            </Field>
-          </div>
-
+          {/* O ARQUIVO vem primeiro: é ele que diz a rota, o motorista e o dia.
+              Os campos abaixo só existem para o caso de não dar para deduzir,
+              ou para corrigir. */}
           <div>
-            <p className="mb-1 text-sm font-semibold text-slate-700">
-              📄 Lista do que deve sair
-            </p>
+            <p className="mb-1 text-sm font-semibold text-slate-700">📄 Lista do que deve sair</p>
             <EntradaNumeracoes
               aoLer={(v, a, rotaLida) => {
                 setEsperados(v)
@@ -373,6 +371,90 @@ export function Conferencia() {
               placeholder="Cole aqui a página da rota do Meli (do bloco de notas), envie o arquivo salvo, ou cole as numerações…"
             />
           </div>
+
+          {/* O que o documento entregou, para conferir de relance. */}
+          {esperados.length > 0 && (
+            <div
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                motoristaId
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                  : 'border-amber-300 bg-amber-50 text-amber-900'
+              }`}
+            >
+              {motoristaId ? (
+                <>
+                  <p className="font-bold">✅ Reconheci no arquivo</p>
+                  <p className="mt-0.5">
+                    {rotaMeli?.rota && (
+                      <>
+                        🛣️ <strong>{rotaMeli.rota}</strong> ·{' '}
+                      </>
+                    )}
+                    🚚 <strong>{nomeDe(motoristaId)}</strong> · 📅 {formatarData(data)} · 📦{' '}
+                    {esperados.length} pacote(s)
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold">⚠️ Não descobri de quem é esta carga</p>
+                  <p className="mt-0.5 text-xs">
+                    {rotaMeli?.rota
+                      ? `A rota ${rotaMeli.rota} não está importada neste dia, ou ainda não tem motorista direcionado.`
+                      : 'O arquivo não trouxe o código da rota.'}{' '}
+                    Escolha o motorista abaixo.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Ajuste manual: fechado quando o arquivo resolveu tudo. */}
+          {esperados.length > 0 && motoristaId && !ajustando && (
+            <button
+              onClick={() => setAjustando(true)}
+              className="text-xs font-semibold text-marca-texto hover:underline"
+            >
+              ✏️ Ajustar motorista, dia ou rota
+            </button>
+          )}
+          {(ajustando || (esperados.length > 0 && !motoristaId) || esperados.length === 0) && (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="🚚 Motorista">
+                  <Select value={motoristaId} onChange={(e) => setMotoristaId(e.target.value)}>
+                    <option value="">— escolher —</option>
+                    {motoristas.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nome}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="📅 Dia">
+                  <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="🛣️ Rota (opcional)">
+                  <Select value={rotaId} onChange={(e) => setRotaId(e.target.value)}>
+                    <option value="">— sem rota —</option>
+                    {rotasDoDia.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.rotaExpedicao} · {r.cidade}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Título (opcional)">
+                  <Input
+                    value={titulo}
+                    onChange={(e) => setTitulo(e.target.value)}
+                    placeholder="Ex.: Carga da manhã"
+                  />
+                </Field>
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button variante="secundario" onClick={() => setNovo(false)}>
