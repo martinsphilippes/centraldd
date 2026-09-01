@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
+import { ondasEDocas, totalDeOndas } from '../../core/ondas'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
@@ -32,6 +33,10 @@ export function Rotas() {
     setDia(alvo)
   }
   const rotasDoDia = db.rotas.filter((r) => r.data === dia)
+  // Onda e doca são CALCULADAS a partir do dia inteiro, não da lista filtrada:
+  // filtrar por cidade não pode reordenar o carregamento do galpão.
+  const postos = ondasEDocas(rotasDoDia)
+  const ondas = totalDeOndas(postos)
   const diasComRota = [...new Set(db.rotas.map((r) => r.data).filter(Boolean))].sort().reverse()
 
   const cidades = [...new Set(rotasDoDia.map((r) => r.cidade))].filter(Boolean).sort()
@@ -190,19 +195,30 @@ export function Rotas() {
 
   const tabela = (): Tabela => ({
     titulo: 'Rotas da operação',
-    colunas: ['Cidade', 'Rota expedição', 'Rota original', 'Base', 'Motorista', 'Veículo', 'Km', 'DPS', 'Ocupação %', 'Transportadora'],
-    linhas: rotas.map((r) => [
-      r.cidade,
-      r.rotaExpedicao,
-      r.rotaOriginal,
-      r.base,
-      r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '—') : 'Sem motorista',
-      r.veiculo,
-      r.km,
-      r.dps,
-      r.ocupacao,
-      r.transportadora,
-    ]),
+    colunas: ['Cidade', 'Rota expedição', 'Rota original', 'Base', 'Motorista', 'Veículo', 'Km', 'DPS', 'Ocupação %', 'Transportadora', 'Onda', 'Doca'],
+    // Ordenado por ONDA e DOCA: é a folha que vai para o galpão, e lá a
+    // pergunta é "quem encosta agora", não "qual rota vem antes no alfabeto".
+    linhas: [...rotas]
+      .sort((a, b) => {
+        const pa = postos.get(a.id)
+        const pb = postos.get(b.id)
+        if (!pa || !pb) return 0
+        return pa.onda - pb.onda || pa.doca - pb.doca
+      })
+      .map((r) => [
+        r.cidade,
+        r.rotaExpedicao,
+        r.rotaOriginal,
+        r.base,
+        r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '—') : 'Sem motorista',
+        r.veiculo,
+        r.km,
+        r.dps,
+        r.ocupacao,
+        r.transportadora,
+        postos.get(r.id) ? `${postos.get(r.id)!.onda}ª` : '',
+        postos.get(r.id)?.doca ?? '',
+      ]),
   })
 
   const novaRota = () =>
@@ -367,6 +383,8 @@ export function Rotas() {
                 <th className="px-2 py-2.5 text-center">DPS</th>
                 <th className="px-2 py-2.5 text-right">Ocupação %</th>
                 <th className="px-2 py-2.5">Transportadora</th>
+                <th className="px-2 py-2.5 text-center">🌊 Onda</th>
+                <th className="px-2 py-2.5 text-center">🚪 Doca</th>
                 <th className="px-2 py-2.5"></th>
               </tr>
             </thead>
@@ -465,6 +483,25 @@ export function Rotas() {
                     >
                       {r.transportadora || '—'}
                     </Badge>
+                  </td>
+                  <td className={`${CELULA} text-center`}>
+                    {postos.get(r.id) ? (
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${
+                          postos.get(r.id)!.onda === 1
+                            ? 'bg-marca text-navy'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                        title={`Onda ${postos.get(r.id)!.onda} de ${ondas}`}
+                      >
+                        {postos.get(r.id)!.onda}ª
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className={`${CELULA} text-center font-bold text-slate-700`}>
+                    {postos.get(r.id)?.doca ?? '—'}
                   </td>
                   <td className={`${CELULA} text-right`}>
                     <button
