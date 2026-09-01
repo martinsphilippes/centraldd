@@ -40,11 +40,11 @@ Valem para telas, código, comentários e conversa. No Firestore, `papel:
 subiu, comparar o hash do bundle: `curl -s https://centraldd.vercel.app/
 | grep -o 'index-[A-Za-z0-9_-]*\.js'` — muda quando o deploy termina.
 
-O projeto na Vercel se chama `centraldd` e atende por DOIS endereços:
-`centraldd.vercel.app` (o novo) e `mldisponibilidade.vercel.app` (o antigo, que
-segue no ar para não quebrar o atalho de quem já tinha o app instalado). São o
-mesmo projeto, então servem sempre a mesma versão.
+O projeto na Vercel se chama `centraldd` e o endereço é `centraldd.vercel.app`.
 
-No Firebase, o `projectId` continua `mldisponibilidade` — o Google não permite
-renomear o ID de um projeto, e trocar exigiria migrar usuários e dados sem que
-nenhum motorista visse diferença. Não confundir com o nome do app.
+No Firebase, o NOME do projeto é Central DD, mas o `projectId` é e será sempre
+`mldisponibilidade` — o Google não permite renomear o ID depois de criado.
+Daí as três linhas do firebase-config.ts (`projectId`, `authDomain`,
+`storageBucket`) ficarem com o nome antigo: elas são o ENDEREÇO do banco, não
+um rótulo. Trocar exigiria criar outro projeto e migrar contas e dados, e
+ninguém que usa o app vê esse nome em lugar nenhum. Não mexer.
