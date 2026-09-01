@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { removerLimiteDia, salvarDiaDisponibilidade, salvarLimiteDia, useDB } from '../../core/db'
+import { normalizarTexto } from '../../core/texto'
+import {
+  removerDiaDisponibilidade,
+  removerLimiteDia,
+  salvarDiaDisponibilidade,
+  salvarLimiteDia,
+  useDB,
+} from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { calcularLimiteDoDia } from '../../core/limites'
 import { parametrosAtuais } from '../../core/alocacao'
@@ -26,6 +33,9 @@ export function DisponibilidadeFrota() {
   const dias = useMemo(() => Array.from({ length: DIAS_VISIVEIS }, (_, i) => hojeISO(i)), [])
   const [diaSelecionado, setDiaSelecionado] = useState(dias[0])
   const [cidade, setCidade] = useState('')
+  // Busca por nome: com a frota grande, achar a pessoa era o passo lento de
+  // marcar alguém à mão.
+  const [busca, setBusca] = useState('')
   const [editandoLimite, setEditandoLimite] = useState(false)
   const [novoLimite, setNovoLimite] = useState(40)
   const [avisoSimulacao, setAvisoSimulacao] = useState('')
@@ -99,6 +109,7 @@ export function DisponibilidadeFrota() {
   const frota = db.motoristas
     .filter((m) => m.ativo && m.aprovado !== false)
     .filter((m) => !cidade || m.cidade === cidade)
+    .filter((m) => !busca.trim() || normalizarTexto(m.nome).includes(normalizarTexto(busca)))
     .sort((a, b) => a.nome.localeCompare(b.nome))
 
   const cidades = [...new Set(db.motoristas.map((m) => m.cidade))].sort()
@@ -226,6 +237,33 @@ export function DisponibilidadeFrota() {
           💬 Cobrar
         </a>
       )}
+      {/* Atalho do DONO: um toque põe (ou tira) a pessoa como disponível
+          neste dia. "Marcar todos" resolve a frota inteira; isto resolve o
+          caso comum de escolher um nome específico sem abrir formulário. */}
+      {souDono &&
+        (a && STATUS_DISPONIVEIS.includes(a.status) ? (
+          <button
+            onClick={() => removerDiaDisponibilidade(`${m.id}_${diaSelecionado}`)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+            title={`Tirar a disponibilidade de ${m.nome} em ${rotuloDia(diaSelecionado).toLowerCase()}`}
+          >
+            ↩️ Tirar
+          </button>
+        ) : (
+          <button
+            onClick={() =>
+              salvarDiaDisponibilidade({
+                motoristaId: m.id,
+                data: diaSelecionado,
+                status: 'disponivel',
+              })
+            }
+            className="rounded-lg border border-marca bg-marca-suave px-2.5 py-1.5 text-xs font-bold text-marca-texto hover:bg-orange-100"
+            title={`Marcar ${m.nome} como DISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
+          >
+            ⚡ Disponível
+          </button>
+        ))}
       {a && (
         <span className="basis-full rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
           🕒 Marcou <strong className="text-slate-800">{formatarQuandoCurto(a.atualizadaEm)}</strong>
@@ -499,8 +537,20 @@ export function DisponibilidadeFrota() {
             <option key={c}>{c}</option>
           ))}
         </Select>
-        {cidade && (
-          <Button variante="fantasma" onClick={() => setCidade('')}>
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="🔎 Procurar pelo nome…"
+          className="w-52 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-marca-texto"
+        />
+        {(cidade || busca) && (
+          <Button
+            variante="fantasma"
+            onClick={() => {
+              setCidade('')
+              setBusca('')
+            }}
+          >
             Limpar
           </Button>
         )}
