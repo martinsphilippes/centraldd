@@ -15,7 +15,7 @@ import { hojeISO, formatarData, formatarQuandoCurto, parseISODate, rotuloDia } f
 import { ORDEM_STATUS, STATUS_DISPONIVEIS, STATUS_RESPOSTA } from '../../core/constants'
 import type { DiaDisponibilidade, Motorista, StatusResposta } from '../../core/types'
 import { formatarTelefone, linkWhatsApp } from '../../core/comunicacao'
-import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
+import { exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Avatar, Badge, Button, Card, EmptyState, ProgressBar, Select, StatCard } from '../../components/ui'
 
 const DIAS_VISIVEIS = 14
@@ -319,7 +319,9 @@ export function DisponibilidadeFrota() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variante="secundario" onClick={() => exportarCSV(tabelaDia())}>⬇️ CSV do dia</Button>
+          {/* Só o Excel: o CSV baixava a MESMA tabela, e a operação abre tudo
+              no Excel de qualquer jeito. Dois botões para o mesmo arquivo só
+              fazem parar para escolher. */}
           <Button variante="secundario" onClick={() => exportarExcel(tabelaDia())}>⬇️ Excel do dia</Button>
           <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(diaSelecionado))}>
             🖨️ PDF do dia
