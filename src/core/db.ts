@@ -568,8 +568,14 @@ export function removerCidadeOperacao(id: string) {
 }
 
 
-export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
-  void setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })
+/**
+ * Grava a parametrização. Devolve a Promise de propósito: a tela ESPERA a
+ * gravação terminar antes de fechar, para nunca dizer "salvo" quando o banco
+ * recusou. Parametrização perdida em silêncio distorce a distribuição inteira
+ * sem ninguém perceber.
+ */
+export function salvarParametrosAlocacao(p: ParametrosAlocacao): Promise<void> {
+  return setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })
 }
 
 export function salvarProgramacaoItem(p: ProgramacaoItem) {

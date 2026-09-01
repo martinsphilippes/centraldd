@@ -32,6 +32,12 @@ function Item({
 export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
   const db = useDB()
   const [p, setP] = useState<ParametrosAlocacao | null>(null)
+  // O campo que está sendo digitado agora, em TEXTO. Sem isto, apagar o número
+  // para digitar outro faz o campo saltar para 0 no meio da digitação — e no
+  // iPad o novo dígito acaba entrando do lado do zero.
+  const [digitando, setDigitando] = useState<{ campo: string; texto: string } | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
   // A frota de hoje entra na explicação: o operador lê a regra já com o número
   // do dia dele na frente, em vez de um exemplo genérico.
   const frota = frotaDoDia(db, hojeISO())
@@ -42,17 +48,37 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
 
   const fechar = () => {
     setP(null)
+    setDigitando(null)
+    setErro('')
     onFechar()
   }
   if (!p) return <Modal aberto={aberto} titulo="⚙️ Parametrização" onFechar={fechar}>{null}</Modal>
 
+  // Campo numérico.
+  //  - Enquanto digita, mostra o TEXTO cru: dá para apagar tudo e escrever o
+  //    número novo sem o campo virar 0 no caminho.
+  //  - Só grava no parâmetro quando o que está escrito é número de verdade —
+  //    nunca NaN, que o Firestore recusa e derrubaria a gravação inteira.
+  //  - Ao sair do campo, prende o valor entre o mínimo e o máximo: peso 0 a 10
+  //    é 0 a 10, mesmo que alguém digite 90.
   const num = (campo: keyof ParametrosAlocacao, min: number, max: number, largura = 'w-24') => (
     <Input
       type="number"
       min={min}
       max={max}
-      value={String(p[campo])}
-      onChange={(e) => setP({ ...p, [campo]: Number(e.target.value) })}
+      value={digitando?.campo === campo ? digitando.texto : String(p[campo])}
+      onChange={(e) => {
+        const texto = e.target.value
+        setDigitando({ campo: String(campo), texto })
+        const n = Number(texto)
+        if (texto.trim() !== '' && Number.isFinite(n)) setP({ ...p, [campo]: n })
+      }}
+      onBlur={() => {
+        setDigitando(null)
+        const atual = Number(p[campo])
+        const preso = Math.min(max, Math.max(min, Number.isFinite(atual) ? atual : min))
+        if (preso !== atual) setP({ ...p, [campo]: preso })
+      }}
       className={largura}
     />
   )
@@ -315,22 +341,58 @@ export function ParametrosAlocacaoModal({ aberto, onFechar }: { aberto: boolean;
           {num('autoAplicarAcimaDe', 0, 100)}
         </div>
 
+        {erro && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+            ❌ {erro}
+          </p>
+        )}
+
         <div className="flex justify-between gap-2">
           <Button variante="fantasma" onClick={() => setP({ ...PARAMETROS_PADRAO })}>
             ↩️ Restaurar padrão
           </Button>
           <div className="flex gap-2">
-            <Button variante="secundario" onClick={fechar}>
+            <Button variante="secundario" onClick={fechar} disabled={salvando}>
               Cancelar
             </Button>
             <Button
               variante="marca"
+              disabled={salvando}
               onClick={() => {
+                // A tela só fecha DEPOIS que o banco confirmou. Fechar antes
+                // faria a parametrização parecer salva mesmo quando não foi.
+                setErro('')
+                setSalvando(true)
+                // Sem internet o Firestore GUARDA a gravação e só confirma
+                // quando a rede volta — a promessa fica pendurada. Esperar sem
+                // limite travaria o botão no galpão. Passados 3 segundos sem
+                // recusa, a gravação está na fila e vai subir sozinha: pode
+                // fechar. Só recusa de verdade vira erro na tela.
+                let respondeu = false
                 salvarParametrosAlocacao(p)
-                fechar()
+                  .then(() => {
+                    if (respondeu) return
+                    respondeu = true
+                    setSalvando(false)
+                    fechar()
+                  })
+                  .catch(() => {
+                    if (respondeu) return
+                    respondeu = true
+                    setSalvando(false)
+                    setErro(
+                      'O banco recusou a gravação. Os valores continuam aqui na tela — tente de novo.',
+                    )
+                  })
+                setTimeout(() => {
+                  if (respondeu) return
+                  respondeu = true
+                  setSalvando(false)
+                  fechar()
+                }, 3000)
               }}
             >
-              💾 Salvar parâmetros
+              {salvando ? '💾 Salvando…' : '💾 Salvar parâmetros'}
             </Button>
           </div>
         </div>
