@@ -7,6 +7,7 @@ import { compararConferencia } from '../../core/conferencia'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { Conferencia as Conf } from '../../core/types'
 import { ParadasDetalhadas, SeloOndaDoca, SeloParadas } from '../../components/SeloParadas'
+import { PainelDocas } from '../rotas/PainelDocas'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 import { normalizarTexto } from '../../core/texto'
 import type { RotaMeliLida } from '../../core/meli-rota'
@@ -153,6 +154,11 @@ export function Conferencia() {
           ➕ Nova conferência
         </Button>
       </div>
+
+      {/* O painel das docas usa SEMPRE o dia de hoje: ele é o quadro do
+          carregamento que está acontecendo agora, e não pode mudar quando o
+          Dispatcher escolhe outra data para abrir uma conferência nova. */}
+      <PainelDocas data={hojeISO()} />
 
       {db.conferencias.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
