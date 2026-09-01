@@ -11,20 +11,29 @@ import { CORES_DOCA, situacaoDasDocas, type RotaNaDoca } from '../../core/docas'
 import { useDB } from '../../core/db'
 import { Card } from '../../components/ui'
 
+/*
+ * Estado, rota e nome EMPILHADOS, um por linha.
+ *
+ * Antes o código da rota e o rótulo do estado dividiam a mesma linha, os dois
+ * cortados. Numa doca estreita sobrava "V… CHAMAR AGORA" e um nome pela
+ * metade — e o painel existe justamente para o Dispatcher LER quem chamar.
+ * Empilhado, cada coisa tem a largura inteira do cartão e quebra em vez de
+ * sumir.
+ */
 function Ocupante({ item, nome }: { item: RotaNaDoca; nome: string }) {
   const cor = CORES_DOCA[item.estado]
   return (
     <div className={`rounded-lg border px-2 py-1.5 ${cor.classe}`}>
-      <div className="flex items-center justify-between gap-1">
-        <span className="truncate text-xs font-bold">{item.rota.rotaExpedicao || '—'}</span>
-        <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide">
-          {cor.emoji} {cor.rotulo}
-        </span>
+      <div className="text-[10px] font-bold uppercase tracking-wide">
+        {cor.emoji} {cor.rotulo}
       </div>
-      <div className="truncate text-[11px]">{nome}</div>
+      <div className="break-words text-sm font-extrabold leading-tight">
+        {item.rota.rotaExpedicao || '—'}
+      </div>
+      <div className="break-words text-xs leading-tight">{nome}</div>
       {item.estado === 'carregando' && item.total > 0 && (
         // O quanto já bipou: é o que diz se a doca vaga em 2 minutos ou em 20.
-        <div className="mt-1 text-[10px] font-semibold">
+        <div className="mt-1 text-[11px] font-semibold">
           {item.conferidos}/{item.total} pacotes conferidos
         </div>
       )}
@@ -57,7 +66,7 @@ export function PainelDocas({ data }: { data: string }) {
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {docas.map((d) => {
           const naVez = d.carregando ?? d.chamado
           const restam = d.fila.filter((f) => f.estado === 'aguardando').length
