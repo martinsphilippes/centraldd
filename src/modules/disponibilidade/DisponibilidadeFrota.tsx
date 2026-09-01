@@ -237,33 +237,54 @@ export function DisponibilidadeFrota() {
           💬 Cobrar
         </a>
       )}
-      {/* Atalho do DONO: um toque põe (ou tira) a pessoa como disponível
-          neste dia. "Marcar todos" resolve a frota inteira; isto resolve o
-          caso comum de escolher um nome específico sem abrir formulário. */}
-      {souDono &&
-        (a && STATUS_DISPONIVEIS.includes(a.status) ? (
-          <button
-            onClick={() => removerDiaDisponibilidade(`${m.id}_${diaSelecionado}`)}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
-            title={`Tirar a disponibilidade de ${m.nome} em ${rotuloDia(diaSelecionado).toLowerCase()}`}
-          >
-            ↩️ Tirar
-          </button>
-        ) : (
-          <button
-            onClick={() =>
-              salvarDiaDisponibilidade({
-                motoristaId: m.id,
-                data: diaSelecionado,
-                status: 'disponivel',
-              })
-            }
-            className="rounded-lg border border-marca bg-marca-suave px-2.5 py-1.5 text-xs font-bold text-marca-texto hover:bg-orange-100"
-            title={`Marcar ${m.nome} como DISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
-          >
-            ⚡ Disponível
-          </button>
-        ))}
+      {/* Atalho do DONO: um toque marca a pessoa neste dia, num sentido ou no
+          outro. "Marcar todos" resolve a frota inteira; isto resolve o caso
+          comum de mexer num nome específico sem abrir formulário.
+          Só aparece a ação que FALTA — quem já está disponível vê o botão de
+          indisponível, e vice-versa. */}
+      {souDono && (
+        <span className="flex shrink-0 items-center gap-1.5">
+          {!(a && STATUS_DISPONIVEIS.includes(a.status)) && (
+            <button
+              onClick={() =>
+                salvarDiaDisponibilidade({
+                  motoristaId: m.id,
+                  data: diaSelecionado,
+                  status: 'disponivel',
+                })
+              }
+              className="rounded-lg border border-marca bg-marca-suave px-2.5 py-1.5 text-xs font-bold text-marca-texto hover:bg-orange-100"
+              title={`Marcar ${m.nome} como DISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
+            >
+              ⚡ Disponível
+            </button>
+          )}
+          {a?.status !== 'indisponivel' && (
+            <button
+              onClick={() =>
+                salvarDiaDisponibilidade({
+                  motoristaId: m.id,
+                  data: diaSelecionado,
+                  status: 'indisponivel',
+                })
+              }
+              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+              title={`Marcar ${m.nome} como INDISPONÍVEL em ${rotuloDia(diaSelecionado).toLowerCase()}`}
+            >
+              ❌ Indisponível
+            </button>
+          )}
+          {a && (
+            <button
+              onClick={() => removerDiaDisponibilidade(`${m.id}_${diaSelecionado}`)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+              title={`Apagar a marcação de ${m.nome} — volta para "não informou"`}
+            >
+              ↩️
+            </button>
+          )}
+        </span>
+      )}
       {a && (
         <span className="basis-full rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600">
           🕒 Marcou <strong className="text-slate-800">{formatarQuandoCurto(a.atualizadaEm)}</strong>
