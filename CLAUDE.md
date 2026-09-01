@@ -41,6 +41,12 @@ subiu, comparar o hash do bundle: `curl -s https://centraldd.vercel.app/
 | grep -o 'index-[A-Za-z0-9_-]*\.js'` — muda quando o deploy termina.
 
 O projeto na Vercel se chama `centraldd` e o endereço é `centraldd.vercel.app`.
+O repositório no GitHub é `martinsphilippes/centraldd`. O nome antigo ainda
+funciona porque o GitHub redireciona, mas o certo é usar o novo.
+
+O hash do bundle publicado pela Vercel nem sempre bate com o do build local —
+ela compila em máquina própria. Quando não bater, conferir pelo CONTEÚDO:
+baixar o `index-*.js` do ar e procurar um trecho da mudança.
 
 No Firebase, o NOME do projeto é Central DD e o `projectId` é
 `centraldispatcherdriver` — o Google não permite renomear o ID depois de
