@@ -1,8 +1,8 @@
 // Agregações usadas por dashboard e relatórios.
 
-import type { Chamada, DB, Motorista, Resposta, StatusResposta } from './types'
-import { STATUS_DISPONIVEIS } from './constants'
-import { hojeISO } from './dates'
+import type { Chamada, DB, DiaDisponibilidade, Motorista, Resposta, StatusResposta } from './types'
+import { STATUS_DISPONIVEIS, STATUS_RESPOSTA } from './constants'
+import { hojeISO, parseISODate } from './dates'
 import { parametrosAtuais } from './alocacao'
 import { comCreditoDeDiaDificil, fidelidadeDeTodos } from './dias-dificeis'
 import { compararRodizio, distribuirPorFrota, frotaDoDia, historicoDeTrabalho, type DistribuicaoFrota } from './vagas'
@@ -198,4 +198,47 @@ export function sugerirPlanejamento(
     p,
   )
   return { escolhidos: frota.escolhidos, espera: frota.espera, frota }
+}
+
+/** Como a marcação foi qualificada pelo motorista (horário, meio período…). */
+export function detalheDaDisponibilidade(a: DiaDisponibilidade): string {
+  if (a.status === 'apos_horario' && a.horario) return `após ${a.horario}`
+  if (a.status === 'meio_periodo' && a.periodo) return a.periodo === 'manha' ? 'manhã' : 'tarde'
+  return a.observacao ?? ''
+}
+
+/**
+ * A GRADE de disponibilidade: uma linha por motorista, uma coluna por dia,
+ * com o que cada um marcou. É o relatório que responde "quem esteve com a
+ * gente no período" de uma olhada — diferente da série por dia, que só conta
+ * quantos.
+ */
+export function gradeDisponibilidade(
+  db: DB,
+  dias: string[],
+): { colunas: string[]; linhas: (string | number)[][] } {
+  const frota = db.motoristas
+    .filter((m) => m.ativo && m.aprovado !== false)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const porMotoristaEData = new Map<string, DiaDisponibilidade>()
+  for (const a of db.disponibilidade) porMotoristaEData.set(`${a.motoristaId}_${a.data}`, a)
+
+  return {
+    colunas: [
+      'Motorista',
+      ...dias.map((d) =>
+        parseISODate(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      ),
+    ],
+    linhas: frota.map((m) => [
+      m.nome,
+      ...dias.map((d) => {
+        const a = porMotoristaEData.get(`${m.id}_${d}`)
+        if (!a) return ''
+        const info = STATUS_RESPOSTA[a.status]
+        const detalhe = detalheDaDisponibilidade(a)
+        return `${info.emoji} ${info.label}${detalhe ? ` (${detalhe})` : ''}`
+      }),
+    ]),
+  }
 }

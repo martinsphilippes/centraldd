@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useDB } from '../../core/db'
 import { formatarData, hojeISO, parseISODate } from '../../core/dates'
-import { estatisticasMotoristas, serieDisponibilidade } from '../../core/stats'
+import { estatisticasMotoristas, gradeDisponibilidade, serieDisponibilidade } from '../../core/stats'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Avatar, Button, Card, EmptyState, SegmentedControl, StatCard } from '../../components/ui'
 import { BarChart, Legenda } from '../../components/charts'
@@ -50,6 +50,26 @@ export function Relatorios() {
     colunas: ['Data', 'Disponíveis', 'Indisponíveis', 'Pendentes'],
     linhas: serie.map((p) => [formatarData(p.data), p.disponiveis, p.indisponiveis, p.pendentes]),
   })
+
+  /**
+   * A GRADE do período: um motorista por linha, um dia por coluna. Veio da
+   * tela de Disponibilidade, que é onde se acompanha o dia — relatório de
+   * período é assunto daqui, e aqui ele acompanha o seletor Hoje/7/30 dias
+   * em vez de uma janela fixa.
+   */
+  const diasDoPeriodo = useMemo(() => {
+    const total = PERIODOS[periodo].dias + 1
+    return Array.from({ length: total }, (_, i) => hojeISO(-(total - 1 - i)))
+  }, [periodo])
+
+  const tabelaGrade = (): Tabela => {
+    const grade = gradeDisponibilidade(db, diasDoPeriodo)
+    return {
+      titulo: `Disponibilidade por motorista — ${formatarData(dataIni)} a ${formatarData(dataFim)}`,
+      colunas: grade.colunas,
+      linhas: grade.linhas,
+    }
+  }
 
   const tabelaMotoristas = (): Tabela => ({
     titulo: `Motoristas ${PERIODOS[periodo].rotulo}`,
@@ -123,6 +143,21 @@ export function Relatorios() {
         <StatCard icone="✅" valor={serie.reduce((s, p) => s + p.disponiveis, 0)} rotulo="Disponibilidades registradas" />
         <StatCard icone="📋" valor={planejamentosPeriodo.length} rotulo="Planejamentos no período" />
       </div>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-bold text-slate-900">📅 Disponibilidade por motorista</h2>
+            <p className="text-xs text-slate-500">
+              Um motorista por linha, um dia por coluna, com o que cada um marcou —{' '}
+              {PERIODOS[periodo].rotulo.toLowerCase()}.
+            </p>
+          </div>
+          <Button variante="marca" onClick={() => exportarExcel(tabelaGrade())}>
+            📊 Baixar a grade (Excel)
+          </Button>
+        </div>
+      </Card>
 
       <Card className="p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

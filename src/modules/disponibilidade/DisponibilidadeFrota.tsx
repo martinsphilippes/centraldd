@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { normalizarTexto } from '../../core/texto'
+import { detalheDaDisponibilidade } from '../../core/stats'
 import {
   removerDiaDisponibilidade,
   removerLimiteDia,
@@ -20,11 +21,6 @@ import { Avatar, Badge, Button, Card, EmptyState, ProgressBar, Select, StatCard 
 
 const DIAS_VISIVEIS = 14
 
-function detalheDe(a: DiaDisponibilidade): string {
-  if (a.status === 'apos_horario' && a.horario) return `após ${a.horario}`
-  if (a.status === 'meio_periodo' && a.periodo) return a.periodo === 'manha' ? 'manhã' : 'tarde'
-  return a.observacao ?? ''
-}
 
 /** Visão do dispatcher: dia a dia, quem trabalha e quem não trabalha (disponibilidade dos motoristas). */
 export function DisponibilidadeFrota() {
@@ -157,25 +153,7 @@ export function DisponibilidadeFrota() {
       m.veiculo,
       marcacao ? (STATUS_DISPONIVEIS.includes(marcacao.status) ? 'SIM' : 'NÃO') : 'Não informou',
       marcacao ? STATUS_RESPOSTA[marcacao.status].label : '—',
-      marcacao ? detalheDe(marcacao) : '',
-    ]),
-  })
-
-  const tabelaPeriodo = (): Tabela => ({
-    titulo: `Disponibilidade da frota ${formatarData(dias[0])} a ${formatarData(dias[dias.length - 1])}`,
-    colunas: [
-      'Motorista',
-      ...dias.map((d) => parseISODate(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
-    ],
-    linhas: frota.map((m) => [
-      m.nome,
-      ...dias.map((d) => {
-        const a = marcacaoDe(m, d)
-        if (!a) return ''
-        const info = STATUS_RESPOSTA[a.status]
-        const detalhe = detalheDe(a)
-        return `${info.emoji} ${info.label}${detalhe ? ` (${detalhe})` : ''}`
-      }),
+      marcacao ? detalheDaDisponibilidade(marcacao) : '',
     ]),
   })
 
@@ -236,7 +214,7 @@ export function DisponibilidadeFrota() {
       {a ? (
         <Badge className={STATUS_RESPOSTA[a.status].cor}>
           {STATUS_RESPOSTA[a.status].emoji} {STATUS_RESPOSTA[a.status].label}
-          {detalheDe(a) ? ` — ${detalheDe(a)}` : ''}
+          {detalheDaDisponibilidade(a) ? ` — ${detalheDaDisponibilidade(a)}` : ''}
         </Badge>
       ) : (
         <a
@@ -345,9 +323,6 @@ export function DisponibilidadeFrota() {
               ⚡ Marcar todos
             </Button>
           )}
-          <Button variante="marca" onClick={() => exportarExcel(tabelaPeriodo())}>
-            📊 Relatório do período (Excel)
-          </Button>
         </div>
       </div>
 
