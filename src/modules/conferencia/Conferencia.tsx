@@ -8,6 +8,8 @@ import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import type { Conferencia as Conf } from '../../core/types'
 import { ParadasDetalhadas, SeloOndaDoca, SeloParadas } from '../../components/SeloParadas'
 import { PainelDocas } from '../rotas/PainelDocas'
+import { ondasEDocas } from '../../core/ondas'
+import { contarParadas } from '../../core/conferencia'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 import { normalizarTexto } from '../../core/texto'
 import type { RotaMeliLida } from '../../core/meli-rota'
@@ -16,6 +18,28 @@ import { EntradaNumeracoes } from './EntradaNumeracoes'
 import { CarimbosConferencia, ResultadoConferencia } from './ResultadoConferencia'
 
 /** Selo de situação, o mesmo critério do resultado detalhado. */
+/** Por onde a lista de conferências pode ser ordenada. */
+type CampoOrdem = 'data' | 'motorista' | 'titulo' | 'situacao' | 'paradas' | 'onda' | 'doca'
+
+const ROTULOS_ORDEM: Record<CampoOrdem, string> = {
+  data: '📅 Data',
+  motorista: '🚚 Motorista',
+  titulo: '📋 Título da rota',
+  situacao: '🚦 Situação',
+  paradas: '📍 Paradas (PD)',
+  onda: '🌊 Onda',
+  doca: '🚪 Doca',
+}
+
+/**
+ * Situação como NÚMERO, para ordenar na ordem que interessa ao Dispatcher:
+ * primeiro o que precisa de atenção, por último o que já fechou.
+ */
+function pesoDaSituacao(c: Conf): number {
+  if (c.conferidos === null) return 1 // em stand-by, esperando o motorista
+  return compararConferencia(c.esperados, c.conferidos).bateu ? 3 : 2 // 2 = não bateu
+}
+
 function SeloSituacao({ c }: { c: Conf }) {
   if (c.conferidos === null)
     return <Badge className="border-amber-300 bg-amber-100 text-amber-800">⏳ Em stand-by</Badge>
@@ -31,6 +55,11 @@ export function Conferencia() {
   const [novo, setNovo] = useState(false)
   const [aberta, setAberta] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
+  // Data decrescente é o padrão: o dia de hoje no topo.
+  const [ordem, setOrdem] = useState<{ campo: CampoOrdem; desc: boolean }>({
+    campo: 'data',
+    desc: true,
+  })
   const [filtroMotorista, setFiltroMotorista] = useState('')
   const [motoristaId, setMotoristaId] = useState('')
   const [data, setData] = useState(hojeISO())
@@ -48,6 +77,32 @@ export function Conferencia() {
   // Histórico completo, sempre acessível — o que o motorista limpou da tela
   // dele continua aqui, apenas com o selo 🧹.
   const chaveBusca = normalizarTexto(busca)
+  // Onda e doca vêm do dia de cada conferência, não de um dia só: a lista
+  // mistura datas, e cada uma tem o próprio carregamento.
+  const postoDaConferencia = (c: Conf) => {
+    const rota = db.rotas.find((r) => r.id === c.rotaId)
+    if (!rota) return undefined
+    return ondasEDocas(db.rotas.filter((r) => r.data === rota.data)).get(rota.id)
+  }
+  const valorDaOrdem = (c: Conf, campo: CampoOrdem): string | number => {
+    switch (campo) {
+      case 'motorista':
+        return nomeDe(c.motoristaId)
+      case 'titulo':
+        return c.titulo
+      case 'situacao':
+        return pesoDaSituacao(c)
+      case 'paradas':
+        return contarParadas(c).total
+      case 'onda':
+        return postoDaConferencia(c)?.onda ?? 0
+      case 'doca':
+        return postoDaConferencia(c)?.doca ?? 0
+      default:
+        return c.data
+    }
+  }
+
   const lista = [...db.conferencias]
     .filter((c) => !filtroMotorista || c.motoristaId === filtroMotorista)
     .filter(
@@ -55,7 +110,17 @@ export function Conferencia() {
         !chaveBusca ||
         normalizarTexto(`${c.titulo} ${nomeDe(c.motoristaId)} ${c.data}`).includes(chaveBusca),
     )
-    .sort((a, b) => b.data.localeCompare(a.data) || b.enviadaEm.localeCompare(a.enviadaEm))
+    .sort((a, b) => {
+      const va = valorDaOrdem(a, ordem.campo)
+      const vb = valorDaOrdem(b, ordem.campo)
+      const c =
+        typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' })
+      // Empate cai no envio mais recente — é a ordem que o Dispatcher espera
+      // quando o critério escolhido não distingue duas conferências.
+      return (ordem.desc ? -c : c) || b.enviadaEm.localeCompare(a.enviadaEm)
+    })
   const rotasDoDia = db.rotas.filter((r) => r.data === data && !r.finalizadaEm)
 
   const abrir = () => {
@@ -162,6 +227,30 @@ export function Conferencia() {
 
       {db.conferencias.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
+          {/* A lista é de CARTÕES, não uma tabela: sem cabeçalho para clicar,
+              a escolha da ordem vira um seletor com o botão de inverter ao
+              lado. */}
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+            Ordenar por
+            <Select
+              value={ordem.campo}
+              onChange={(e) => setOrdem((o) => ({ ...o, campo: e.target.value as CampoOrdem }))}
+              style={{ width: 'auto' }}
+            >
+              {(Object.keys(ROTULOS_ORDEM) as CampoOrdem[]).map((campo) => (
+                <option key={campo} value={campo}>
+                  {ROTULOS_ORDEM[campo]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <Button
+            variante="secundario"
+            onClick={() => setOrdem((o) => ({ ...o, desc: !o.desc }))}
+            title={ordem.desc ? 'Do maior para o menor — clique para inverter' : 'Do menor para o maior — clique para inverter'}
+          >
+            {ordem.desc ? '▼ Z → A' : '▲ A → Z'}
+          </Button>
           <Select value={filtroMotorista} onChange={(e) => setFiltroMotorista(e.target.value)} style={{ width: 'auto' }}>
             <option value="">🚚 Todos os motoristas</option>
             {motoristas.map((m) => (
