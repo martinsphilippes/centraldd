@@ -74,6 +74,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           if (snap.exists()) {
             const p = snap.data() as { papel?: string; motoristaId?: string | null }
             const papelLido = papelDe(p.papel)
+            // O DONO nunca espera aprovação — ele É quem aprova. Se a conta
+            // dele nascer como motorista pendente (cadastro feito pelo
+            // formulário, banco recriado), ninguém no mundo poderia liberá-la:
+            // o único aprovador está preso do lado de fora. Então o perfil se
+            // conserta sozinho aqui. O snapshot dispara de novo e conclui.
+            if (
+              papelLido !== 'dispatcher' &&
+              user.email &&
+              EMAILS_DISPATCHER.includes(user.email.toLowerCase())
+            ) {
+              await setDoc(ref, { papel: 'dispatcher', motoristaId: null, email: user.email })
+              return
+            }
             setPapel(papelLido)
             setMotoristaId(p.motoristaId ?? null)
             localStorage.setItem(
