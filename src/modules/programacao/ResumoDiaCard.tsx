@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  aprenderComResumo,
   enviarNotificacao,
   removerResumoDia,
   salvarChamada,
@@ -17,24 +16,15 @@ import { amDoDia } from '../../core/resumo-auto'
 import type { ResumoDia } from '../../core/types'
 import { Button, Card, Input } from '../../components/ui'
 
-const MM_PADRAO = [
-  { tipo: '3/4', quantidade: '', posicoesPorUnidade: '8' },
-  { tipo: 'TOCO', quantidade: '', posicoesPorUnidade: '12' },
-  { tipo: 'TRUCK', quantidade: '', posicoesPorUnidade: '16' },
-  { tipo: 'CARRETA', quantidade: '', posicoesPorUnidade: '28' },
-]
 
 function novoResumo(data: string, base: string): ResumoDia {
   return {
     id: data,
     data,
     base: base || 'BASE - CIDADE',
-    sprReferencia: '',
-    pacotes: '',
     veiculosDiv: '',
     amAutomatico: true,
     transportadoras: [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }],
-    mm: MM_PADRAO.map((m) => ({ ...m })),
     atualizadoEm: '',
   }
 }
@@ -85,10 +75,6 @@ export function ResumoDiaCard({
     ? am.total
     : r.transportadoras.reduce((s, t) => s + num(t.utilitarios) + num(t.vuc), 0)
   const totalRotas = num(r.totalRotas) > 0 ? num(r.totalRotas) : totalRotasCalculado
-  // Posições: soma das quantidades × posições do veículo, a menos que o
-  // dispatcher tenha informado o total à mão (o card traz um campo só para isso).
-  const posicoesCalculadas = r.mm.reduce((s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade), 0)
-  const totalPosicoes = num(r.posicoesTotal) > 0 ? num(r.posicoesTotal) : posicoesCalculadas
   // Base e Veículos DIV: o que o Dispatcher escreveu manda; em branco, a
   // planilha responde (uma rota = um veículo).
   const baseExibida = r.base && r.base !== 'BASE - CIDADE' ? r.base : am.base || r.base
@@ -104,14 +90,7 @@ export function ResumoDiaCard({
   }
 
   const salvar = () => {
-    // Posições por unidade é característica do veículo: se ficou vazia ou
-    // zerada (digitação no campo errado, leitura falha), volta ao padrão.
-    const mm = rascunho.mm.map((linha) => {
-      if (num(linha.posicoesPorUnidade) > 0) return linha
-      const padrao = MM_PADRAO.find((p) => p.tipo.toUpperCase() === linha.tipo.trim().toUpperCase())
-      return padrao ? { ...linha, posicoesPorUnidade: padrao.posicoesPorUnidade } : linha
-    })
-    const salvo = { ...rascunho, id: rascunho.data, mm }
+    const salvo = { ...rascunho, id: rascunho.data }
     const mudouDeDia = salvo.data !== data
     // Trocar o dia MOVE o resumo. Se o destino já tem um, confirma antes de
     // substituir — é o único jeito de perder trabalho sem querer aqui.
@@ -129,7 +108,6 @@ export function ResumoDiaCard({
     if (mudouDeDia && existente) removerResumoDia(data)
     // Ensina o sistema: a estrutura conferida à mão vale para as próximas
     // leituras desta base (transportadoras e posições por veículo).
-    aprenderComResumo(salvo)
     setEditando(false)
     setAvisoAplicado('')
     if (mudouDeDia) aoMudarDia?.(salvo.data)
@@ -174,12 +152,6 @@ export function ResumoDiaCard({
         .map((t) => `<tr><td>${t.nome}</td><td class="c">${t.utilitarios || ''}</td><td class="c">${t.vuc || ''}</td></tr>`)
         .join('') +
       outrosAM.map(([tipo, qtd]) => `<tr><td>${tipo}</td><td class="c" colspan="2">${qtd}</td></tr>`).join('')
-    const linhaMM = r.mm
-      .map(
-        (m) =>
-          `<tr><td>${m.tipo}</td><td class="c">${m.quantidade || ''}</td><td class="c">x${m.posicoesPorUnidade} posições</td></tr>`,
-      )
-      .join('')
     abrirImpressao(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Resumo ${formatarData(data)}</title>
     <style>
       body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:20px;color:#1e293b}
@@ -194,11 +166,7 @@ export function ResumoDiaCard({
     </style></head><body>
     <table><tr><td class="cab" colspan="3">${baseExibida}</td></tr></table>
     <table>
-      <tr><td class="lbl">SPR DE REFERÊNCIA</td><td class="val" colspan="2">${r.sprReferencia}</td></tr>
-    </table>
-    <table>
       <tr><td class="sub" colspan="3">${baseExibida}</td></tr>
-      <tr><td class="lbl">PACOTES</td><td class="val" colspan="2">${r.pacotes}</td></tr>
       <tr><td class="lbl">Veículos DIV</td><td class="val" colspan="2">${veiculosDivExibido}</td></tr>
       <tr><td class="destaque" colspan="3">${formatarData(data)}</td></tr>
     </table>
@@ -207,20 +175,11 @@ export function ResumoDiaCard({
       ${linhaT}
       <tr><td class="lbl">TOTAL ROTAS</td><td class="destaque" colspan="2">${totalRotas}</td></tr>
     </table>
-    <table>
-      <tr><td class="sub" colspan="3">MM</td></tr>
-      ${linhaMM}
-      <tr><td class="lbl">Posições</td><td class="destaque" colspan="2">${totalPosicoes}</td></tr>
-    </table>
     </body></html>`)
   }
 
   // ---------- Modo edição ----------
   if (editando) {
-    const posicoesCalculadasRascunho = rascunho.mm.reduce(
-      (s, m) => s + num(m.quantidade) * num(m.posicoesPorUnidade),
-      0,
-    )
     const totalRotasSomado = rascunho.transportadoras.reduce(
       (s, t) => s + num(t.utilitarios) + num(t.vuc),
       0,
@@ -230,8 +189,6 @@ export function ResumoDiaCard({
         ...rascunho,
         transportadoras: rascunho.transportadoras.map((t, j) => (j === i ? { ...t, [campo]: v } : t)),
       })
-    const setM = (i: number, campo: 'tipo' | 'quantidade' | 'posicoesPorUnidade', v: string) =>
-      setRascunho({ ...rascunho, mm: rascunho.mm.map((m, j) => (j === i ? { ...m, [campo]: v } : m)) })
     return (
       <Card className="p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -269,18 +226,13 @@ export function ResumoDiaCard({
           </p>
         )}
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* Só o que a planilha de rotas não responde sozinha. SPR, pacotes
+              e MM saíram do card: nada na planilha traz esses números, e um
+              campo que vive vazio só atrasa quem preenche. */}
+          <div className="grid grid-cols-2 gap-3">
             <label className="text-xs font-semibold text-slate-600">
               Base
               <Input value={rascunho.base} onChange={(e) => setRascunho({ ...rascunho, base: e.target.value })} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              SPR de referência
-              <Input value={rascunho.sprReferencia} onChange={(e) => setRascunho({ ...rascunho, sprReferencia: e.target.value })} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Pacotes
-              <Input value={rascunho.pacotes} onChange={(e) => setRascunho({ ...rascunho, pacotes: e.target.value })} inputMode="numeric" />
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Veículos DIV
@@ -384,68 +336,6 @@ export function ResumoDiaCard({
             </div>
           </div>
 
-          <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">MM — veículos grandes</p>
-            <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-              <span className="w-32">Veículo</span>
-              <span className="w-24 text-marca-texto">Quantidade ✏️</span>
-              <span className="w-20 text-marca-texto">Posições ✏️</span>
-            </div>
-            <div className="space-y-2">
-              {rascunho.mm.map((m, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input placeholder="Tipo" value={m.tipo} onChange={(e) => setM(i, 'tipo', e.target.value)} className="w-32" />
-                  <Input
-                    placeholder="Qtd"
-                    value={m.quantidade}
-                    onChange={(e) => setM(i, 'quantidade', e.target.value)}
-                    inputMode="numeric"
-                    className="w-24 border-marca-texto bg-orange-50/40 font-bold"
-                  />
-                  <Input
-                    placeholder="Posições"
-                    value={m.posicoesPorUnidade}
-                    onChange={(e) => setM(i, 'posicoesPorUnidade', e.target.value)}
-                    inputMode="numeric"
-                    className="w-20 text-center"
-                  />
-                  <span className="text-xs text-slate-400">posições cada</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Uma linha só, no fim: o total de posições — calculado, mas
-                sempre editável quando o dia fugir da conta. */}
-            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-2 border-marca bg-marca-suave px-3 py-2.5">
-              <span className="text-sm font-bold uppercase tracking-wide text-slate-700">Posições (total)</span>
-              <Input
-                value={rascunho.posicoesTotal ?? ''}
-                onChange={(e) => setRascunho({ ...rascunho, posicoesTotal: e.target.value })}
-                inputMode="numeric"
-                placeholder={String(posicoesCalculadasRascunho)}
-                className="w-28 text-center text-lg font-bold"
-              />
-              <span className="text-[11px] text-slate-600">
-                {num(rascunho.posicoesTotal) > 0 ? (
-                  <>
-                    valor informado à mão — pelas quantidades daria{' '}
-                    <strong>{posicoesCalculadasRascunho}</strong>.{' '}
-                    <button
-                      onClick={() => setRascunho({ ...rascunho, posicoesTotal: '' })}
-                      className="font-semibold text-marca-texto hover:underline"
-                    >
-                      voltar ao calculado
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    em branco = calculado pelas quantidades (<strong>{posicoesCalculadasRascunho}</strong>).
-                  </>
-                )}
-              </span>
-            </div>
-          </div>
-
           <div className="flex justify-end gap-2">
             <Button variante="secundario" onClick={() => { setEditando(false); setRascunho(existente ?? novoResumo(data, '')) }}>
               Cancelar
@@ -505,11 +395,11 @@ export function ResumoDiaCard({
           {avisoAplicado}
         </p>
       )}
-      {!existente && !avisoAplicado && (
+      {!existente && !am.fonte && !avisoAplicado && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Ainda não há resumo para {formatarData(data)}. Use <strong>🛣️ Importar rotas</strong>, lá
-          em cima na Esteira do dia — o card se preenche sozinho com o que a planilha traz.
-          Pacotes, SPR e MM entram em <strong>Preencher</strong>.
+          em cima na Esteira do dia — o card se preenche sozinho e o dia já fica pronto para a
+          chamada.
         </p>
       )}
 
@@ -522,20 +412,7 @@ export function ResumoDiaCard({
 
         <table className="w-full border-collapse">
           <tbody>
-            <tr>
-              <td className={`${cel} ${LBL}`}>SPR DE REFERÊNCIA</td>
-              <td className={`${cel} ${VAL}`}>{r.sprReferencia || '—'}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table className="w-full border-collapse">
-          <tbody>
             <tr><td className={`${cel} ${SUB}`} colSpan={2}>{baseExibida}</td></tr>
-            <tr>
-              <td className={`${cel} ${LBL}`}>PACOTES</td>
-              <td className={`${cel} ${VAL}`}>{r.pacotes || '—'}</td>
-            </tr>
             <tr>
               <td className={`${cel} ${LBL}`}>Veículos DIV</td>
               <td className={`${cel} ${VAL}`}>{veiculosDivExibido || '—'}</td>
@@ -569,23 +446,6 @@ export function ResumoDiaCard({
             <tr>
               <td className={`${cel} ${LBL}`}>TOTAL ROTAS</td>
               <td className={`${cel} ${DEST}`} colSpan={2}>{totalRotas}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table className="w-full border-collapse">
-          <tbody>
-            <tr><td className={`${cel} ${SUB}`} colSpan={3}>MM</td></tr>
-            {r.mm.map((m, i) => (
-              <tr key={i}>
-                <td className={`${cel} ${LBL}`}>{m.tipo}</td>
-                <td className={`${cel} text-center`}>{m.quantidade || ''}</td>
-                <td className={`${cel} text-center text-slate-600`}>x{m.posicoesPorUnidade} posições</td>
-              </tr>
-            ))}
-            <tr>
-              <td className={`${cel} ${LBL}`}>Posições</td>
-              <td className={`${cel} ${DEST}`} colSpan={2}>{totalPosicoes}</td>
             </tr>
           </tbody>
         </table>

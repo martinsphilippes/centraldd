@@ -21,7 +21,6 @@ import type {
   DB,
   Chamada,
   CidadeOperacao,
-  ModeloAprendido,
   TipoOperacional,
   DiaDisponibilidade,
   Planejamento,
@@ -532,27 +531,6 @@ export function removerCidadeOperacao(id: string) {
   void deleteDoc(doc(firestore, 'cidades', id))
 }
 
-/**
- * APRENDE com o resumo que o dispatcher salvou: guarda a estrutura do
- * modelo daquela base (transportadoras e posições por veículo) para a
- * próxima leitura já nascer certa. Números do dia não são guardados.
- */
-export function aprenderComResumo(r: ResumoDia) {
-  const base = normalizarTexto(r.base)
-  if (!base || base === normalizarTexto('BASE - CIDADE')) return
-  const id = base.replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '')
-  const modelo: ModeloAprendido = {
-    id,
-    base: r.base.trim(),
-    transportadoras: r.transportadoras.map((t) => t.nome.trim()).filter(Boolean),
-    mm: r.mm
-      .filter((m) => m.tipo.trim() && Number(m.posicoesPorUnidade) > 0)
-      .map((m) => ({ tipo: m.tipo.trim(), posicoesPorUnidade: m.posicoesPorUnidade.trim() })),
-    atualizadoEm: new Date().toISOString(),
-  }
-  if (modelo.transportadoras.length === 0 && modelo.mm.length === 0) return
-  void setDoc(doc(firestore, 'modelos', id), modelo)
-}
 
 export function salvarParametrosAlocacao(p: ParametrosAlocacao) {
   void setDoc(doc(firestore, 'config', 'alocacao'), { ...p, id: 'alocacao', atualizadoEm: new Date().toISOString() })

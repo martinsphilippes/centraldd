@@ -310,29 +310,17 @@ export interface ResumoTransportadora {
   vuc: string
 }
 
-/** Linha da seção MM (veículos grandes) no resumo do dia. */
-export interface ResumoMM {
-  tipo: string
-  quantidade: string
-  posicoesPorUnidade: string
-}
-
 /** Resumo operacional do dia (o "card" do dispatcher: pacotes, veículos, rotas, posições). */
 export interface ResumoDia {
   id: string // = data (YYYY-MM-DD)
   data: string
   base: string
-  sprReferencia: string
-  pacotes: string
   veiculosDiv: string
   /** true = AM (Utilitários/VUC) contado automaticamente da programação do Meli. */
   amAutomatico?: boolean
   transportadoras: ResumoTransportadora[]
-  mm: ResumoMM[]
   /** Total de rotas informado à mão (vazio = somado das transportadoras). */
   totalRotas?: string
-  /** Total de posições informado à mão (vazio = calculado pelas quantidades). */
-  posicoesTotal?: string
   atualizadoEm: string
 }
 

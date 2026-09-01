@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ImportarRotasModal } from '../rotas/ImportarRotasModal'
 import { useDB } from '../../core/db'
+import { amDoDia } from '../../core/resumo-auto'
 import { formatarData } from '../../core/dates'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
 import { Button, Card } from '../../components/ui'
@@ -83,7 +84,11 @@ export function EsteiraDia({
     (a) => a.data === data && STATUS_DISPONIVEIS.includes(a.status),
   ).length
   const itensProg = db.programacao.filter((p) => p.data === data).length
-  const resumoDia = db.resumos.find((r) => r.id === data)
+  // O resumo do dia é DERIVADO da planilha de rotas: ele existe assim que as
+  // rotas entram, mesmo que ninguém tenha aberto o card para salvar nada. Antes
+  // isto olhava só o documento salvo, e um dia inteiro já importado aparecia
+  // como pendente até alguém tocar em Salvar sem mudar nada.
+  const resumoDia = db.resumos.find((r) => r.id === data) ?? (amDoDia(db, data).fonte ? {} : undefined)
 
   const chamada = db.chamadas.find((c) => c.data === data)
   const dispChamada = chamada
