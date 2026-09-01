@@ -3,6 +3,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { configPendente } from '../../core/firebase-config'
 import { cadastrarPreCadastro, carregarTiposPublicos } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
+import { CampoCidade } from './CampoCidade'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
 import { MarcaEmpilhada } from '../../components/Marca'
@@ -23,6 +24,33 @@ function codigoParaMensagem(err: unknown): string {
   return MENSAGENS[codigo] ?? 'Algo deu errado. Tente novamente.'
 }
 
+/**
+ * O primeiro campo obrigatório que está faltando, já como frase para a tela —
+ * ou string vazia quando está tudo preenchido.
+ *
+ * A ordem segue a do formulário: reclamar do e-mail enquanto o nome está vazio
+ * faria a pessoa corrigir de trás para frente.
+ */
+function primeiroCampoVazio(d: {
+  nome: string
+  telefone: string
+  cidade: string
+  email: string
+  veiculo: string
+  funcao: 'motorista' | 'dispatcher'
+}): string {
+  if (!d.nome.trim()) return 'Preencha seu nome completo.'
+  const digitos = d.telefone.replace(/\D/g, '')
+  if (!digitos) return 'Preencha seu telefone de WhatsApp.'
+  // DDD + número: 10 dígitos no fixo, 11 no celular. Telefone pela metade é o
+  // mesmo que telefone nenhum na hora de chamar para a rota.
+  if (digitos.length < 10) return 'O telefone está incompleto — informe o DDD e o número.'
+  if (!d.cidade.trim()) return 'Informe sua cidade.'
+  if (!d.email.trim()) return 'Preencha o e-mail, que será seu login.'
+  if (d.funcao === 'motorista' && !d.veiculo) return 'Escolha o veículo que você dirige.'
+  return ''
+}
+
 export function Login() {
   const { entrar, erroSessao } = useSessao()
   const [tela, setTela] = useState<'login' | 'cadastro'>('login')
@@ -38,23 +66,17 @@ export function Login() {
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cidade, setCidade] = useState('')
-  // As opções vêm do que o dispatcher cadastrou (tela Tipos); os padrões
-  // só valem enquanto a lista da operação estiver vazia.
+  const [cidadeValida, setCidadeValida] = useState(false)
+  // Os veículos vêm do que o Dispatcher cadastrou (tela Tipos); os padrões
+  // (Utilitário e VUC) só valem enquanto ele não tiver cadastrado a frota.
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
-  const [operacoesOpcoes, setOperacoesOpcoes] = useState<string[]>(OPERACOES)
-  const [operacao, setOperacao] = useState(OPERACOES[0])
-  const [veiculo, setVeiculo] = useState(VEICULOS[0])
+  // Começa VAZIO de propósito: escolher o veículo é obrigatório, e um valor
+  // já preenchido faria todo mundo passar batido no primeiro da lista.
+  const [veiculo, setVeiculo] = useState('')
 
   useEffect(() => {
-    void carregarTiposPublicos().then(({ veiculos, operacoes }) => {
-      if (veiculos.length > 0) {
-        setVeiculosOpcoes(veiculos)
-        setVeiculo(veiculos[0])
-      }
-      if (operacoes.length > 0) {
-        setOperacoesOpcoes(operacoes)
-        setOperacao(operacoes[0])
-      }
+    void carregarTiposPublicos().then(({ veiculos }) => {
+      if (veiculos.length > 0) setVeiculosOpcoes(veiculos)
     })
   }, [])
 
@@ -76,13 +98,34 @@ export function Login() {
   const fazerCadastro = async (e: FormEvent) => {
     e.preventDefault()
     setErro('')
+    // Tudo aqui é obrigatório de verdade: cadastro pela metade vira motorista
+    // sem telefone na hora de chamar para a rota, ou sem veículo na hora de
+    // distribuir. Melhor barrar agora do que descobrir no dia da operação.
+    const faltando = primeiroCampoVazio({ nome, telefone, cidade, email, veiculo, funcao })
+    if (faltando) {
+      setErro(faltando)
+      return
+    }
+    if (!cidadeValida) {
+      setErro('Escolha a cidade na lista que aparece enquanto você digita.')
+      return
+    }
     if (senha.length < 6) {
       setErro('A senha precisa ter pelo menos 6 caracteres.')
       return
     }
     setEnviando(true)
     try {
-      await cadastrarPreCadastro({ nome, telefone, cidade, operacao, veiculo, email, senha, funcao })
+      await cadastrarPreCadastro({
+        nome,
+        telefone,
+        cidade,
+        operacao: OPERACOES[0],
+        veiculo,
+        email,
+        senha,
+        funcao,
+      })
       // Ao concluir, a sessão entra automaticamente e cai na tela de aguardando aprovação.
     } catch (err) {
       setErro(codigoParaMensagem(err))
@@ -207,19 +250,26 @@ export function Login() {
                 />
               </Field>
               <Field label="📍 Cidade">
-                <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
+                <CampoCidade
+                  valor={cidade}
+                  onChange={(c, valida) => {
+                    setCidade(c)
+                    setCidadeValida(valida)
+                  }}
+                />
               </Field>
               {funcao === 'motorista' && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="📦 Operação">
-                    <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
-                      {operacoesOpcoes.map((o) => (
-                        <option key={o}>{o}</option>
-                      ))}
-                    </Select>
+                    {/* Fixa: a frota inteira roda Mercado Livre. Aparece só
+                        para a pessoa conferir, não para escolher. */}
+                    <div className="flex h-[38px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                      📦 {OPERACOES[0]}
+                    </div>
                   </Field>
                   <Field label="🚐 Veículo">
                     <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
+                      <option value="">Selecione…</option>
                       {veiculosOpcoes.map((v) => (
                         <option key={v}>{v}</option>
                       ))}

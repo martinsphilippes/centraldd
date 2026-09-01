@@ -77,6 +77,11 @@ export const ORDEM_STATUS: StatusResposta[] = ['disponivel', 'indisponivel', 'ou
 /** Status que contam (total ou parcialmente) como disponíveis. */
 export const STATUS_DISPONIVEIS: StatusResposta[] = ['disponivel', 'apos_horario', 'meio_periodo']
 
-export const OPERACOES = ['📦 Mercado Livre', '📬 Coletas', '🔄 Reversa', '⚡ Same Day']
+// A operação é uma só: a frota inteira roda Mercado Livre. Fica como lista de
+// um item porque o Dispatcher pode cadastrar outras em Tipos — mas o cadastro
+// de motorista não pergunta, já entra fixo.
+export const OPERACOES = ['Mercado Livre']
 
-export const VEICULOS = ['Van', 'Fiorino', 'HR', 'Moto', 'Carro passeio']
+// Os dois veículos da operação. Valem enquanto o Dispatcher não cadastrar a
+// frota real em Tipos; a partir daí manda o que ele cadastrou.
+export const VEICULOS = ['Utilitário', 'VUC']
