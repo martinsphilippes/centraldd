@@ -1,12 +1,27 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
-import { ondasEDocas, totalDeOndas } from '../../core/ondas'
+import { kmDaRota, ondasEDocas, totalDeOndas } from '../../core/ondas'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
 import type { Rota } from '../../core/types'
+
+/** Colunas por onde a tabela pode ser ordenada. */
+type CampoOrdem =
+  | 'cidade'
+  | 'rotaExpedicao'
+  | 'rotaOriginal'
+  | 'base'
+  | 'motorista'
+  | 'veiculo'
+  | 'km'
+  | 'dps'
+  | 'ocupacao'
+  | 'transportadora'
+  | 'onda'
+  | 'doca'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
 
@@ -46,6 +61,81 @@ export function Rotas() {
   // ainda repetia o mesmo veículo em duas grafias ("Vuc" e "VUC").
   const veiculosOpcoes = opcoesDeVeiculo(db)
 
+  // Ordenação por qualquer coluna. O primeiro toque ordena crescente; o
+  // segundo inverte. Só uma coluna manda por vez — ordenar por duas ao mesmo
+  // tempo confunde mais do que ajuda em tabela operacional.
+  const [ordem, setOrdem] = useState<{ campo: CampoOrdem; desc: boolean }>({
+    campo: 'rotaExpedicao',
+    desc: false,
+  })
+  const alternarOrdem = (campo: CampoOrdem) =>
+    setOrdem((o) => (o.campo === campo ? { campo, desc: !o.desc } : { campo, desc: false }))
+
+  /**
+   * O valor que entra na comparação. Número e hora saem como NÚMERO, senão
+   * '9' viria depois de '10' e '7:04' não se compararia com '11:20'.
+   */
+  const valorDaColuna = (r: Rota, campo: CampoOrdem): string | number => {
+    switch (campo) {
+      case 'motorista':
+        return r.motoristaId ? (porMotorista.get(r.motoristaId)?.nome ?? '') : ''
+      case 'km':
+        return kmDaRota(r.km)
+      case 'ocupacao':
+        return kmDaRota(r.ocupacao)
+      case 'dps': {
+        const [h, m] = String(r.dps ?? '').split(':')
+        return (Number(h) || 0) * 60 + (Number(m) || 0)
+      }
+      case 'onda':
+        return postos.get(r.id)?.onda ?? 0
+      case 'doca':
+        return postos.get(r.id)?.doca ?? 0
+      default:
+        return r[campo] ?? ''
+    }
+  }
+
+  /**
+   * Cabeçalho que ordena. A seta mostra o estado: ↕ quando a coluna não manda,
+   * ▲/▼ quando manda. Sem isso ninguém descobre que dá para clicar.
+   */
+  const Coluna = ({
+    campo,
+    alinhar = 'esquerda',
+    children,
+  }: {
+    campo: CampoOrdem
+    alinhar?: 'esquerda' | 'centro' | 'direita'
+    children: ReactNode
+  }) => {
+    const ativa = ordem.campo === campo
+    return (
+      <th
+        className={`px-2 py-2.5 ${
+          alinhar === 'centro' ? 'text-center' : alinhar === 'direita' ? 'text-right' : ''
+        }`}
+      >
+        <button
+          onClick={() => alternarOrdem(campo)}
+          className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-marca-texto ${
+            ativa ? 'font-bold text-marca-texto' : ''
+          }`}
+          title={
+            ativa
+              ? ordem.desc
+                ? 'Ordenado do maior para o menor — clique para inverter'
+                : 'Ordenado do menor para o maior — clique para inverter'
+              : 'Clique para ordenar por esta coluna'
+          }
+        >
+          {children}
+          <span className={ativa ? '' : 'text-slate-300'}>{ativa ? (ordem.desc ? '▼' : '▲') : '↕'}</span>
+        </button>
+      </th>
+    )
+  }
+
   const rotas = rotasDoDia
     .filter(
       (r) =>
@@ -56,7 +146,17 @@ export function Rotas() {
     )
     .filter((r) => !cidade || r.cidade === cidade)
     .filter((r) => !transportadora || r.transportadora === transportadora)
-    .sort((a, b) => a.rotaExpedicao.localeCompare(b.rotaExpedicao, 'pt-BR', { numeric: true }))
+    .sort((a, b) => {
+      const va = valorDaColuna(a, ordem.campo)
+      const vb = valorDaColuna(b, ordem.campo)
+      const c =
+        typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : // numeric: 'D9_AM1' vem antes de 'D10_AM1'; sensitivity 'base'
+            // ignora acento e caixa, para Ituiutaba e ITUIUTABA não separarem.
+            String(va).localeCompare(String(vb), 'pt-BR', { numeric: true, sensitivity: 'base' })
+      return ordem.desc ? -c : c
+    })
 
   const semMotorista = rotas.filter((r) => !r.motoristaId).length
 
@@ -373,18 +473,18 @@ export function Rotas() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left uppercase tracking-wide text-slate-500">
-                <th className="px-2 py-2.5">Cidade</th>
-                <th className="px-2 py-2.5">Rota expedição</th>
-                <th className="px-2 py-2.5">Rota original</th>
-                <th className="px-2 py-2.5">Base</th>
-                <th className="px-2 py-2.5">🚚 Motorista</th>
-                <th className="px-2 py-2.5">Veículo</th>
-                <th className="px-2 py-2.5 text-right">Km</th>
-                <th className="px-2 py-2.5 text-center">DPS</th>
-                <th className="px-2 py-2.5 text-right">Ocupação %</th>
-                <th className="px-2 py-2.5">Transportadora</th>
-                <th className="px-2 py-2.5 text-center">🌊 Onda</th>
-                <th className="px-2 py-2.5 text-center">🚪 Doca</th>
+                <Coluna campo="cidade">Cidade</Coluna>
+                <Coluna campo="rotaExpedicao">Rota expedição</Coluna>
+                <Coluna campo="rotaOriginal">Rota original</Coluna>
+                <Coluna campo="base">Base</Coluna>
+                <Coluna campo="motorista">🚚 Motorista</Coluna>
+                <Coluna campo="veiculo">Veículo</Coluna>
+                <Coluna campo="km" alinhar="direita">Km</Coluna>
+                <Coluna campo="dps" alinhar="centro">DPS</Coluna>
+                <Coluna campo="ocupacao" alinhar="direita">Ocupação %</Coluna>
+                <Coluna campo="transportadora">Transportadora</Coluna>
+                <Coluna campo="onda" alinhar="centro">🌊 Onda</Coluna>
+                <Coluna campo="doca" alinhar="centro">🚪 Doca</Coluna>
                 <th className="px-2 py-2.5"></th>
               </tr>
             </thead>
