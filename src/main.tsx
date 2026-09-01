@@ -61,9 +61,6 @@ vigiarVersao()
 
 // PWA: registra o service worker (necessário para instalar na tela de início).
 if ('serviceWorker' in navigator && !location.hostname.includes('localhost')) {
-  window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js')
-  })
   // Quando uma versão nova assume o controle, recarrega UMA vez — assim o app
   // instalado nunca fica preso numa versão antiga.
   const tinhaControlador = !!navigator.serviceWorker.controller
@@ -73,5 +70,30 @@ if ('serviceWorker' in navigator && !location.hostname.includes('localhost')) {
       recarregou = true
       location.reload()
     }
+  })
+
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').then((registro) => {
+      /*
+       * Procurar versão nova só no carregamento da página NÃO basta no app
+       * instalado. No iPhone e no iPad, reabrir pelo alternador de aplicativos
+       * não recarrega nada: o sistema restaura a página suspensa, o evento
+       * 'load' não acontece de novo, e o app fica parado numa versão antiga
+       * por dias sem ninguém entender por quê.
+       *
+       * Por isso a checagem é ATIVA: toda vez que o app volta para a frente, e
+       * de tempos em tempos enquanto está aberto. Achando versão nova, o
+       * service worker assume e o controllerchange acima recarrega sozinho.
+       */
+      const procurarVersaoNova = () => {
+        registro.update().catch(() => {})
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') procurarVersaoNova()
+      })
+      window.addEventListener('focus', procurarVersaoNova)
+      // De hora em hora para quem deixa o app aberto o dia inteiro no galpão.
+      setInterval(procurarVersaoNova, 60 * 60 * 1000)
+    })
   })
 }
