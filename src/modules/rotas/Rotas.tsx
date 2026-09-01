@@ -4,7 +4,6 @@ import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../co
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { kmDaRota, ondasEDocas, totalDeOndas } from '../../core/ondas'
 import { CORES_DOCA, estadoPorRota } from '../../core/docas'
-import { PainelDocas } from './PainelDocas'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
@@ -473,8 +472,6 @@ export function Rotas() {
           </div>
         </div>
       ) : (
-        <>
-        <PainelDocas data={dia} />
         <Card className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -646,7 +643,6 @@ export function Rotas() {
             </tbody>
           </table>
         </Card>
-        </>
       )}
 
       {/* Importação (modal compartilhado com a Programação) */}
