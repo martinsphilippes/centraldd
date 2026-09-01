@@ -70,9 +70,9 @@ const colecoes = incluirDia ? [...DE_PESSOAS, ...DO_DIA] : DE_PESSOAS
  *     arquivo de credencial é criado, então nenhum arquivo pode vazar.
  *  2. Em computador próprio, com o chave.json baixado do Console.
  */
-// O ID do projeto no Google. O NOME é Central DD; o id nasceu
-// 'mldisponibilidade' e não pode ser renomeado — é o endereço do banco.
-const PROJETO = 'mldisponibilidade'
+// O ID do projeto no Google. O NOME é Central DD; o id é o ENDEREÇO do banco e
+// o Google não permite renomeá-lo depois de criado.
+const PROJETO = 'centraldispatcherdriver'
 if (existsSync('./chave.json')) {
   initializeApp({ credential: cert(JSON.parse(readFileSync('./chave.json', 'utf8'))), projectId: PROJETO })
   console.log('autenticado pelo chave.json')

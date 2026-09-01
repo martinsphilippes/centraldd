@@ -42,9 +42,13 @@ subiu, comparar o hash do bundle: `curl -s https://centraldd.vercel.app/
 
 O projeto na Vercel se chama `centraldd` e o endereço é `centraldd.vercel.app`.
 
-No Firebase, o NOME do projeto é Central DD, mas o `projectId` é e será sempre
-`mldisponibilidade` — o Google não permite renomear o ID depois de criado.
-Daí as três linhas do firebase-config.ts (`projectId`, `authDomain`,
-`storageBucket`) ficarem com o nome antigo: elas são o ENDEREÇO do banco, não
-um rótulo. Trocar exigiria criar outro projeto e migrar contas e dados, e
-ninguém que usa o app vê esse nome em lugar nenhum. Não mexer.
+No Firebase, o NOME do projeto é Central DD e o `projectId` é
+`centraldispatcherdriver` — o Google não permite renomear o ID depois de
+criado, e o ID gerado na criação foi esse. As linhas do firebase-config.ts
+(`projectId`, `authDomain`, `storageBucket`) são o ENDEREÇO do banco, não um
+rótulo: trocar de novo exigiria criar outro projeto e migrar contas e dados.
+Não mexer.
+
+O projeto anterior (`mldisponibilidade`) foi abandonado em 01/09/2026 — a base
+estava vazia, então a mudança de casa não custou dado nenhum. Manter o projeto
+velho no Console por algumas semanas antes de apagar.

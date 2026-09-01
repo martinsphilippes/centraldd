@@ -3,12 +3,12 @@
 // a segurança real fica nas regras do Firestore (arquivo firestore.rules).
 
 export const firebaseConfig = {
-  apiKey: 'AIzaSyDdvtQq72uYh4zzjFMg5PxXj9QPH78flks',
-  authDomain: 'mldisponibilidade.firebaseapp.com',
-  projectId: 'mldisponibilidade',
-  storageBucket: 'mldisponibilidade.firebasestorage.app',
-  messagingSenderId: '433672910251',
-  appId: '1:433672910251:web:a43fa36f7f07a8c42f4eee',
+  apiKey: 'AIzaSyABnoHfZHRyYcmsRI06oOZEDEpt2NjzvYM',
+  authDomain: 'centraldispatcherdriver.firebaseapp.com',
+  projectId: 'centraldispatcherdriver',
+  storageBucket: 'centraldispatcherdriver.firebasestorage.app',
+  messagingSenderId: '161597441931',
+  appId: '1:161597441931:web:7bf11f42915dbaf7a1918e',
 }
 
 /** true enquanto a configuração ainda não foi preenchida. */
