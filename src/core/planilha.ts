@@ -24,10 +24,44 @@ function detectarSeparador(linha: string): string {
   return ','
 }
 
+/**
+ * Divide a linha RESPEITANDO ASPAS.
+ *
+ * O CSV do Meli traz Km e Ocupação entre aspas justamente porque o número usa
+ * vírgula decimal: `"150,046"` e `"23,51"`. Cortando por vírgula sem olhar as
+ * aspas, a linha ganha duas colunas a mais e TUDO desloca duas casas — o que
+ * caía na coluna Transportadora era o pedaço `"23` da ocupação.
+ */
+function dividirLinha(linha: string, sep: string): string[] {
+  const celulas: string[] = []
+  let atual = ''
+  let dentroDeAspas = false
+  for (let i = 0; i < linha.length; i++) {
+    const ch = linha[i]
+    if (ch === '"') {
+      // Duas aspas seguidas dentro do campo são uma aspa de verdade.
+      if (dentroDeAspas && linha[i + 1] === '"') {
+        atual += '"'
+        i++
+      } else {
+        dentroDeAspas = !dentroDeAspas
+      }
+      continue
+    }
+    if (ch === sep && !dentroDeAspas) {
+      celulas.push(atual)
+      atual = ''
+      continue
+    }
+    atual += ch
+  }
+  celulas.push(atual)
+  return celulas
+}
+
+/** As aspas já saíram no divisor; aqui sobra tirar o espaço das pontas. */
 function limpar(celula: string): string {
-  let s = celula.trim()
-  if (s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1).replace(/""/g, '"')
-  return s.trim()
+  return celula.trim()
 }
 
 /**
@@ -339,7 +373,7 @@ export function lerParteDaPlanilha(
   const grade = (verticalParaTabela(texto, ctx) ?? texto)
     .split(/\r?\n/)
     .filter((l) => l.trim() !== '')
-    .map((l) => l.split(detectarSeparador(l)).map(limpar))
+    .map((l) => dividirLinha(l, detectarSeparador(l)).map(limpar))
   if (grade.length === 0) return { colunas: [], linhas: [], mapa: null }
 
   let mapa: Map<number, ColunaRota> | null = null
@@ -693,7 +727,7 @@ export function parsearPlanilhaRotas(
 
   // Descobre as colunas ANTES de ler: pelo cabeçalho, se ele veio na peca;
   // senão, pelo formato do conteúdo. Só cai na posição fixa se nada casar.
-  const grade = linhas.map((l) => l.split(detectarSeparador(l)).map(limpar))
+  const grade = linhas.map((l) => dividirLinha(l, detectarSeparador(l)).map(limpar))
   let mapa: Map<number, (typeof COLUNAS)[number]> | null = null
   let primeiraLinha = 0
   for (let i = 0; i < Math.min(grade.length, 5); i++) {
@@ -708,7 +742,7 @@ export function parsearPlanilhaRotas(
 
   for (const linha of linhas.slice(primeiraLinha)) {
     const sep = detectarSeparador(linha)
-    const celulas = linha.split(sep).map(limpar)
+    const celulas = dividirLinha(linha, sep).map(limpar)
     // Cabeçalho: primeira célula "Cidade" (ou similar) → pula.
     if (/^cidade$/i.test(celulas[0] ?? '')) continue
     if (mapa) {
