@@ -7,6 +7,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { finalizarRota, useDB } from '../../core/db'
 import { hojeISO } from '../../core/dates'
 import { ondasEDocas } from '../../core/ondas'
+import { estadoPorRota } from '../../core/docas'
 import { Badge, Button, Card, EmptyState } from '../../components/ui'
 
 export function MinhasRotas() {
@@ -16,6 +17,8 @@ export function MinhasRotas() {
   // Onda e doca saem do dia INTEIRO, não só das rotas dele: a posição de cada
   // um depende de todo mundo, e é a mesma conta que o Dispatcher vê.
   const postos = ondasEDocas(db.rotas.filter((r) => r.data === hojeISO()))
+  // Em que pé ele está na fila da doca: chamado, carregando ou aguardando.
+  const estados = estadoPorRota(db, hojeISO())
 
   // A rota pertence ao dia em que foi importada: aqui vale a de HOJE.
   const minhas = db.rotas
@@ -140,6 +143,23 @@ export function MinhasRotas() {
                 <div className={VAL}>{postos.get(r.id)?.doca ?? '—'}</div>
               </div>
             </div>
+            {/* O aviso que o motorista espera ver: chegou a vez dele. Só
+                aparece quando a doca está de fato esperando por ele. */}
+            {postos.get(r.id) && estados.get(r.id) === 'chamado' && (
+              <div className="mx-4 mb-4 rounded-xl border-2 border-sky-400 bg-sky-50 px-3 py-2.5 text-center">
+                <p className="text-sm font-extrabold text-sky-800">
+                  📢 Sua vez! Encoste na doca {postos.get(r.id)!.doca}
+                </p>
+                <p className="mt-0.5 text-[11px] text-sky-700">
+                  A doca vagou e você é o próximo desta fila.
+                </p>
+              </div>
+            )}
+            {estados.get(r.id) === 'aguardando' && (
+              <p className="mx-4 mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs text-slate-600">
+                ⏳ Aguarde: a doca {postos.get(r.id)?.doca} ainda está carregando outra rota.
+              </p>
+            )}
             {compartilhada.length > 0 && (
               <p className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
                 🤝 Rota dividida com <strong>{compartilhada.join(', ')}</strong> — cada um leva uma

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { enviarNotificacao, removerRota, salvarRota, uid, useDB } from '../../core/db'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { kmDaRota, ondasEDocas, totalDeOndas } from '../../core/ondas'
+import { CORES_DOCA, estadoPorRota } from '../../core/docas'
+import { PainelDocas } from './PainelDocas'
 import { alocarMotoristasNasRotas, parametrosAtuais } from '../../core/alocacao'
 import { formatarData, hojeISO, rotuloDia } from '../../core/dates'
 import { lerDiaProgramacao, gravarDiaProgramacao } from '../../core/dia-selecionado'
@@ -52,6 +54,8 @@ export function Rotas() {
   // filtrar por cidade não pode reordenar o carregamento do galpão.
   const postos = ondasEDocas(rotasDoDia)
   const ondas = totalDeOndas(postos)
+  // Estado ao vivo de cada rota na fila da doca — pinta a linha da tabela.
+  const estados = estadoPorRota(db, dia)
   const diasComRota = [...new Set(db.rotas.map((r) => r.data).filter(Boolean))].sort().reverse()
 
   const cidades = [...new Set(rotasDoDia.map((r) => r.cidade))].filter(Boolean).sort()
@@ -469,6 +473,8 @@ export function Rotas() {
           </div>
         </div>
       ) : (
+        <>
+        <PainelDocas data={dia} />
         <Card className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -600,8 +606,22 @@ export function Rotas() {
                       '—'
                     )}
                   </td>
-                  <td className={`${CELULA} text-center font-bold text-slate-700`}>
-                    {postos.get(r.id)?.doca ?? '—'}
+                  <td className={`${CELULA} text-center`}>
+                    {postos.get(r.id) ? (
+                      <span
+                        className={`inline-block rounded-full border px-2 py-0.5 text-xs font-bold ${
+                          CORES_DOCA[estados.get(r.id) ?? 'aguardando'].classe
+                        }`}
+                        title={`Doca ${postos.get(r.id)!.doca} — ${
+                          CORES_DOCA[estados.get(r.id) ?? 'aguardando'].rotulo
+                        }`}
+                      >
+                        {CORES_DOCA[estados.get(r.id) ?? 'aguardando'].emoji}{' '}
+                        {postos.get(r.id)!.doca}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className={`${CELULA} text-right`}>
                     <button
@@ -626,6 +646,7 @@ export function Rotas() {
             </tbody>
           </table>
         </Card>
+        </>
       )}
 
       {/* Importação (modal compartilhado com a Programação) */}
