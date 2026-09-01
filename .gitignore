@@ -3,3 +3,7 @@ dist
 *.local
 .DS_Store
 tsconfig.tsbuildinfo
+
+# Chave de serviço do Firebase: acesso total ao projeto, nunca versionar.
+ferramentas/chave.json
+ferramentas/backup-*.json
