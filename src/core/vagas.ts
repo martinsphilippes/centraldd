@@ -10,6 +10,7 @@
 // veículo escasso trabalham em dias alternados, em vez de sempre os mesmos.
 
 import type { DB, Motorista, ParametrosAlocacao } from './types'
+import { amDoDia } from './resumo-auto'
 import { normalizarTexto } from './texto'
 import { parseEquivalencias } from './alocacao'
 
@@ -50,15 +51,6 @@ function ordenadas(mapa: Map<string, VagaVeiculo>): VagaVeiculo[] {
   return [...mapa.values()].sort((a, b) => b.vagas - a.vagas || a.tipo.localeCompare(b.tipo, 'pt-BR'))
 }
 
-function porVeiculoDeLista(itens: { veiculo: string }[]): { mapa: Map<string, VagaVeiculo>; livres: number } {
-  const mapa = new Map<string, VagaVeiculo>()
-  let livres = 0
-  for (const i of itens) {
-    if ((i.veiculo ?? '').trim()) somar(mapa, i.veiculo, 1)
-    else livres++
-  }
-  return { mapa, livres }
-}
 
 /**
  * A frota planejada para a data, na mesma ordem de fontes do limite do dia:
@@ -95,26 +87,21 @@ export function frotaDoDia(db: DB, data: string): FrotaDoDia {
     if (total > 0) return { vagas, livres, total, fonte: 'resumo do dia', divergencia }
   }
 
-  const daProgramacao = db.programacao.filter((p) => p.data === data)
-  if (daProgramacao.length > 0) {
-    const { mapa, livres } = porVeiculoDeLista(daProgramacao)
+  // Sem resumo salvo, vale a MESMA conta que o card do dia mostra: só o AM
+  // (Utilitário + VUC) da planilha importada. Antes daqui saía uma contagem
+  // própria, que criava vaga de 3/4 ou TRUCK quando a planilha trazia um
+  // veículo de transferência — vaga que motorista nenhum deste cadastro ocupa,
+  // e que o card já listava à parte.
+  const am = amDoDia(db, data)
+  if (am.total > 0) {
+    const mapa = new Map<string, VagaVeiculo>()
+    somar(mapa, 'Utilitário', am.utilitarios)
+    somar(mapa, 'VUC', am.vuc)
     return {
       vagas: ordenadas(mapa),
-      livres,
-      total: daProgramacao.length,
-      fonte: 'programação do Meli',
-      divergencia: '',
-    }
-  }
-
-  const rotasDoDia = db.rotas.filter((r) => r.data === data)
-  if (rotasDoDia.length > 0) {
-    const { mapa, livres } = porVeiculoDeLista(rotasDoDia)
-    return {
-      vagas: ordenadas(mapa),
-      livres,
-      total: rotasDoDia.length,
-      fonte: 'roteirização carregada',
+      livres: 0,
+      total: am.total,
+      fonte: am.fonte === 'rotas' ? 'planilha de rotas' : 'programação do Meli',
       divergencia: '',
     }
   }

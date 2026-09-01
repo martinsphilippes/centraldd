@@ -2,6 +2,7 @@
 // parametrizada pelo dispatcher. Um limite manual, quando existe, manda.
 
 import type { DB, ParametrosAlocacao } from './types'
+import { amDoDia } from './resumo-auto'
 
 export interface LimiteDoDia {
   /** null = sem limite (nada planejado e sem limite manual). */
@@ -39,11 +40,14 @@ function basePlanejada(db: DB, data: string): { base: number; fonte: string } {
     if (total > 0) return { base: total, fonte: `resumo do dia — ${total} do TOTAL ROTAS` }
   }
 
-  const daProgramacao = db.programacao.filter((p) => p.data === data).length
-  if (daProgramacao > 0) return { base: daProgramacao, fonte: 'programação do Meli' }
-
-  const rotasDoDia = db.rotas.filter((r) => r.data === data)
-  if (rotasDoDia.length > 0) return { base: rotasDoDia.length, fonte: 'roteirização carregada' }
+  // Mesma conta do card e da frota do dia: só o AM da planilha importada.
+  const am = amDoDia(db, data)
+  if (am.total > 0) {
+    return {
+      base: am.total,
+      fonte: am.fonte === 'rotas' ? `planilha de rotas — ${am.total} rotas` : `programação do Meli — ${am.total} rotas`,
+    }
+  }
   return { base: 0, fonte: '' }
 }
 
