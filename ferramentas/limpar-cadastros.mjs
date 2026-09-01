@@ -10,9 +10,8 @@
  *
  * Roda na SUA máquina, com a SUA chave — nenhum segredo passa por chat.
  *
- * COMO USAR
- *   1. Firebase Console → ⚙️ Configurações do projeto → Contas de serviço
- *      → "Gerar nova chave privada". Salve como chave.json NESTA pasta.
+ * COMO USAR (Cloud Shell — funciona até do iPad, sem baixar chave)
+ *   1. console.cloud.google.com → escolha o projeto → ícone >_ (Cloud Shell)
  *   2. npm install firebase-admin
  *   3. node limpar-cadastros.mjs              ← só MOSTRA o que faria
  *   4. node limpar-cadastros.mjs --apagar     ← apaga de verdade
@@ -32,9 +31,9 @@
  * Firestore e no Auth não existe lixeira: o que sai não volta.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
-import { initializeApp, cert } from 'firebase-admin/app'
+import { initializeApp, cert, applicationDefault } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
@@ -63,7 +62,22 @@ const incluirDia = process.argv.includes('--tudo')
 const incluirSemPerfil = process.argv.includes('--sem-perfil')
 const colecoes = incluirDia ? [...DE_PESSOAS, ...DO_DIA] : DE_PESSOAS
 
-initializeApp({ credential: cert(JSON.parse(readFileSync('./chave.json', 'utf8'))) })
+/*
+ * Duas formas de autenticar, nesta ordem:
+ *
+ *  1. No CLOUD SHELL (terminal do navegador) não existe chave: ele já roda
+ *     autenticado como o dono do projeto. É o caminho recomendado — nenhum
+ *     arquivo de credencial é criado, então nenhum arquivo pode vazar.
+ *  2. Em computador próprio, com o chave.json baixado do Console.
+ */
+const PROJETO = 'mldisponibilidade'
+if (existsSync('./chave.json')) {
+  initializeApp({ credential: cert(JSON.parse(readFileSync('./chave.json', 'utf8'))), projectId: PROJETO })
+  console.log('autenticado pelo chave.json')
+} else {
+  initializeApp({ credential: applicationDefault(), projectId: PROJETO })
+  console.log('autenticado pela sessão do Cloud Shell (sem arquivo de chave)')
+}
 const auth = getAuth()
 const bd = getFirestore()
 
