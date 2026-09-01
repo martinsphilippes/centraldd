@@ -17,6 +17,7 @@ import { useDB } from '../../core/db'
 import { amDoDia } from '../../core/resumo-auto'
 import { formatarData } from '../../core/dates'
 import { STATUS_DISPONIVEIS } from '../../core/constants'
+import { respostasDaChamada } from '../../core/stats'
 import { Button, Card } from '../../components/ui'
 
 interface Etapa {
@@ -91,10 +92,19 @@ export function EsteiraDia({
   const resumoDia = db.resumos.find((r) => r.id === data) ?? (amDoDia(db, data).fonte ? {} : undefined)
 
   const chamada = db.chamadas.find((c) => c.data === data)
+  /*
+   * respostasDaChamada, e não db.respostas.
+   *
+   * Nem todo mundo responde pela chamada: quem marca na tela de
+   * Disponibilidade — e o próprio Dispatcher, quando marca alguém à mão —
+   * grava em outro lugar. Lendo só a coleção de respostas, a esteira mostrava
+   * "0/22 disponíveis" num dia com 43 pessoas marcadas e o planejamento já
+   * fechado, porque o planejamento usa a função que junta as duas fontes e a
+   * esteira não usava.
+   */
   const dispChamada = chamada
-    ? db.respostas.filter(
-        (r) => r.chamadaId === chamada.id && STATUS_DISPONIVEIS.includes(r.status),
-      ).length
+    ? respostasDaChamada(db, chamada.id).filter((r) => STATUS_DISPONIVEIS.includes(r.status))
+        .length
     : 0
   const planejamento = chamada ? db.planejamento.find((e) => e.chamadaId === chamada.id) : undefined
   const rotasDoDia = db.rotas.filter((r) => r.data === data)

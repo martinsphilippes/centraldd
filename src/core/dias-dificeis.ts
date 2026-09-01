@@ -121,9 +121,16 @@ export function faltouGente(db: DB, data: string): boolean {
   if (rotas.length > 0 && rotas.some((r) => !r.motoristaId)) return true
   const chamada = db.chamadas.find((c) => c.data === data)
   if (!chamada || chamada.qtdNecessaria <= 0) return false
-  const disponiveis = db.respostas.filter(
-    (r) => r.chamadaId === chamada.id && STATUS_DISPONIVEIS.includes(r.status),
-  ).length
+  // As duas fontes contam: quem respondeu a chamada e quem marcou na tela de
+  // Disponibilidade. Só a primeira faria um dia inteiro marcado à mão parecer
+  // que faltou gente — e um dia difícil inventado distorce crédito e
+  // fidelidade da frota toda.
+  const disponiveis = new Set([
+    ...db.respostas
+      .filter((r) => r.chamadaId === chamada.id && STATUS_DISPONIVEIS.includes(r.status))
+      .map((r) => r.motoristaId),
+    ...disponiveisEm(db, data),
+  ]).size
   return disponiveis < chamada.qtdNecessaria
 }
 
