@@ -363,6 +363,22 @@ export interface CidadeOperacao {
   criadaEm: string
 }
 
+/**
+ * Sugestão de melhoria escrita por um motorista.
+ *
+ * Canal de mão única de propósito: quem escreve é o motorista, quem lê é o
+ * Dispatcher. Um motorista NÃO lê a sugestão de outro — gente não fala o que
+ * pensa quando o colega está lendo por cima do ombro.
+ */
+export interface SugestaoMelhoria {
+  id: string
+  motoristaId: string
+  texto: string
+  criadaEm: string
+  /** ISO de quando o Dispatcher abriu — vazio = ainda não lida. */
+  lidaEm?: string | null
+}
+
 export interface Notificacao {
   id: string
   motoristaId: string | null // null = todos
@@ -391,6 +407,7 @@ export interface DB {
   modelos: ModeloAprendido[]
   notificacoes: Notificacao[]
   conferencias: Conferencia[]
+  sugestoes: SugestaoMelhoria[]
 }
 
 /** Papel da conta. 'coordenador' era o nome antigo de dispatcher — ver core/papel.ts. */

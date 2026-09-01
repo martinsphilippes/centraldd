@@ -4,6 +4,7 @@ import { useDB } from '../../core/db'
 import { hojeISO, rotuloDia, parseISODate } from '../../core/dates'
 import { MelhoresMotoristas } from './MelhoresMotoristas'
 import { ConferenciasCard } from './ConferenciasCard'
+import { SugestoesCard } from './SugestoesCard'
 import { resumoChamada, serieDisponibilidade } from '../../core/stats'
 import { Badge, Card, ProgressBar, StatCard, EmptyState } from '../../components/ui'
 import { BarChart, Legenda } from '../../components/charts'
@@ -63,6 +64,7 @@ export function Dashboard() {
       <ConferenciasCard />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <SugestoesCard />
         <MelhoresMotoristas />
 
         {/* Gráfico da semana */}

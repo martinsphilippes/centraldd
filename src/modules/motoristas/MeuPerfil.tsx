@@ -3,7 +3,7 @@
 // confirmando que é ele mesmo. Situação (ativo/aprovado) é só do Dispatcher.
 
 import { useState, type FormEvent } from 'react'
-import { salvarMeuPerfilMotorista, useDB } from '../../core/db'
+import { enviarSugestao, salvarMeuPerfilMotorista, useDB } from '../../core/db'
 import { trocarEmail, trocarSenha } from '../../core/firebase'
 import { useSessao } from '../../context/SessaoContext'
 import { OPERACOES } from '../../core/constants'
@@ -39,6 +39,10 @@ export function MeuPerfil() {
   const [avisoPerfil, setAvisoPerfil] = useState('')
   const [salvandoPerfil, setSalvandoPerfil] = useState(false)
 
+  const [sugestao, setSugestao] = useState('')
+  const [enviandoSugestao, setEnviandoSugestao] = useState(false)
+  const [avisoSugestao, setAvisoSugestao] = useState('')
+
   const [novoEmail, setNovoEmail] = useState('')
   const [senhaDoEmail, setSenhaDoEmail] = useState('')
   const [avisoEmail, setAvisoEmail] = useState<{ ok: boolean; texto: string } | null>(null)
@@ -68,6 +72,24 @@ export function MeuPerfil() {
       .then(() => setAvisoPerfil('✅ Dados salvos! O Dispatcher já vê a atualização.'))
       .catch(() => setAvisoPerfil('❌ Não consegui salvar. Tente de novo; se continuar, avise o Dispatcher.'))
       .finally(() => setSalvandoPerfil(false))
+  }
+
+  const mandarSugestao = (e: FormEvent) => {
+    e.preventDefault()
+    const texto = sugestao.trim()
+    if (texto.length < 5) {
+      setAvisoSugestao('❌ Escreva um pouco mais para o Dispatcher entender a ideia.')
+      return
+    }
+    setEnviandoSugestao(true)
+    setAvisoSugestao('')
+    enviarSugestao(eu.id, texto)
+      .then(() => {
+        setSugestao('')
+        setAvisoSugestao('✅ Sugestão enviada! Obrigado — o Dispatcher vai ler.')
+      })
+      .catch(() => setAvisoSugestao('❌ Não consegui enviar agora. Tente de novo daqui a pouco.'))
+      .finally(() => setEnviandoSugestao(false))
   }
 
   const enviarEmail = (e: FormEvent) => {
@@ -207,6 +229,40 @@ export function MeuPerfil() {
           <div className="flex justify-end">
             <Button variante="marca" disabled={salvandoPerfil}>
               {salvandoPerfil ? '⏳ Salvando…' : '💾 Salvar meus dados'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {/* Sugestões de melhoria: canal direto do motorista para o Dispatcher */}
+      <Card className="p-5">
+        <h2 className="mb-1 font-bold text-slate-900">💡 Sugerir melhoria no app</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Achou algo confuso, faltando ou errado? Escreva aqui. Só o Dispatcher lê — nenhum outro
+          motorista vê o que você mandou.
+        </p>
+        <form onSubmit={mandarSugestao} className="space-y-3">
+          <textarea
+            className="h-28 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-marca-texto"
+            placeholder="Ex.: seria bom ver a rota do dia seguinte na véspera…"
+            value={sugestao}
+            onChange={(e) => setSugestao(e.target.value)}
+            maxLength={4000}
+          />
+          {avisoSugestao && (
+            <p
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                avisoSugestao.startsWith('✅')
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : 'border-red-300 bg-red-50 text-red-700'
+              }`}
+            >
+              {avisoSugestao}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <Button variante="marca" disabled={enviandoSugestao}>
+              {enviandoSugestao ? '⏳ Enviando…' : '💡 Enviar sugestão'}
             </Button>
           </div>
         </form>

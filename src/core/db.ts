@@ -19,6 +19,7 @@ import { chaveNumeracao } from './conferencia'
 import { nomeOficialVeiculo } from './veiculos'
 import type {
   DB,
+  SugestaoMelhoria,
   Chamada,
   CidadeOperacao,
   TipoOperacional,
@@ -51,6 +52,7 @@ const VAZIO: DB = {
   modelos: [],
   notificacoes: [],
   conferencias: [],
+  sugestoes: [],
 }
 
 let state: DB = VAZIO
@@ -82,8 +84,15 @@ export function useDBCarregado(): boolean {
 
 type Linha = { id: string } & Record<string, unknown>
 
-/** Liga os listeners de tempo real (chamado após o login). */
-export function iniciarSincronizacao() {
+/**
+ * Liga os listeners de tempo real (chamado após o login).
+ *
+ * `ehDispatcher` não é enfeite: 'sugestoes' só é ouvida por ele. A sugestão de
+ * um motorista não pode chegar ao aparelho de outro, e as regras do Firestore
+ * recusam essa leitura — ouvir a coleção como motorista daria erro de
+ * permissão a cada abertura do app.
+ */
+export function iniciarSincronizacao(ehDispatcher: boolean) {
   if (unsubs.length > 0) return
   const colecoes: (keyof DB)[] = [
     'motoristas',
@@ -102,6 +111,7 @@ export function iniciarSincronizacao() {
     'modelos',
     'notificacoes',
     'conferencias',
+    ...(ehDispatcher ? (['sugestoes'] as const) : []),
   ]
   const chegaram = new Set<string>()
   for (const nome of colecoes) {
@@ -498,6 +508,32 @@ export function registrarDiagnosticoLeitura(origem: string, texto: string, info:
     ...info,
     registradoEm: new Date().toISOString(),
   }).catch(() => {})
+}
+
+/**
+ * O MOTORISTA envia uma sugestão de melhoria do app. Só ele cria; a leitura é
+ * do Dispatcher (as regras do Firestore garantem os dois lados).
+ */
+export function enviarSugestao(motoristaId: string, texto: string): Promise<void> {
+  const id = `${motoristaId}_${Date.now().toString(36)}`
+  const sugestao: SugestaoMelhoria = {
+    id,
+    motoristaId,
+    texto: texto.trim().slice(0, 4000),
+    criadaEm: new Date().toISOString(),
+    lidaEm: null,
+  }
+  return setDoc(doc(firestore, 'sugestoes', id), sugestao)
+}
+
+/** Carimba a sugestão como lida quando o Dispatcher a abre. */
+export function marcarSugestaoLida(id: string) {
+  void updateDoc(doc(firestore, 'sugestoes', id), { lidaEm: new Date().toISOString() }).catch(() => {})
+}
+
+/** Apaga uma sugestão já tratada. */
+export function removerSugestao(id: string) {
+  void deleteDoc(doc(firestore, 'sugestoes', id))
 }
 
 /** Cidades atendidas pela operação — mantidas pelo dispatcher. */

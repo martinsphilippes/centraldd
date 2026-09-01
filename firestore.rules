@@ -136,6 +136,15 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
+    // Sugestões de melhoria: o MOTORISTA escreve, o Dispatcher lê.
+    // A leitura NÃO é liberada para motorista — nem a própria: a tela dele só
+    // envia. Gente não escreve o que pensa sabendo que o colega pode ler.
+    match /sugestoes/{id} {
+      allow read: if ehDispatcher();
+      allow create: if logado() && request.resource.data.motoristaId == meuMotoristaId();
+      allow update, delete: if ehDispatcher();
+    }
+
     match /notificacoes/{id} {
       allow read: if logado();
       allow create: if ehDispatcher();
@@ -145,13 +154,16 @@ service cloud.firestore {
 
     // Regra geral (vale para limites, cidades e QUALQUER coleção nova):
     // todo usuário logado lê; apenas o dispatcher escreve.
-    // ATENÇÃO: 'perfis' fica de fora — é ela que define quem é dispatcher,
-    // e liberar aqui anularia a regra específica (só o dono promove).
+    // ATENÇÃO: 'perfis' fica de fora da ESCRITA — é ela que define quem é
+    // dispatcher, e liberar aqui anularia a regra específica (só o dono
+    // promove). 'sugestoes' fica de fora da LEITURA: as regras se somam, então
+    // sem esta exceção o `read: if logado()` daqui anularia o sigilo da regra
+    // específica e todo motorista leria a sugestão de todo mundo.
     // Coleções com escrita do motorista (respostas, disponibilidade, rotas,
     // cadastro)
     // têm as permissões extras específicas definidas acima.
     match /{colecao}/{id} {
-      allow read: if logado();
+      allow read: if logado() && colecao != 'sugestoes';
       allow write: if ehDispatcher() && colecao != 'perfis';
     }
   }
