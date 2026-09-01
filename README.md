@@ -37,8 +37,8 @@ npm run build    # build de produção
 npm run preview  # servir o build
 ```
 
-O app abre com **dados de demonstração** (frota, chamadas e respostas) e um seletor de
-perfil no topo para alternar entre a visão do **Dispatcher** e a do **motorista**.
+Os dados são reais e ficam no Firestore: cada pessoa entra com a própria conta e vê o
+que é dela. O Dispatcher enxerga a operação inteira; o motorista, só o próprio dia.
 
 ## Arquitetura
 

@@ -34,20 +34,14 @@ export function DisponibilidadeFrota() {
   const [busca, setBusca] = useState('')
   const [editandoLimite, setEditandoLimite] = useState(false)
   const [novoLimite, setNovoLimite] = useState(40)
-  const [avisoSimulacao, setAvisoSimulacao] = useState('')
+  const [avisoMarcacao, setAvisoMarcacao] = useState('')
   const [marcarTodos, setMarcarTodos] = useState(false)
   const [statusMassa, setStatusMassa] = useState<StatusResposta>('disponivel')
   const [alcanceMassa, setAlcanceMassa] = useState<'sem-marcacao' | 'todos'>('sem-marcacao')
 
-  // 🧪 Só o dono vê: marca todos os motoristas FICTÍCIOS (teste-*) como
-  // disponíveis no dia selecionado, para simular a operação em um clique.
+  // Só o dono marca disponibilidade pela frota — dele são o ⚡ de cada linha
+  // e o "Marcar todos".
   const souDono = usuarioEmail?.toLowerCase() === 'martinsphilippes@gmail.com'
-  const ficticios = db.motoristas.filter((m) => m.id.startsWith('teste-') && m.ativo)
-  // A simulação segue a esteira: só faz sentido depois que o dia tem
-  // programação lançada (planilha de rotas importada ou resumo do dia).
-  const temProgramacao =
-    db.programacao.some((p) => p.data === diaSelecionado) ||
-    db.resumos.some((r) => r.id === diaSelecionado)
   /**
    * ⚡ Só o DONO: marca a disponibilidade da frota inteira de uma vez no dia
    * selecionado. Respeita o filtro de cidade da tela, e por padrão só
@@ -60,7 +54,7 @@ export function DisponibilidadeFrota() {
     )
     const rotulo = STATUS_RESPOSTA[statusMassa].label.toUpperCase()
     if (alvo.length === 0) {
-      setAvisoSimulacao('⚡ Ninguém para marcar — todos os motoristas do filtro já têm marcação neste dia.')
+      setAvisoMarcacao('⚡ Ninguém para marcar — todos os motoristas do filtro já têm marcação neste dia.')
       setMarcarTodos(false)
       return
     }
@@ -74,24 +68,8 @@ export function DisponibilidadeFrota() {
     for (const m of alvo) {
       salvarDiaDisponibilidade({ motoristaId: m.id, data: diaSelecionado, status: statusMassa })
     }
-    setAvisoSimulacao(`⚡ ${alvo.length} motorista(s) marcados como ${rotulo} em ${rotuloDia(diaSelecionado)}.`)
+    setAvisoMarcacao(`⚡ ${alvo.length} motorista(s) marcados como ${rotulo} em ${rotuloDia(diaSelecionado)}.`)
     setMarcarTodos(false)
-  }
-
-  const simularDisponiveis = () => {
-    if (!temProgramacao) return
-    if (
-      !confirm(
-        `Marcar os ${ficticios.length} motoristas fictícios como DISPONÍVEL em ${rotuloDia(diaSelecionado)}?`,
-      )
-    )
-      return
-    for (const m of ficticios) {
-      salvarDiaDisponibilidade({ motoristaId: m.id, data: diaSelecionado, status: 'disponivel' })
-    }
-    setAvisoSimulacao(
-      `🧪 ${ficticios.length} fictícios marcados como disponíveis em ${rotuloDia(diaSelecionado)}.`,
-    )
   }
 
   // Limite = planejamento + reserva parametrizada (ou o valor manual do dia).
@@ -304,20 +282,6 @@ export function DisponibilidadeFrota() {
           <Button variante="secundario" onClick={() => exportarPDF(tabelaDia(), rotuloDia(diaSelecionado))}>
             🖨️ PDF do dia
           </Button>
-          {souDono && ficticios.length > 0 && (
-            <Button
-              variante="marca"
-              onClick={simularDisponiveis}
-              disabled={!temProgramacao}
-              title={
-                temProgramacao
-                  ? 'Marca os motoristas fictícios como disponíveis neste dia'
-                  : 'Lance a programação do dia (importe as rotas ou preencha o resumo) para liberar a simulação'
-              }
-            >
-              🧪 Simular disponíveis ({ficticios.length})
-            </Button>
-          )}
           {souDono && (
             <Button variante="marca" onClick={() => setMarcarTodos((v) => !v)}>
               ⚡ Marcar todos
@@ -368,18 +332,9 @@ export function DisponibilidadeFrota() {
         </Card>
       )}
 
-      {avisoSimulacao && (
+      {avisoMarcacao && (
         <p className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-          {avisoSimulacao}
-        </p>
-      )}
-      {souDono && ficticios.length > 0 && !temProgramacao && (
-        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          🧪 A simulação de disponíveis libera depois que o dia tiver{' '}
-          <Link to="/programacao" className="font-semibold text-marca-texto hover:underline">
-            programação lançada
-          </Link>{' '}
-          (planilha de rotas ou resumo do dia) — {rotuloDia(diaSelecionado).toLowerCase()}.
+          {avisoMarcacao}
         </p>
       )}
 
