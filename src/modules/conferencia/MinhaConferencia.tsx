@@ -15,7 +15,7 @@ import { arquivoCompartilhado } from '../../core/compartilhado'
 import { useSessao } from '../../context/SessaoContext'
 import { rotuloDia } from '../../core/dates'
 import type { Conferencia } from '../../core/types'
-import { ParadasDetalhadas, SeloParadas } from '../../components/SeloParadas'
+import { ParadasDetalhadas, SeloOndaDoca, SeloParadas } from '../../components/SeloParadas'
 import { Button, Card, EmptyState } from '../../components/ui'
 import { RoteiroRota } from '../roteiro/RoteiroRota'
 import { EntradaNumeracoes } from './EntradaNumeracoes'
@@ -164,7 +164,10 @@ export function MinhaConferencia() {
                 <h2 className="font-bold text-slate-900">{c.titulo}</h2>
                 <p className="text-xs text-slate-500">📅 {rotuloDia(c.data)}</p>
               </div>
-              <SeloParadas c={c} />
+              <span className="flex flex-wrap items-center gap-1.5">
+                <SeloOndaDoca c={c} />
+                <SeloParadas c={c} />
+              </span>
             </div>
 
             <div className="space-y-2">

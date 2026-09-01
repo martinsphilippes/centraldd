@@ -3,7 +3,62 @@
 // em vez de ser copiado nas duas telas.
 
 import { contarParadas } from '../core/conferencia'
-import type { Conferencia } from '../core/types'
+import { useDB } from '../core/db'
+import { ondasEDocas } from '../core/ondas'
+import type { Conferencia, Rota } from '../core/types'
+
+/**
+ * A rota desta conferência. O vínculo direto (rotaId) é o caminho normal;
+ * quando ele falta — conferência montada só com a página do Meli — sobra
+ * casar pelo código da rota dentro do mesmo dia.
+ */
+function rotaDaConferencia(c: Conferencia, rotas: Rota[]): Rota | undefined {
+  if (c.rotaId) {
+    const direta = rotas.find((r) => r.id === c.rotaId)
+    if (direta) return direta
+  }
+  const codigo = (c.origem?.rota ?? '').trim().toUpperCase()
+  if (!codigo) return undefined
+  return rotas.find(
+    (r) =>
+      r.data === c.data &&
+      (r.rotaExpedicao.trim().toUpperCase() === codigo ||
+        r.rotaOriginal.trim().toUpperCase() === codigo),
+  )
+}
+
+/**
+ * Onda e doca da rota desta conferência — onde e quando o veículo encosta.
+ *
+ * A conta é feita com o dia INTEIRO, como nas outras telas: a posição de cada
+ * um depende de todo mundo, e o número tem que ser o mesmo em qualquer lugar
+ * do app.
+ */
+export function SeloOndaDoca({ c }: { c: Conferencia }) {
+  const db = useDB()
+  const rota = rotaDaConferencia(c, db.rotas)
+  if (!rota) return null
+  const posto = ondasEDocas(db.rotas.filter((r) => r.data === rota.data)).get(rota.id)
+  if (!posto) return null
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+          posto.onda === 1 ? 'bg-marca text-navy' : 'bg-slate-200 text-slate-700'
+        }`}
+        title={`Onda ${posto.onda} do carregamento`}
+      >
+        🌊 {posto.onda}ª
+      </span>
+      <span
+        className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700"
+        title={`Doca ${posto.doca}`}
+      >
+        🚪 {posto.doca}
+      </span>
+    </span>
+  )
+}
 
 /** Só o total, para caber na linha fechada do card. */
 export function SeloParadas({ c }: { c: Conferencia }) {
