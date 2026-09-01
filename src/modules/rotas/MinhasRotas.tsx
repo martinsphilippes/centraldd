@@ -6,11 +6,16 @@
 import { useSessao } from '../../context/SessaoContext'
 import { finalizarRota, useDB } from '../../core/db'
 import { hojeISO } from '../../core/dates'
+import { ondasEDocas } from '../../core/ondas'
 import { Badge, Button, Card, EmptyState } from '../../components/ui'
 
 export function MinhasRotas() {
   const { motoristaId } = useSessao()
   const db = useDB()
+
+  // Onda e doca saem do dia INTEIRO, não só das rotas dele: a posição de cada
+  // um depende de todo mundo, e é a mesma conta que o Dispatcher vê.
+  const postos = ondasEDocas(db.rotas.filter((r) => r.data === hojeISO()))
 
   // A rota pertence ao dia em que foi importada: aqui vale a de HOJE.
   const minhas = db.rotas
@@ -120,6 +125,19 @@ export function MinhasRotas() {
               <div>
                 <div className={LBL}>🚛 Transportadora</div>
                 <div className={VAL}>{r.transportadora || '—'}</div>
+              </div>
+              {/* Onda e doca: onde e quando ele encosta para carregar. Vêm por
+                  último porque é o que ele confere na chegada, não no
+                  planejamento da véspera. */}
+              <div>
+                <div className={LBL}>🌊 Onda</div>
+                <div className={VAL}>
+                  {postos.get(r.id) ? `${postos.get(r.id)!.onda}ª` : '—'}
+                </div>
+              </div>
+              <div>
+                <div className={LBL}>🚪 Doca</div>
+                <div className={VAL}>{postos.get(r.id)?.doca ?? '—'}</div>
               </div>
             </div>
             {compartilhada.length > 0 && (
