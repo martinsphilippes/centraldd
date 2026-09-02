@@ -1,4 +1,6 @@
 // Campo de cidade com sugestão, conferido contra a lista oficial do IBGE.
+// Usado nos DOIS cadastros: o que o motorista faz na tela de login e o que o
+// Dispatcher faz em Motoristas → Novo. A regra é uma só, aqui.
 //
 // Por que não deixar digitar livre: a cidade decide preferência, rodízio e
 // relatório. "Guarulhos", "guarulhos " e "Guarulos" viravam três cidades
@@ -14,14 +16,14 @@
 // primeiro, depois quem começa com o texto, nome mais curto na frente.
 
 import { useEffect, useRef, useState } from 'react'
-import type { CidadeBR } from '../../core/cidades-brasil'
+import type { CidadeBR } from '../core/cidades-brasil'
 import {
   ehCidadeDaOperacao,
   nomeOficialCidade,
   sugerirCidades,
-} from '../../core/sugestao-cidade'
-import { carregarCidadesOperacaoPublicas } from '../../core/firebase'
-import { Input } from '../../components/ui'
+} from '../core/sugestao-cidade'
+import { carregarCidadesOperacaoPublicas } from '../core/firebase'
+import { Input } from './ui'
 
 export function CampoCidade({
   valor,
@@ -45,7 +47,7 @@ export function CampoCidade({
 
   useEffect(() => {
     let vivo = true
-    void import('../../core/cidades-brasil').then((m) => {
+    void import('../core/cidades-brasil').then((m) => {
       if (!vivo) return
       const lista = m.cidadesDoBrasil()
       setCidades(lista)

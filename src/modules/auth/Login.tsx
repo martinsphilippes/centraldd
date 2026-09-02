@@ -3,7 +3,8 @@ import { useSessao } from '../../context/SessaoContext'
 import { configPendente } from '../../core/firebase-config'
 import { cadastrarPreCadastro, carregarTiposPublicos } from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
-import { CampoCidade } from './CampoCidade'
+import { CampoCidade } from '../../components/CampoCidade'
+import { MENSAGEM_CIDADE_INVALIDA, MENSAGEM_SENHA_CURTA, primeiroCampoVazio } from '../../core/cadastro'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
 import { MarcaEmpilhada } from '../../components/Marca'
@@ -22,33 +23,6 @@ const MENSAGENS: Record<string, string> = {
 function codigoParaMensagem(err: unknown): string {
   const codigo = (err as { code?: string }).code ?? ''
   return MENSAGENS[codigo] ?? 'Algo deu errado. Tente novamente.'
-}
-
-/**
- * O primeiro campo obrigatório que está faltando, já como frase para a tela —
- * ou string vazia quando está tudo preenchido.
- *
- * A ordem segue a do formulário: reclamar do e-mail enquanto o nome está vazio
- * faria a pessoa corrigir de trás para frente.
- */
-function primeiroCampoVazio(d: {
-  nome: string
-  telefone: string
-  cidade: string
-  email: string
-  veiculo: string
-  funcao: 'motorista' | 'dispatcher'
-}): string {
-  if (!d.nome.trim()) return 'Preencha seu nome completo.'
-  const digitos = d.telefone.replace(/\D/g, '')
-  if (!digitos) return 'Preencha seu telefone de WhatsApp.'
-  // DDD + número: 10 dígitos no fixo, 11 no celular. Telefone pela metade é o
-  // mesmo que telefone nenhum na hora de chamar para a rota.
-  if (digitos.length < 10) return 'O telefone está incompleto — informe o DDD e o número.'
-  if (!d.cidade.trim()) return 'Informe sua cidade.'
-  if (!d.email.trim()) return 'Preencha o e-mail, que será seu login.'
-  if (d.funcao === 'motorista' && !d.veiculo) return 'Escolha o veículo que você dirige.'
-  return ''
 }
 
 export function Login() {
@@ -101,17 +75,24 @@ export function Login() {
     // Tudo aqui é obrigatório de verdade: cadastro pela metade vira motorista
     // sem telefone na hora de chamar para a rota, ou sem veículo na hora de
     // distribuir. Melhor barrar agora do que descobrir no dia da operação.
-    const faltando = primeiroCampoVazio({ nome, telefone, cidade, email, veiculo, funcao })
+    const faltando = primeiroCampoVazio({
+      nome,
+      telefone,
+      cidade,
+      email,
+      // Quem pede acesso de dispatcher não dirige: veículo não se aplica.
+      veiculo: funcao === 'motorista' ? veiculo : null,
+    })
     if (faltando) {
       setErro(faltando)
       return
     }
     if (!cidadeValida) {
-      setErro('Escolha a cidade na lista que aparece enquanto você digita.')
+      setErro(MENSAGEM_CIDADE_INVALIDA)
       return
     }
     if (senha.length < 6) {
-      setErro('A senha precisa ter pelo menos 6 caracteres.')
+      setErro(MENSAGEM_SENHA_CURTA)
       return
     }
     setEnviando(true)

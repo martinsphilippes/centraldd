@@ -2,8 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getDB, salvarMotorista, uid, useDB } from '../../core/db'
 import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
-import { OPERACOES, VEICULOS } from '../../core/constants'
+import { OPERACOES } from '../../core/constants'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
+import {
+  MENSAGEM_CIDADE_INVALIDA,
+  MENSAGEM_SENHA_CURTA,
+  digitosTelefone,
+  primeiroCampoVazio,
+} from '../../core/cadastro'
+import { CampoCidade } from '../../components/CampoCidade'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 
 const ERROS_CONTA: Record<string, string> = {
@@ -13,6 +20,11 @@ const ERROS_CONTA: Record<string, string> = {
   'auth/network-request-failed': 'Sem conexão. Verifique sua internet.',
 }
 
+// Cadastro feito pelo DISPATCHER. Segue as mesmas regras do pré-cadastro que
+// o motorista faz na tela de login (core/cadastro.ts): cidade da lista do
+// IBGE, operação fixa em Mercado Livre, veículo obrigatório e telefone com
+// DDD. Um cadastro pela metade aqui vira o mesmo problema lá na frente:
+// motorista sem veículo na hora de distribuir, cidade que não bate com nada.
 export function MotoristaForm() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -22,15 +34,14 @@ export function MotoristaForm() {
   const [nome, setNome] = useState(existente?.nome ?? '')
   const [telefone, setTelefone] = useState(existente?.telefone ?? '')
   const [cidade, setCidade] = useState(existente?.cidade ?? '')
-  const [operacao, setOperacao] = useState(existente?.operacao ?? OPERACOES[0])
-  const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(existente?.veiculo, db) || VEICULOS[0])
-  // Opções cadastradas pelo dispatcher (Tipos) + o valor atual do motorista.
-  const doSistema = (categoria: 'veiculo' | 'operacao', padrao: string[]): string[] => {
-    const lista = db.tipos.filter((t) => t.categoria === categoria).map((t) => t.nome)
-    return lista.length > 0 ? lista.sort((a, b) => a.localeCompare(b, 'pt-BR')) : padrao
-  }
+  // Cadastro antigo com cidade fora da lista aparece com a dica do campo e
+  // não salva até o Dispatcher escolher a certa — é assim que o dado velho
+  // vai sendo corrigido, um cadastro por vez, sem script.
+  const [cidadeValida, setCidadeValida] = useState(false)
+  // Começa VAZIO de propósito (como no pré-cadastro): escolher o veículo é
+  // obrigatório, e um valor já preenchido faria passar batido no primeiro.
+  const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(existente?.veiculo, db))
   const veiculosOpcoes = opcoesDeVeiculo(db, veiculo)
-  const operacoesOpcoes = [...new Set([...doSistema('operacao', OPERACOES), operacao].filter(Boolean))]
   const [ativo, setAtivo] = useState(existente?.ativo ?? true)
   const [cidadesPreferidas, setCidadesPreferidas] = useState(existente?.cidadesPreferidas ?? '')
   const [email, setEmail] = useState('')
@@ -43,8 +54,18 @@ export function MotoristaForm() {
   const enviar = async (e: FormEvent) => {
     e.preventDefault()
     setErro('')
+    // E-mail é opcional aqui (o acesso pode vir depois), por isso null.
+    const faltando = primeiroCampoVazio({ nome, telefone, cidade, email: null, veiculo })
+    if (faltando) {
+      setErro(faltando)
+      return
+    }
+    if (!cidadeValida) {
+      setErro(MENSAGEM_CIDADE_INVALIDA)
+      return
+    }
     if (criarAcesso && senha.length < 6) {
-      setErro('A senha precisa ter pelo menos 6 caracteres.')
+      setErro(MENSAGEM_SENHA_CURTA)
       return
     }
     setSalvando(true)
@@ -62,9 +83,10 @@ export function MotoristaForm() {
         ...existente,
         id: novoId,
         nome: nome.trim(),
-        telefone: telefone.replace(/\D/g, ''),
+        telefone: digitosTelefone(telefone),
         cidade: cidade.trim(),
-        operacao,
+        // A frota inteira roda Mercado Livre — igual ao pré-cadastro.
+        operacao: OPERACOES[0],
         veiculo,
         ativo,
         // Cadastro feito pelo dispatcher já nasce aprovado; edição preserva o estado.
@@ -100,21 +122,26 @@ export function MotoristaForm() {
               inputMode="tel"
             />
           </Field>
+          <Field label="📍 Cidade (onde mora)">
+            <CampoCidade
+              valor={cidade}
+              onChange={(c, valida) => {
+                setCidade(c)
+                setCidadeValida(valida)
+              }}
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="📍 Cidade">
-              <Input value={cidade} onChange={(e) => setCidade(e.target.value)} required placeholder="Ex.: Guarulhos" />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="📦 Operação padrão">
-              <Select value={operacao} onChange={(e) => setOperacao(e.target.value)}>
-                {operacoesOpcoes.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </Select>
+            <Field label="📦 Operação">
+              {/* Fixa: a frota inteira roda Mercado Livre. Aparece só para
+                  conferir, não para escolher — igual ao pré-cadastro. */}
+              <div className="flex h-[38px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                📦 {OPERACOES[0]}
+              </div>
             </Field>
             <Field label="🚐 Veículo">
               <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
+                <option value="">Selecione…</option>
                 {veiculosOpcoes.map((v) => (
                   <option key={v}>{v}</option>
                 ))}
