@@ -36,8 +36,10 @@ Valem para telas, código, comentários e conversa. No Firestore, `papel:
 
 ## Publicação
 
-`git push` na branch dispara deploy automático na Vercel. Para confirmar que
-subiu, comparar o hash do bundle: `curl -s https://centraldd.vercel.app/
+A branch é `main`, e é ela que a Vercel publica em `centraldd.vercel.app`
+(Project Settings → Environments → Production → Branch Tracking). `git push`
+nela dispara o deploy automático. Para confirmar que subiu, comparar o hash do
+bundle: `curl -s https://centraldd.vercel.app/
 | grep -o 'index-[A-Za-z0-9_-]*\.js'` — muda quando o deploy termina.
 
 O projeto na Vercel se chama `centraldd` e o endereço é `centraldd.vercel.app`.
