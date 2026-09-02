@@ -57,6 +57,7 @@ criado, e o ID gerado na criação foi esse. As linhas do firebase-config.ts
 rótulo: trocar de novo exigiria criar outro projeto e migrar contas e dados.
 Não mexer.
 
-O projeto anterior (`mldisponibilidade`) foi abandonado em 01/09/2026 — a base
-estava vazia, então a mudança de casa não custou dado nenhum. Manter o projeto
-velho no Console por algumas semanas antes de apagar.
+O projeto anterior (`mldisponibilidade`) foi abandonado e APAGADO em
+01/09/2026 — a base estava vazia, então a mudança de casa não custou dado
+nenhum. O Google guarda projeto apagado por cerca de 30 dias antes de destruir
+de vez, mas não devolve o ID nem depois disso.
