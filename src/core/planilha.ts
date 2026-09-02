@@ -1055,6 +1055,12 @@ export interface MotoristaImportado {
   cidadesPreferidas: string
   email: string
   senha: string
+  /**
+   * Etiqueta do LOTE (coluna opcional "Lote"). Quem entra com a mesma
+   * etiqueta pode ser apagado de uma vez depois — é o que deixa cadastrar
+   * uma turma de teste e tirar tudo sem rastro quando o teste acaba.
+   */
+  lote: string
   /** Linha de origem na planilha, para o dispatcher achar o erro. */
   linha: number
 }
@@ -1069,6 +1075,7 @@ const COLUNAS_MOTORISTA: Record<keyof Omit<MotoristaImportado, 'linha' | 'ativo'
   cidadesPreferidas: ['cidades preferidas', 'cidade preferida', 'preferidas', 'prefiro'],
   email: ['email', 'e mail', 'e-mail', 'login'],
   senha: ['senha', 'password', 'senha inicial'],
+  lote: ['lote', 'turma', 'grupo', 'etiqueta'],
 }
 const COLUNAS_ATIVO = ['ativo', 'situacao', 'status']
 
@@ -1168,6 +1175,7 @@ export function parsearPlanilhaMotoristas(texto: string): {
       cidadesPreferidas: pegar('cidadesPreferidas'),
       email: pegar('email').toLowerCase(),
       senha: pegar('senha'),
+      lote: pegar('lote'),
       linha: (temCabecalho ? 2 : 1) + i,
     })
   })

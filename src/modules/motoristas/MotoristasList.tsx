@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { enviarNotificacao, removerMotorista, salvarMotorista, useDB } from '../../core/db'
+import { apagarLote, enviarNotificacao, removerMotorista, salvarMotorista, useDB } from '../../core/db'
 import { useSessao } from '../../context/SessaoContext'
 import { EMAILS_DISPATCHER } from '../../core/firebase-config'
 import { promoverParaDispatcher, removerPerfil } from '../../core/firebase'
@@ -20,6 +20,38 @@ export function MotoristasList() {
   const [importar, setImportar] = useState(false)
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
+  const [apagandoLote, setApagandoLote] = useState('')
+
+  // Lotes de importação (etiqueta da coluna "Lote" da planilha): o dono
+  // apaga um lote inteiro de uma vez — cadastro, conta, perfil e rastro.
+  const lotes = [...new Set(db.motoristas.map((m) => m.lote).filter((l): l is string => !!l))].sort()
+
+  const apagarLoteInteiro = async (lote: string) => {
+    const quantos = db.motoristas.filter((m) => m.lote === lote).length
+    const senha = prompt(
+      `Apagar o lote "${lote}" (${quantos} cadastro(s))?\n\nDigite a SENHA comum das contas do lote para apagar também os logins no Firebase. Deixe em branco para apagar só os cadastros (as contas de login ficam, e saem depois pelo script da pasta ferramentas).`,
+    )
+    if (senha === null) return
+    if (
+      !confirm(
+        `Vai apagar ${quantos} cadastro(s) do lote "${lote}" com perfil, disponibilidade, respostas, avisos, conferências e o vínculo em rotas, programação e planejamento. Não tem volta. Confirmar?`,
+      )
+    )
+      return
+    setApagandoLote(lote)
+    try {
+      const r = await apagarLote(lote, senha)
+      const sobra = r.contasQueFicaram.length
+        ? `\n\n⚠️ ${r.contasQueFicaram.length} conta(s) de login FICARAM:\n` +
+          r.contasQueFicaram.map((c) => `• ${c.nome} (${c.email}) — ${c.motivo}`).join('\n')
+        : ''
+      alert(`✅ ${r.cadastros} cadastro(s) apagado(s), ${r.contasApagadas} conta(s) de login apagada(s).${sobra}`)
+    } catch (err) {
+      alert(`❌ Deu erro no meio do caminho: ${String(err)}. Abra a tela de novo e repita — o que já saiu não volta.`)
+    } finally {
+      setApagandoLote('')
+    }
+  }
 
   const pendentes = db.motoristas
     .filter((m) => m.aprovado === false)
@@ -85,6 +117,34 @@ export function MotoristasList() {
       </div>
 
       <ImportarMotoristasModal aberto={importar} onFechar={() => setImportar(false)} />
+
+      {souDono && lotes.length > 0 && (
+        <Card className="border-slate-300 bg-slate-50 p-4">
+          <h2 className="mb-1 font-bold text-slate-900">🧪 Lotes importados</h2>
+          <p className="mb-3 text-xs text-slate-600">
+            Quem entrou pela planilha com a coluna <strong>Lote</strong>. Apagar um lote tira de uma
+            vez os cadastros, perfis, contas de login (com a senha do lote) e todo o rastro deles.
+            Só você vê isto.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {lotes.map((lote) => (
+              <li key={lote} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm">
+                <span className="font-semibold text-slate-800">🏷️ {lote}</span>
+                <span className="text-xs text-slate-500">
+                  {db.motoristas.filter((m) => m.lote === lote).length} cadastro(s)
+                </span>
+                <Button
+                  variante="perigo"
+                  onClick={() => void apagarLoteInteiro(lote)}
+                  disabled={!!apagandoLote}
+                >
+                  {apagandoLote === lote ? '⏳ Apagando…' : '🧹 Apagar lote'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {pendentes.length > 0 && (
         <Card className="border-amber-300 bg-amber-50 p-4">

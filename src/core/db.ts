@@ -184,7 +184,11 @@ const ERROS_CONTA: Record<string, string> = {
   'auth/email-already-in-use': 'e-mail já tem conta — cadastro salvo sem criar login',
   'auth/invalid-email': 'e-mail inválido — cadastro salvo sem login',
   'auth/weak-password': 'senha com menos de 6 caracteres — cadastro salvo sem login',
+  'auth/too-many-requests':
+    'o Firebase limitou a criação de contas por alguns minutos — cadastro salvo sem login; importe a planilha de novo mais tarde que os logins que faltam são criados',
 }
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
  * Cadastro de motoristas em lote a partir da planilha.
@@ -210,11 +214,30 @@ export async function importarMotoristas(
 
     let id = anterior?.id ?? uid()
     let criouLogin = false
-    if (!anterior && linha.email && linha.senha) {
+    // Login: para cadastro novo, ou para cadastro que já existe mas ainda
+    // não tem conta (importação que parou no limite do Firebase e foi
+    // repetida). Cadastro que já tem perfil não ganha segunda conta.
+    const jaTemLogin = !!anterior && state.perfis.some((p) => p.motoristaId === anterior.id)
+    if (!jaTemLogin && linha.email && linha.senha) {
       try {
         const { criarContaMotorista, salvarPerfilMotorista } = await import('./firebase')
-        id = await criarContaMotorista(linha.email, linha.senha)
-        await salvarPerfilMotorista(id, linha.email)
+        let novoUid: string
+        try {
+          novoUid = await criarContaMotorista(linha.email, linha.senha)
+        } catch (err) {
+          // O Firebase segura criação em rajada. Uma pausa e uma nova
+          // tentativa resolvem a maioria; se não, a linha fica sem login.
+          if ((err as { code?: string }).code !== 'auth/too-many-requests') throw err
+          await esperar(15000)
+          novoUid = await criarContaMotorista(linha.email, linha.senha)
+        }
+        if (anterior) {
+          // Cadastro já existia: a conta nova aponta para ele, o id não muda.
+          await salvarPerfilMotorista(novoUid, linha.email, anterior.id)
+        } else {
+          id = novoUid
+          await salvarPerfilMotorista(id, linha.email)
+        }
         criouLogin = true
       } catch (err) {
         const codigo = (err as { code?: string }).code ?? ''
@@ -240,6 +263,8 @@ export async function importarMotoristas(
       // Cadastro feito pelo Dispatcher já nasce aprovado.
       aprovado: anterior?.aprovado ?? true,
       cidadesPreferidas: ou(linha.cidadesPreferidas, anterior?.cidadesPreferidas),
+      // Etiqueta do lote só entra quando veio na planilha (ou já existia).
+      ...(ou(linha.lote, anterior?.lote) ? { lote: ou(linha.lote, anterior?.lote) } : {}),
       criadoEm: anterior?.criadoEm ?? agora,
     }
     try {
@@ -360,6 +385,89 @@ export function enviarConferenciaMotorista(id: string, conferidos: string[], arq
 
 export function removerMotorista(id: string) {
   void deleteDoc(doc(firestore, 'motoristas', id))
+}
+
+export interface ResultadoApagarLote {
+  cadastros: number
+  contasApagadas: number
+  /** Contas que ficaram no Firebase Auth (senha diferente, sem e-mail…). */
+  contasQueFicaram: { nome: string; email: string; motivo: string }[]
+}
+
+/**
+ * Apaga um LOTE inteiro: cada motorista com a etiqueta, o perfil de acesso,
+ * a conta de login (quando a senha do lote é informada) e todo o rastro que
+ * aponta para ele — disponibilidade, respostas, avisos, sugestões,
+ * conferências, e o vínculo em rotas, programação e planejamento.
+ *
+ * A conta de login só sai se a senha bater: apagar conta alheia é coisa do
+ * Admin SDK (ferramentas/limpar-cadastros.mjs). O que não der para apagar
+ * volta na lista, com o motivo, em vez de sumir em silêncio.
+ */
+export async function apagarLote(lote: string, senha: string): Promise<ResultadoApagarLote> {
+  const r: ResultadoApagarLote = { cadastros: 0, contasApagadas: 0, contasQueFicaram: [] }
+  const alvo = lote.trim()
+  if (!alvo) return r
+  const motoristas = state.motoristas.filter((m) => (m.lote ?? '') === alvo)
+  const { apagarContaComSenha } = await import('./firebase')
+
+  for (const m of motoristas) {
+    const perfil = state.perfis.find((p) => p.id === m.id || p.motoristaId === m.id)
+
+    // 1. Conta de login — primeiro, enquanto o perfil ainda existe para
+    //    a regra do Firestore não ter o que reclamar.
+    if (perfil?.email && senha) {
+      try {
+        await apagarContaComSenha(perfil.email, senha)
+        r.contasApagadas++
+      } catch (err) {
+        const codigo = (err as { code?: string }).code ?? ''
+        r.contasQueFicaram.push({
+          nome: m.nome,
+          email: perfil.email,
+          motivo: /invalid-credential|wrong-password|invalid-login/.test(codigo)
+            ? 'a senha desta conta não é a do lote (a pessoa trocou)'
+            : /user-not-found|user-disabled/.test(codigo)
+              ? 'conta já não existe no Firebase'
+              : codigo || 'erro ao apagar a conta',
+        })
+      }
+    } else if (perfil?.email) {
+      r.contasQueFicaram.push({ nome: m.nome, email: perfil.email, motivo: 'senha do lote não informada' })
+    }
+
+    // 2. Rastro que aponta para o motorista.
+    const apagar = (colecao: string, ids: string[]) =>
+      ids.map((id) => deleteDoc(doc(firestore, colecao, id)))
+    const tarefas: Promise<unknown>[] = [
+      ...apagar('disponibilidade', state.disponibilidade.filter((d) => d.motoristaId === m.id).map((d) => d.id)),
+      ...apagar('respostas', state.respostas.filter((x) => x.motoristaId === m.id).map((x) => x.id)),
+      ...apagar('notificacoes', state.notificacoes.filter((n) => n.motoristaId === m.id).map((n) => n.id)),
+      ...apagar('sugestoes', state.sugestoes.filter((x) => x.motoristaId === m.id).map((x) => x.id)),
+      ...apagar('conferencias', state.conferencias.filter((c) => c.motoristaId === m.id).map((c) => c.id)),
+      ...state.rotas
+        .filter((x) => x.motoristaId === m.id)
+        .map((x) => updateDoc(doc(firestore, 'rotas', x.id), { motoristaId: null })),
+      ...state.programacao
+        .filter((x) => x.motoristaId === m.id)
+        .map((x) => updateDoc(doc(firestore, 'programacao', x.id), { motoristaId: null })),
+      ...state.planejamento
+        .filter((e) => e.motoristaIds.includes(m.id) || (e.esperaIds ?? []).includes(m.id))
+        .map((e) =>
+          updateDoc(doc(firestore, 'planejamento', e.id), {
+            motoristaIds: e.motoristaIds.filter((id) => id !== m.id),
+            esperaIds: (e.esperaIds ?? []).filter((id) => id !== m.id),
+          }),
+        ),
+    ]
+    await Promise.all(tarefas)
+
+    // 3. Perfil e cadastro.
+    if (perfil) await deleteDoc(doc(firestore, 'perfis', perfil.id))
+    await deleteDoc(doc(firestore, 'motoristas', m.id))
+    r.cadastros++
+  }
+  return r
 }
 
 export function salvarChamada(c: Chamada) {

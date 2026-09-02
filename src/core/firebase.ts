@@ -4,6 +4,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
+  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
@@ -74,9 +75,13 @@ export async function trocarEmail(
   }
 }
 
-/** Grava o perfil de acesso de um motorista (papel + vínculo com o cadastro). */
-export async function salvarPerfilMotorista(uid: string, email: string) {
-  await setDoc(doc(firestore, 'perfis', uid), { papel: 'motorista', motoristaId: uid, email })
+/**
+ * Grava o perfil de acesso de um motorista (papel + vínculo com o cadastro).
+ * Por padrão a conta aponta para o cadastro de mesmo id; `motoristaId` liga
+ * a conta a um cadastro que já existia (login criado depois do cadastro).
+ */
+export async function salvarPerfilMotorista(uid: string, email: string, motoristaId = uid) {
+  await setDoc(doc(firestore, 'perfis', uid), { papel: 'motorista', motoristaId, email })
 }
 
 /** Remove o perfil de acesso (usado ao recusar um pré-cadastro). */
@@ -105,6 +110,23 @@ export async function criarContaMotorista(email: string, senha: string): Promise
     const cred = await createUserWithEmailAndPassword(getAuth(secundario), email, senha)
     await fbSignOut(getAuth(secundario))
     return cred.user.uid
+  } finally {
+    await deleteApp(secundario)
+  }
+}
+
+/**
+ * Apaga a CONTA DE LOGIN de um motorista sabendo a senha dele — o caso do
+ * lote de teste, em que todos entram com a mesma senha. Apagar conta alheia
+ * só o Admin SDK faz; a própria conta, ela mesma apaga depois de entrar.
+ * Roda numa instância secundária para não derrubar a sessão do dispatcher.
+ */
+export async function apagarContaComSenha(email: string, senha: string): Promise<void> {
+  const secundario = initializeApp(firebaseConfig, `apagar-conta-${Date.now()}-${Math.random()}`)
+  try {
+    const authSec = getAuth(secundario)
+    const cred = await signInWithEmailAndPassword(authSec, email, senha)
+    await deleteUser(cred.user)
   } finally {
     await deleteApp(secundario)
   }

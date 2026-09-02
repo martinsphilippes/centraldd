@@ -38,6 +38,11 @@ export interface Motorista {
   cidadesPreferidas?: string
   /** Cidades marcadas como "Posso fazer" pelo motorista (lista separada por vírgula). */
   cidadesPossiveis?: string
+  /**
+   * Etiqueta do lote de importação (ex.: 'TESTE-1'). Serve para apagar de
+   * uma vez tudo que entrou junto — cadastro, conta, perfil e rastro.
+   */
+  lote?: string
   criadoEm: string
   transportadoraId?: string
   cdId?: string

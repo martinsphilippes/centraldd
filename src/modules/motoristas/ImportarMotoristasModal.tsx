@@ -21,11 +21,12 @@ const CABECALHO_MODELO = [
   'Senha',
   'Cidades preferidas',
   'Ativo',
+  'Lote',
 ]
 
 const EXEMPLO = [
-  ['Carlos Silva', '34 99876-5432', 'Ituiutaba', 'Mercado Livre', '3/4', 'carlos@email.com', 'senha123', 'Gurinhatã', 'Sim'],
-  ['Ana Souza', '34 98765-4321', 'Capinópolis', 'Mercado Livre', 'VUC', '', '', '', 'Sim'],
+  ['Carlos Silva', '34 99876-5432', 'Ituiutaba', 'EMG13', 'Utilitário', 'carlos@email.com', 'senha123', 'Gurinhatã', 'Sim', ''],
+  ['Ana Souza', '34 98765-4321', 'Ituiutaba', 'EMG13', 'VUC', '', '', '', 'Sim', ''],
 ]
 
 export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
@@ -108,6 +109,7 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
   const novos = previa?.filter((m) => !jaExiste(m)).length ?? 0
   const atualizar = (previa?.length ?? 0) - novos
   const comLogin = previa?.filter((m) => m.email && m.senha && !jaExiste(m)).length ?? 0
+  const lotesNaPrevia = [...new Set((previa ?? []).map((m) => m.lote).filter(Boolean))]
 
   return (
     <Modal aberto={aberto} titulo="📥 Cadastrar motoristas em lote" onFechar={fechar}>
@@ -172,6 +174,11 @@ export function ImportarMotoristasModal({ aberto, onFechar }: { aberto: boolean;
                 {comLogin > 0 && (
                   <Badge className="border-slate-300 bg-slate-100 text-slate-700">
                     🔑 {comLogin} com login
+                  </Badge>
+                )}
+                {lotesNaPrevia.length > 0 && (
+                  <Badge className="border-slate-300 bg-white text-slate-700">
+                    🏷️ lote {lotesNaPrevia.join(', ')} — dá para apagar tudo de uma vez depois
                   </Badge>
                 )}
                 {ignoradas > 0 && (
