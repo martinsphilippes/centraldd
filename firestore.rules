@@ -144,9 +144,9 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
-    // OPERAÇÃO/CIDADE: a base em que a pessoa opera, perguntada no cadastro
-    // (antes do login, por isso leitura pública). Só o DONO mantém a lista —
-    // dispatcher comum não cria nem apaga operação.
+    // CIDADE/OPERAÇÃO: os pares "cidade + operação" em que a pessoa atua,
+    // perguntados no cadastro (antes do login, por isso leitura pública). Só
+    // o DONO mantém a lista — dispatcher comum não cria nem apaga.
     match /operacoesCidade/{id} {
       allow read: if true;
       allow write: if ehDono();

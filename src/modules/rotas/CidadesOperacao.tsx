@@ -1,8 +1,9 @@
 // Tela de cidades — dois conceitos que NÃO se misturam:
 //
-//  1. OPERAÇÃO/CIDADE: a base em que motoristas e dispatchers operam. É o
-//     que o cadastro pergunta (no lugar de "onde você mora"). Só o DONO
-//     acrescenta e remove; os demais dispatchers só veem.
+//  1. CIDADE/OPERAÇÃO: os pares "cidade + operação" em que motoristas e
+//     dispatchers atuam (uma cidade pode ter várias operações). É o que o
+//     cadastro pergunta, em dois passos, no lugar de "onde você mora". Só o
+//     DONO acrescenta e remove; os demais dispatchers só veem.
 //  2. CIDADES ATENDIDAS: para onde as rotas vão. É a lista que o motorista
 //     qualifica como Prefiro/Posso e que alimenta a alocação. Qualquer
 //     dispatcher mantém, e a planilha de rotas sugere o que falta.
@@ -19,6 +20,7 @@ import { useSessao } from '../../context/SessaoContext'
 import { EMAILS_DISPATCHER } from '../../core/firebase-config'
 import { cidadesDoTexto } from '../../core/planilha'
 import { normalizarTexto } from '../../core/texto'
+import { cidadesDaLista, operacoesDaCidade, parExiste } from '../../core/cidade-operacao'
 import { CampoCidade } from '../../components/CampoCidade'
 import { Badge, Button, Card, EmptyState, Input } from '../../components/ui'
 
@@ -31,42 +33,46 @@ export function CidadesOperacao() {
   const [nova, setNova] = useState('')
   const [aviso, setAviso] = useState('')
 
-  // ---------- Operação/Cidade (só o dono) ----------
+  // ---------- Cidade/Operação (só o dono) ----------
+  const [novaCidade, setNovaCidade] = useState('')
+  const [novaCidadeValida, setNovaCidadeValida] = useState(false)
   const [novaOperacao, setNovaOperacao] = useState('')
-  const [novaOperacaoValida, setNovaOperacaoValida] = useState(false)
   const [avisoOperacao, setAvisoOperacao] = useState('')
-  const operacoes = [...db.operacoesCidade].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  const pares = db.operacoesCidade
+  const cidadesComOperacao = cidadesDaLista(pares)
 
-  /** Quantas contas (motoristas e pedidos de dispatcher) operam nesta base. */
-  const contarContas = (nome: string) => db.motoristas.filter((m) => chave(m.cidade) === chave(nome)).length
+  /** Quantas contas (motoristas e pedidos de dispatcher) atuam neste par. */
+  const contarContas = (cidade: string, operacao: string) =>
+    db.motoristas.filter((m) => chave(m.cidade) === chave(cidade) && chave(m.operacao) === chave(operacao)).length
 
-  const acrescentarOperacao = async () => {
-    const limpo = novaOperacao.trim()
-    if (!limpo) return
-    if (!novaOperacaoValida) {
+  const acrescentarPar = async () => {
+    const c = novaCidade.trim()
+    const o = novaOperacao.trim()
+    if (!c || !o) return
+    if (!novaCidadeValida) {
       setAvisoOperacao('⚠️ Escolha a cidade na lista que aparece enquanto você digita.')
       return
     }
-    if (operacoes.some((o) => chave(o.nome) === chave(limpo))) {
-      setAvisoOperacao(`⚠️ ${limpo} já está na lista.`)
+    if (parExiste(pares, c, o)) {
+      setAvisoOperacao(`⚠️ ${c} / ${o} já está na lista.`)
       return
     }
     try {
-      await salvarOperacaoCidade(limpo)
+      await salvarOperacaoCidade(c, o)
+      // A cidade fica para a próxima operação dela; só a operação limpa.
       setNovaOperacao('')
-      setNovaOperacaoValida(false)
-      setAvisoOperacao(`✅ ${limpo} entrou como Operação/Cidade — já aparece no cadastro.`)
+      setAvisoOperacao(`✅ ${c} / ${o} entrou na lista — já aparece no cadastro.`)
     } catch {
       setAvisoOperacao('❌ Não consegui gravar. Só o dono da operação pode mexer nesta lista.')
     }
   }
 
-  const removerOperacao = async (id: string, nome: string) => {
-    const contas = contarContas(nome)
+  const removerPar = async (id: string, cidade: string, operacao: string) => {
+    const contas = contarContas(cidade, operacao)
     const alerta =
       contas > 0
-        ? `Remover ${nome}? ${contas} cadastro(s) apontam para esta operação e continuam apontando — só a opção some do cadastro novo.`
-        : `Remover ${nome} da lista de Operação/Cidade?`
+        ? `Remover ${cidade} / ${operacao}? ${contas} cadastro(s) apontam para este par e continuam apontando — só a opção some do cadastro novo.`
+        : `Remover ${cidade} / ${operacao} da lista?`
     if (!confirm(alerta)) return
     try {
       await removerOperacaoCidade(id)
@@ -118,39 +124,62 @@ export function CidadesOperacao() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">📍 Cidades</h1>
         <p className="text-sm text-slate-500">
-          <strong>Operação/Cidade</strong> é a base em que cada pessoa opera (pergunta do cadastro).{' '}
+          <strong>Cidade/Operação</strong> é onde cada pessoa atua (pergunta do cadastro).{' '}
           <strong>Cidades atendidas</strong> são para onde as rotas vão — a lista que os motoristas
           qualificam como Prefiro / Posso.
         </p>
       </div>
 
-      {/* ---------- Operação/Cidade ---------- */}
+      {/* ---------- Cidade/Operação ---------- */}
       <Card className="border-marca p-4">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold text-slate-900">🏢 Operação/Cidade</h2>
+          <h2 className="font-bold text-slate-900">🏢 Cidade/Operação</h2>
           <Badge className={souDono ? 'border-amber-300 bg-amber-100 text-amber-800' : 'border-slate-200 bg-slate-100 text-slate-600'}>
             {souDono ? '👑 Só você edita' : '🔒 Só o dono edita'}
           </Badge>
         </div>
         <p className="mb-3 text-xs text-slate-500">
-          É o que o motorista e o dispatcher escolhem no cadastro: em qual operação vão atuar. Sem
-          nenhum item aqui, ninguém consegue se cadastrar.
+          É o que motorista e dispatcher escolhem no cadastro, em dois passos: a cidade e, dentro
+          dela, a operação. Uma cidade pode ter várias operações. Sem nenhum par aqui, ninguém
+          consegue se cadastrar.
         </p>
 
         {souDono && (
-          <div className="flex flex-wrap items-start gap-2">
-            <div className="min-w-52 flex-1">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+            <div>
               <CampoCidade
-                valor={novaOperacao}
+                valor={novaCidade}
                 onChange={(c, valida) => {
-                  setNovaOperacao(c)
-                  setNovaOperacaoValida(valida)
+                  setNovaCidade(c)
+                  setNovaCidadeValida(valida)
                   setAvisoOperacao('')
                 }}
               />
             </div>
-            <Button variante="marca" onClick={() => void acrescentarOperacao()} disabled={!novaOperacao.trim()}>
-              ➕ Adicionar Operação/Cidade
+            <Input
+              placeholder="Operação (ex.: Mercado Livre)"
+              value={novaOperacao}
+              onChange={(e) => {
+                setNovaOperacao(e.target.value)
+                setAvisoOperacao('')
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void acrescentarPar()
+              }}
+              list="operacoes-conhecidas"
+            />
+            {/* Operações já usadas em outras cidades, para repetir a grafia. */}
+            <datalist id="operacoes-conhecidas">
+              {[...new Set(pares.map((p) => p.operacao))].sort().map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+            <Button
+              variante="marca"
+              onClick={() => void acrescentarPar()}
+              disabled={!novaCidade.trim() || !novaOperacao.trim()}
+            >
+              ➕ Adicionar
             </Button>
           </div>
         )}
@@ -160,40 +189,46 @@ export function CidadesOperacao() {
           </p>
         )}
 
-        {operacoes.length === 0 ? (
+        {pares.length === 0 ? (
           <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            Nenhuma Operação/Cidade cadastrada. O cadastro de motoristas e dispatchers fica
-            travado até a primeira entrar.
+            Nenhuma Cidade/Operação cadastrada. O cadastro de motoristas e dispatchers fica
+            travado até o primeiro par entrar.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {operacoes.map((o) => {
-              const contas = contarContas(o.nome)
-              return (
-                <li
-                  key={o.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-2.5"
-                >
-                  <span className="font-semibold text-slate-800">🏢 {o.nome}</span>
-                  <div className="flex items-center gap-2">
-                    {contas > 0 && (
-                      <Badge className="border-slate-200 bg-slate-100 text-slate-600">
-                        👥 {contas} cadastro(s)
-                      </Badge>
-                    )}
-                    {souDono && (
-                      <button
-                        onClick={() => void removerOperacao(o.id, o.nome)}
-                        className="rounded-lg px-2 py-1 text-red-600 hover:bg-red-50"
-                        title="Remover Operação/Cidade"
+            {cidadesComOperacao.map((cidadeNome) => (
+              <li key={cidadeNome} className="rounded-xl border border-slate-200 p-2.5">
+                <p className="mb-1.5 font-semibold text-slate-800">🏢 {cidadeNome}</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {operacoesDaCidade(pares, cidadeNome).map((op) => {
+                    const par = pares.find(
+                      (p) => chave(p.cidade) === chave(cidadeNome) && chave(p.operacao) === chave(op),
+                    )
+                    const contas = contarContas(cidadeNome, op)
+                    return (
+                      <li
+                        key={op}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm"
                       >
-                        🗑️
-                      </button>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
+                        <span>📦 {op}</span>
+                        {contas > 0 && (
+                          <span className="text-[11px] text-slate-500">👥 {contas}</span>
+                        )}
+                        {souDono && par && (
+                          <button
+                            onClick={() => void removerPar(par.id, cidadeNome, op)}
+                            className="rounded px-1 text-red-600 hover:bg-red-50"
+                            title="Remover esta operação da cidade"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </li>
+            ))}
           </ul>
         )}
       </Card>

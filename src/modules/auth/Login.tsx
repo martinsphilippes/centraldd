@@ -6,7 +6,8 @@ import {
   carregarOperacoesCidadePublicas,
   carregarTiposPublicos,
 } from '../../core/firebase'
-import { OPERACOES, VEICULOS } from '../../core/constants'
+import { VEICULOS } from '../../core/constants'
+import { cidadesDaLista, operacoesDaCidade, type ParCidadeOperacao } from '../../core/cidade-operacao'
 import { MENSAGEM_SENHA_CURTA, primeiroCampoVazio } from '../../core/cadastro'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
@@ -42,10 +43,19 @@ export function Login() {
   const [funcao, setFuncao] = useState<'motorista' | 'dispatcher'>('motorista')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
-  // OPERAÇÃO/CIDADE em que a pessoa vai operar — da lista que só o dono
-  // mantém. null = ainda carregando; [] = o dono não cadastrou nenhuma.
+  // CIDADE/OPERAÇÃO em que a pessoa vai atuar — da lista que só o dono
+  // mantém, em dois passos. null = ainda carregando; [] = lista vazia.
   const [cidade, setCidade] = useState('')
-  const [operacoesCidade, setOperacoesCidade] = useState<string[] | null>(null)
+  const [operacao, setOperacao] = useState('')
+  const [pares, setPares] = useState<ParCidadeOperacao[] | null>(null)
+  const cidadesOpcoes = cidadesDaLista(pares ?? [])
+  const operacoesOpcoes = operacoesDaCidade(pares ?? [], cidade)
+  const escolherCidade = (c: string) => {
+    setCidade(c)
+    // Cidade com uma operação só: já entra escolhida, sem segundo toque.
+    const ops = operacoesDaCidade(pares ?? [], c)
+    setOperacao(ops.length === 1 ? ops[0] : '')
+  }
   // Os veículos vêm do que o Dispatcher cadastrou (tela Tipos); os padrões
   // (Utilitário e VUC) só valem enquanto ele não tiver cadastrado a frota.
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
@@ -57,7 +67,7 @@ export function Login() {
     void carregarTiposPublicos().then(({ veiculos }) => {
       if (veiculos.length > 0) setVeiculosOpcoes(veiculos)
     })
-    void carregarOperacoesCidadePublicas().then(setOperacoesCidade)
+    void carregarOperacoesCidadePublicas().then(setPares)
   }, [])
 
   const mensagemErro = erro || erroSessao
@@ -85,6 +95,7 @@ export function Login() {
       nome,
       telefone,
       cidade,
+      operacao,
       email,
       // Quem pede acesso de dispatcher não dirige: veículo não se aplica.
       veiculo: funcao === 'motorista' ? veiculo : null,
@@ -103,7 +114,7 @@ export function Login() {
         nome,
         telefone,
         cidade,
-        operacao: OPERACOES[0],
+        operacao,
         veiculo,
         email,
         senha,
@@ -232,50 +243,52 @@ export function Login() {
                   placeholder="Ex.: 11 98765-4321"
                 />
               </Field>
-              <Field label="🏢 Operação/Cidade">
-                {/* Não é onde a pessoa mora: é a base em que vai operar. A
-                    lista é do dono; sem item cadastrado, o cadastro espera. */}
-                <Select
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  disabled={!operacoesCidade || operacoesCidade.length === 0}
-                >
-                  <option value="">
-                    {operacoesCidade === null
-                      ? 'Carregando…'
-                      : operacoesCidade.length === 0
-                        ? 'Nenhuma operação cadastrada ainda'
-                        : 'Selecione…'}
-                  </option>
-                  {(operacoesCidade ?? []).map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </Select>
-                {operacoesCidade?.length === 0 && (
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    O dono da operação ainda não cadastrou nenhuma Operação/Cidade. Peça a ele
-                    e volte aqui.
-                  </p>
-                )}
-              </Field>
+              {/* Não é onde a pessoa mora: é a CIDADE e a OPERAÇÃO em que vai
+                  atuar. A lista é do dono; sem item cadastrado, o cadastro
+                  espera. */}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="🏢 Cidade">
+                  <Select
+                    value={cidade}
+                    onChange={(e) => escolherCidade(e.target.value)}
+                    disabled={!pares || cidadesOpcoes.length === 0}
+                  >
+                    <option value="">
+                      {pares === null ? 'Carregando…' : cidadesOpcoes.length === 0 ? 'Nenhuma cadastrada' : 'Selecione…'}
+                    </option>
+                    {cidadesOpcoes.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="📦 Operação">
+                  <Select
+                    value={operacao}
+                    onChange={(e) => setOperacao(e.target.value)}
+                    disabled={!cidade || operacoesOpcoes.length === 0}
+                  >
+                    <option value="">{cidade ? 'Selecione…' : 'Escolha a cidade'}</option>
+                    {operacoesOpcoes.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              {pares?.length === 0 && (
+                <p className="-mt-1 text-[11px] text-slate-500">
+                  O dono da operação ainda não cadastrou nenhuma Cidade/Operação. Peça a ele e
+                  volte aqui.
+                </p>
+              )}
               {funcao === 'motorista' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="📦 Operação">
-                    {/* Fixa: a frota inteira roda Mercado Livre. Aparece só
-                        para a pessoa conferir, não para escolher. */}
-                    <div className="flex h-[38px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-                      📦 {OPERACOES[0]}
-                    </div>
-                  </Field>
-                  <Field label="🚐 Veículo">
-                    <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
-                      <option value="">Selecione…</option>
-                      {veiculosOpcoes.map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </Select>
-                  </Field>
-                </div>
+                <Field label="🚐 Veículo">
+                  <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {veiculosOpcoes.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                </Field>
               )}
               <Field label="📧 E-mail (será seu login)">
                 <Input

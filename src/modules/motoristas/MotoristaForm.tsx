@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getDB, salvarMotorista, uid, useDB } from '../../core/db'
 import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
-import { OPERACOES } from '../../core/constants'
+import { cidadesDaLista, operacoesDaCidade } from '../../core/cidade-operacao'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
 import { MENSAGEM_SENHA_CURTA, digitosTelefone, primeiroCampoVazio } from '../../core/cadastro'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
@@ -15,9 +15,8 @@ const ERROS_CONTA: Record<string, string> = {
 }
 
 // Cadastro feito pelo DISPATCHER. Segue as mesmas regras do pré-cadastro que
-// o motorista faz na tela de login (core/cadastro.ts): Operação/Cidade da
-// lista do dono, operação fixa em Mercado Livre, veículo obrigatório e
-// telefone com DDD. Um cadastro pela metade aqui vira o mesmo problema lá na frente:
+// o motorista faz na tela de login (core/cadastro.ts): Cidade/Operação da
+// lista do dono (dois passos), veículo obrigatório e telefone com DDD. Um cadastro pela metade aqui vira o mesmo problema lá na frente:
 // motorista sem veículo na hora de distribuir, cidade que não bate com nada.
 export function MotoristaForm() {
   const { id } = useParams()
@@ -27,15 +26,24 @@ export function MotoristaForm() {
 
   const [nome, setNome] = useState(existente?.nome ?? '')
   const [telefone, setTelefone] = useState(existente?.telefone ?? '')
-  // OPERAÇÃO/CIDADE em que o motorista opera — da lista que só o dono
-  // mantém. O valor atual entra nas opções mesmo fora da lista, para a
-  // edição de um cadastro antigo não travar.
+  // CIDADE/OPERAÇÃO em que o motorista atua — da lista que só o dono
+  // mantém, em dois passos. Os valores atuais entram nas opções mesmo fora
+  // da lista, para a edição de um cadastro antigo não travar.
   const [cidade, setCidade] = useState(existente?.cidade ?? '')
-  const operacoesCidade = [
-    ...new Set([...db.operacoesCidade.map((o) => o.nome), existente?.cidade ?? '']),
+  const [operacao, setOperacao] = useState(existente?.operacao ?? '')
+  const pares = [
+    ...db.operacoesCidade,
+    ...(existente?.cidade && existente.operacao
+      ? [{ cidade: existente.cidade, operacao: existente.operacao }]
+      : []),
   ]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const cidadesOpcoes = cidadesDaLista(pares)
+  const operacoesOpcoes = operacoesDaCidade(pares, cidade)
+  const escolherCidade = (c: string) => {
+    setCidade(c)
+    const ops = operacoesDaCidade(pares, c)
+    setOperacao(ops.length === 1 ? ops[0] : '')
+  }
   // Começa VAZIO de propósito (como no pré-cadastro): escolher o veículo é
   // obrigatório, e um valor já preenchido faria passar batido no primeiro.
   const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(existente?.veiculo, db))
@@ -53,7 +61,7 @@ export function MotoristaForm() {
     e.preventDefault()
     setErro('')
     // E-mail é opcional aqui (o acesso pode vir depois), por isso null.
-    const faltando = primeiroCampoVazio({ nome, telefone, cidade, email: null, veiculo })
+    const faltando = primeiroCampoVazio({ nome, telefone, cidade, operacao, email: null, veiculo })
     if (faltando) {
       setErro(faltando)
       return
@@ -79,8 +87,7 @@ export function MotoristaForm() {
         nome: nome.trim(),
         telefone: digitosTelefone(telefone),
         cidade: cidade.trim(),
-        // A frota inteira roda Mercado Livre — igual ao pré-cadastro.
-        operacao: OPERACOES[0],
+        operacao,
         veiculo,
         ativo,
         // Cadastro feito pelo dispatcher já nasce aprovado; edição preserva o estado.
@@ -116,38 +123,42 @@ export function MotoristaForm() {
               inputMode="tel"
             />
           </Field>
-          <Field label="🏢 Operação/Cidade">
-            <Select value={cidade} onChange={(e) => setCidade(e.target.value)}>
-              <option value="">
-                {operacoesCidade.length === 0 ? 'Nenhuma operação cadastrada ainda' : 'Selecione…'}
-              </option>
-              {operacoesCidade.map((o) => (
-                <option key={o}>{o}</option>
-              ))}
-            </Select>
-            {db.operacoesCidade.length === 0 && (
-              <p className="mt-1 text-[11px] text-slate-500">
-                A lista de Operação/Cidade é mantida pelo dono na tela Cidades.
-              </p>
-            )}
-          </Field>
+          {/* Cidade e operação em que atua — a lista é do dono (tela Cidades). */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="📦 Operação">
-              {/* Fixa: a frota inteira roda Mercado Livre. Aparece só para
-                  conferir, não para escolher — igual ao pré-cadastro. */}
-              <div className="flex h-[38px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-                📦 {OPERACOES[0]}
-              </div>
+            <Field label="🏢 Cidade">
+              <Select value={cidade} onChange={(e) => escolherCidade(e.target.value)}>
+                <option value="">{cidadesOpcoes.length === 0 ? 'Nenhuma cadastrada' : 'Selecione…'}</option>
+                {cidadesOpcoes.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </Select>
             </Field>
-            <Field label="🚐 Veículo">
-              <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
-                <option value="">Selecione…</option>
-                {veiculosOpcoes.map((v) => (
-                  <option key={v}>{v}</option>
+            <Field label="📦 Operação">
+              <Select
+                value={operacao}
+                onChange={(e) => setOperacao(e.target.value)}
+                disabled={!cidade || operacoesOpcoes.length === 0}
+              >
+                <option value="">{cidade ? 'Selecione…' : 'Escolha a cidade'}</option>
+                {operacoesOpcoes.map((o) => (
+                  <option key={o}>{o}</option>
                 ))}
               </Select>
             </Field>
           </div>
+          {db.operacoesCidade.length === 0 && (
+            <p className="-mt-2 text-[11px] text-slate-500">
+              A lista de Cidade/Operação é mantida pelo dono na tela Cidades.
+            </p>
+          )}
+          <Field label="🚐 Veículo">
+            <Select value={veiculo} onChange={(e) => setVeiculo(e.target.value)}>
+              <option value="">Selecione…</option>
+              {veiculosOpcoes.map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </Select>
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="⭐ Cidades preferidas (rende melhor — separe por vírgula)">
               <Input

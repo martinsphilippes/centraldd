@@ -16,15 +16,17 @@ export function digitosTelefone(telefone: string): string {
  * A ordem segue a do formulário: reclamar do e-mail enquanto o nome está vazio
  * faria a pessoa corrigir de trás para frente.
  *
- * `email` e `veiculo` aceitam null quando o formulário NÃO os exige: e-mail é
- * opcional no cadastro pelo Dispatcher (acesso pode vir depois) e veículo não
- * se aplica a quem pede acesso de dispatcher.
+ * `email`, `operacao` e `veiculo` aceitam null quando o formulário NÃO os
+ * exige: e-mail é opcional no cadastro pelo Dispatcher (acesso pode vir
+ * depois) e veículo não se aplica a quem pede acesso de dispatcher.
  */
 export function primeiroCampoVazio(d: {
   nome: string
   telefone: string
-  /** Operação/Cidade escolhida na lista do dono. */
+  /** Cidade escolhida na lista Cidade/Operação do dono. */
   cidade: string
+  /** Operação dentro da cidade; null = o formulário não pergunta. */
+  operacao?: string | null
   email?: string | null
   veiculo?: string | null
 }): string {
@@ -34,7 +36,9 @@ export function primeiroCampoVazio(d: {
   // DDD + número: 10 dígitos no fixo, 11 no celular. Telefone pela metade é o
   // mesmo que telefone nenhum na hora de chamar para a rota.
   if (digitos.length < 10) return 'O telefone está incompleto — informe o DDD e o número.'
-  if (!d.cidade.trim()) return 'Escolha a operação/cidade.'
+  if (!d.cidade.trim()) return 'Escolha a cidade.'
+  if (d.operacao !== null && d.operacao !== undefined && !d.operacao.trim())
+    return 'Escolha a operação.'
   if (d.email !== null && d.email !== undefined && !d.email.trim())
     return 'Preencha o e-mail, que será o login.'
   if (d.veiculo !== null && d.veiculo !== undefined && !d.veiculo)

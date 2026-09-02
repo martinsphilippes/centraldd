@@ -18,10 +18,11 @@ export interface Motorista {
   nome: string
   telefone: string
   /**
-   * OPERAÇÃO/CIDADE em que a pessoa opera — um item da lista que só o dono
+   * CIDADE em que a pessoa opera — da lista Cidade/Operação que só o dono
    * mantém (tela Cidades). Não é onde ela mora: isso o app não pergunta.
    */
   cidade: string
+  /** OPERAÇÃO dentro dessa cidade (segundo passo do cadastro), da mesma lista. */
   operacao: string
   veiculo: string
   ativo: boolean
@@ -368,13 +369,15 @@ export interface CidadeOperacao {
 }
 
 /**
- * OPERAÇÃO/CIDADE: a base em que motoristas e dispatchers operam. É o que o
+ * CIDADE/OPERAÇÃO: um par "cidade + operação" em que motoristas e
+ * dispatchers atuam. Uma cidade pode ter várias operações. É o que o
  * cadastro pergunta no lugar de "onde você mora". Só o DONO mantém a lista;
  * a leitura é pública porque o cadastro roda antes do login.
  */
 export interface OperacaoCidade {
   id: string
-  nome: string
+  cidade: string
+  operacao: string
   criadaEm: string
 }
 

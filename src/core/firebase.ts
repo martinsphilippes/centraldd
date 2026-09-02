@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore'
 import { firebaseConfig } from './firebase-config'
 import type { Motorista } from './types'
+import type { ParCidadeOperacao } from './cidade-operacao'
 
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
@@ -173,20 +174,20 @@ export async function carregarCidadesOperacaoPublicas(): Promise<string[]> {
 }
 
 /**
- * Lê as OPERAÇÕES/CIDADES antes do login — é a lista que o cadastro oferece
- * no lugar de "onde você mora". Leitura pública nas regras; falha devolve
- * lista vazia, e a tela explica que ainda não há operação cadastrada.
+ * Lê os pares CIDADE/OPERAÇÃO antes do login — é a lista que o cadastro
+ * oferece no lugar de "onde você mora". Leitura pública nas regras; falha
+ * devolve lista vazia, e a tela explica que ainda não há cidade cadastrada.
  */
-export async function carregarOperacoesCidadePublicas(): Promise<string[]> {
+export async function carregarOperacoesCidadePublicas(): Promise<ParCidadeOperacao[]> {
   try {
     const { getDocs, collection } = await import('firebase/firestore')
     const snap = await getDocs(collection(firestore, 'operacoesCidade'))
-    const nomes: string[] = []
+    const pares: ParCidadeOperacao[] = []
     snap.forEach((d) => {
-      const nome = (d.data() as { nome?: string }).nome
-      if (nome) nomes.push(nome)
+      const { cidade, operacao } = d.data() as { cidade?: string; operacao?: string }
+      if (cidade && operacao) pares.push({ cidade, operacao })
     })
-    return nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    return pares
   } catch {
     return []
   }

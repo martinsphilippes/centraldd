@@ -581,14 +581,15 @@ function idDeNome(nome: string): string {
 }
 
 /**
- * OPERAÇÃO/CIDADE — só o dono grava (as regras do Firestore recusam os
- * demais). O nome vem do campo do IBGE, então já chega na grafia oficial.
+ * CIDADE/OPERAÇÃO — só o dono grava (as regras do Firestore recusam os
+ * demais). A cidade vem do campo do IBGE, então já chega na grafia oficial.
  */
-export function salvarOperacaoCidade(nome: string) {
-  const limpo = nome.trim()
-  if (!limpo) return
-  const id = idDeNome(limpo)
-  const item: OperacaoCidade = { id, nome: limpo, criadaEm: new Date().toISOString() }
+export function salvarOperacaoCidade(cidade: string, operacao: string) {
+  const c = cidade.trim()
+  const o = operacao.trim()
+  if (!c || !o) return
+  const id = `${idDeNome(c)}--${idDeNome(o)}`
+  const item: OperacaoCidade = { id, cidade: c, operacao: o, criadaEm: new Date().toISOString() }
   return setDoc(doc(firestore, 'operacoesCidade', id), item)
 }
 
