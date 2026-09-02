@@ -23,6 +23,7 @@ export function digitosTelefone(telefone: string): string {
 export function primeiroCampoVazio(d: {
   nome: string
   telefone: string
+  /** Operação/Cidade escolhida na lista do dono. */
   cidade: string
   email?: string | null
   veiculo?: string | null
@@ -33,16 +34,13 @@ export function primeiroCampoVazio(d: {
   // DDD + número: 10 dígitos no fixo, 11 no celular. Telefone pela metade é o
   // mesmo que telefone nenhum na hora de chamar para a rota.
   if (digitos.length < 10) return 'O telefone está incompleto — informe o DDD e o número.'
-  if (!d.cidade.trim()) return 'Informe a cidade.'
+  if (!d.cidade.trim()) return 'Escolha a operação/cidade.'
   if (d.email !== null && d.email !== undefined && !d.email.trim())
     return 'Preencha o e-mail, que será o login.'
   if (d.veiculo !== null && d.veiculo !== undefined && !d.veiculo)
     return 'Escolha o veículo.'
   return ''
 }
-
-/** Recado para cidade que não é município da lista. */
-export const MENSAGEM_CIDADE_INVALIDA = 'Escolha a cidade na lista que aparece enquanto você digita.'
 
 /** Recado para senha curta. */
 export const MENSAGEM_SENHA_CURTA = 'A senha precisa ter pelo menos 6 caracteres.'

@@ -501,7 +501,7 @@ export function DisponibilidadeFrota() {
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{rotuloDia(diaSelecionado)} • Filtrar:</span>
         <Select value={cidade} onChange={(e) => setCidade(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">📍 Todas as cidades</option>
+          <option value="">🏢 Todas as operações/cidades</option>
           {cidades.map((c) => (
             <option key={c}>{c}</option>
           ))}

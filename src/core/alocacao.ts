@@ -346,7 +346,7 @@ export function alocarMotoristasNasRotas(
       let pontos = 0
       if (algumaCidadeBate(cidades, [m.cidade])) {
         pontos += 4
-        motivos.push('🏠 mora na cidade da rota')
+        motivos.push('🏠 opera na cidade da rota')
       }
       // "Prefiro" dito pelo motorista na tela dele pesa alto: é a informação
       // mais direta sobre onde ele rende melhor.

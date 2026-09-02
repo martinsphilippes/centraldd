@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSessao } from '../../context/SessaoContext'
 import { configPendente } from '../../core/firebase-config'
-import { cadastrarPreCadastro, carregarTiposPublicos } from '../../core/firebase'
+import {
+  cadastrarPreCadastro,
+  carregarOperacoesCidadePublicas,
+  carregarTiposPublicos,
+} from '../../core/firebase'
 import { OPERACOES, VEICULOS } from '../../core/constants'
-import { CampoCidade } from '../../components/CampoCidade'
-import { MENSAGEM_CIDADE_INVALIDA, MENSAGEM_SENHA_CURTA, primeiroCampoVazio } from '../../core/cadastro'
+import { MENSAGEM_SENHA_CURTA, primeiroCampoVazio } from '../../core/cadastro'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 import { InstalarBanner } from '../../components/InstalarApp'
 import { MarcaEmpilhada } from '../../components/Marca'
@@ -39,8 +42,10 @@ export function Login() {
   const [funcao, setFuncao] = useState<'motorista' | 'dispatcher'>('motorista')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
+  // OPERAÇÃO/CIDADE em que a pessoa vai operar — da lista que só o dono
+  // mantém. null = ainda carregando; [] = o dono não cadastrou nenhuma.
   const [cidade, setCidade] = useState('')
-  const [cidadeValida, setCidadeValida] = useState(false)
+  const [operacoesCidade, setOperacoesCidade] = useState<string[] | null>(null)
   // Os veículos vêm do que o Dispatcher cadastrou (tela Tipos); os padrões
   // (Utilitário e VUC) só valem enquanto ele não tiver cadastrado a frota.
   const [veiculosOpcoes, setVeiculosOpcoes] = useState<string[]>(VEICULOS)
@@ -52,6 +57,7 @@ export function Login() {
     void carregarTiposPublicos().then(({ veiculos }) => {
       if (veiculos.length > 0) setVeiculosOpcoes(veiculos)
     })
+    void carregarOperacoesCidadePublicas().then(setOperacoesCidade)
   }, [])
 
   const mensagemErro = erro || erroSessao
@@ -85,10 +91,6 @@ export function Login() {
     })
     if (faltando) {
       setErro(faltando)
-      return
-    }
-    if (!cidadeValida) {
-      setErro(MENSAGEM_CIDADE_INVALIDA)
       return
     }
     if (senha.length < 6) {
@@ -230,14 +232,31 @@ export function Login() {
                   placeholder="Ex.: 11 98765-4321"
                 />
               </Field>
-              <Field label="📍 Cidade">
-                <CampoCidade
-                  valor={cidade}
-                  onChange={(c, valida) => {
-                    setCidade(c)
-                    setCidadeValida(valida)
-                  }}
-                />
+              <Field label="🏢 Operação/Cidade">
+                {/* Não é onde a pessoa mora: é a base em que vai operar. A
+                    lista é do dono; sem item cadastrado, o cadastro espera. */}
+                <Select
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  disabled={!operacoesCidade || operacoesCidade.length === 0}
+                >
+                  <option value="">
+                    {operacoesCidade === null
+                      ? 'Carregando…'
+                      : operacoesCidade.length === 0
+                        ? 'Nenhuma operação cadastrada ainda'
+                        : 'Selecione…'}
+                  </option>
+                  {(operacoesCidade ?? []).map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </Select>
+                {operacoesCidade?.length === 0 && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    O dono da operação ainda não cadastrou nenhuma Operação/Cidade. Peça a ele
+                    e volte aqui.
+                  </p>
+                )}
               </Field>
               {funcao === 'motorista' && (
                 <div className="grid grid-cols-2 gap-3">

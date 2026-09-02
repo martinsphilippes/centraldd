@@ -4,13 +4,7 @@ import { getDB, salvarMotorista, uid, useDB } from '../../core/db'
 import { criarContaMotorista, salvarPerfilMotorista } from '../../core/firebase'
 import { OPERACOES } from '../../core/constants'
 import { nomeOficialVeiculo, opcoesDeVeiculo } from '../../core/veiculos'
-import {
-  MENSAGEM_CIDADE_INVALIDA,
-  MENSAGEM_SENHA_CURTA,
-  digitosTelefone,
-  primeiroCampoVazio,
-} from '../../core/cadastro'
-import { CampoCidade } from '../../components/CampoCidade'
+import { MENSAGEM_SENHA_CURTA, digitosTelefone, primeiroCampoVazio } from '../../core/cadastro'
 import { Button, Card, Field, Input, Select } from '../../components/ui'
 
 const ERROS_CONTA: Record<string, string> = {
@@ -21,9 +15,9 @@ const ERROS_CONTA: Record<string, string> = {
 }
 
 // Cadastro feito pelo DISPATCHER. Segue as mesmas regras do pré-cadastro que
-// o motorista faz na tela de login (core/cadastro.ts): cidade da lista do
-// IBGE, operação fixa em Mercado Livre, veículo obrigatório e telefone com
-// DDD. Um cadastro pela metade aqui vira o mesmo problema lá na frente:
+// o motorista faz na tela de login (core/cadastro.ts): Operação/Cidade da
+// lista do dono, operação fixa em Mercado Livre, veículo obrigatório e
+// telefone com DDD. Um cadastro pela metade aqui vira o mesmo problema lá na frente:
 // motorista sem veículo na hora de distribuir, cidade que não bate com nada.
 export function MotoristaForm() {
   const { id } = useParams()
@@ -33,11 +27,15 @@ export function MotoristaForm() {
 
   const [nome, setNome] = useState(existente?.nome ?? '')
   const [telefone, setTelefone] = useState(existente?.telefone ?? '')
+  // OPERAÇÃO/CIDADE em que o motorista opera — da lista que só o dono
+  // mantém. O valor atual entra nas opções mesmo fora da lista, para a
+  // edição de um cadastro antigo não travar.
   const [cidade, setCidade] = useState(existente?.cidade ?? '')
-  // Cadastro antigo com cidade fora da lista aparece com a dica do campo e
-  // não salva até o Dispatcher escolher a certa — é assim que o dado velho
-  // vai sendo corrigido, um cadastro por vez, sem script.
-  const [cidadeValida, setCidadeValida] = useState(false)
+  const operacoesCidade = [
+    ...new Set([...db.operacoesCidade.map((o) => o.nome), existente?.cidade ?? '']),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
   // Começa VAZIO de propósito (como no pré-cadastro): escolher o veículo é
   // obrigatório, e um valor já preenchido faria passar batido no primeiro.
   const [veiculo, setVeiculo] = useState(nomeOficialVeiculo(existente?.veiculo, db))
@@ -58,10 +56,6 @@ export function MotoristaForm() {
     const faltando = primeiroCampoVazio({ nome, telefone, cidade, email: null, veiculo })
     if (faltando) {
       setErro(faltando)
-      return
-    }
-    if (!cidadeValida) {
-      setErro(MENSAGEM_CIDADE_INVALIDA)
       return
     }
     if (criarAcesso && senha.length < 6) {
@@ -122,14 +116,20 @@ export function MotoristaForm() {
               inputMode="tel"
             />
           </Field>
-          <Field label="📍 Cidade (onde mora)">
-            <CampoCidade
-              valor={cidade}
-              onChange={(c, valida) => {
-                setCidade(c)
-                setCidadeValida(valida)
-              }}
-            />
+          <Field label="🏢 Operação/Cidade">
+            <Select value={cidade} onChange={(e) => setCidade(e.target.value)}>
+              <option value="">
+                {operacoesCidade.length === 0 ? 'Nenhuma operação cadastrada ainda' : 'Selecione…'}
+              </option>
+              {operacoesCidade.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </Select>
+            {db.operacoesCidade.length === 0 && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                A lista de Operação/Cidade é mantida pelo dono na tela Cidades.
+              </p>
+            )}
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="📦 Operação">

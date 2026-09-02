@@ -17,6 +17,10 @@ export interface Motorista {
   id: string
   nome: string
   telefone: string
+  /**
+   * OPERAÇÃO/CIDADE em que a pessoa opera — um item da lista que só o dono
+   * mantém (tela Cidades). Não é onde ela mora: isso o app não pergunta.
+   */
   cidade: string
   operacao: string
   veiculo: string
@@ -364,6 +368,17 @@ export interface CidadeOperacao {
 }
 
 /**
+ * OPERAÇÃO/CIDADE: a base em que motoristas e dispatchers operam. É o que o
+ * cadastro pergunta no lugar de "onde você mora". Só o DONO mantém a lista;
+ * a leitura é pública porque o cadastro roda antes do login.
+ */
+export interface OperacaoCidade {
+  id: string
+  nome: string
+  criadaEm: string
+}
+
+/**
  * Sugestão de melhoria escrita por um motorista.
  *
  * Canal de mão única de propósito: quem escreve é o motorista, quem lê é o
@@ -402,6 +417,7 @@ export interface DB {
   resumos: ResumoDia[]
   config: ParametrosAlocacao[]
   cidades: CidadeOperacao[]
+  operacoesCidade: OperacaoCidade[]
   tipos: TipoOperacional[]
   perfis: Perfil[]
   modelos: ModeloAprendido[]

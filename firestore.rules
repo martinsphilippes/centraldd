@@ -144,6 +144,14 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
+    // OPERAÇÃO/CIDADE: a base em que a pessoa opera, perguntada no cadastro
+    // (antes do login, por isso leitura pública). Só o DONO mantém a lista —
+    // dispatcher comum não cria nem apaga operação.
+    match /operacoesCidade/{id} {
+      allow read: if true;
+      allow write: if ehDono();
+    }
+
     // Sugestões de melhoria: o MOTORISTA escreve, o Dispatcher lê.
     // A leitura NÃO é liberada para motorista — nem a própria: a tela dele só
     // envia. Gente não escreve o que pensa sabendo que o colega pode ler.

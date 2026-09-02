@@ -22,6 +22,7 @@ import type {
   SugestaoMelhoria,
   Chamada,
   CidadeOperacao,
+  OperacaoCidade,
   TipoOperacional,
   DiaDisponibilidade,
   Planejamento,
@@ -47,6 +48,7 @@ const VAZIO: DB = {
   resumos: [],
   config: [],
   cidades: [],
+  operacoesCidade: [],
   tipos: [],
   perfis: [],
   modelos: [],
@@ -106,6 +108,7 @@ export function iniciarSincronizacao(ehDispatcher: boolean) {
     'resumos',
     'config',
     'cidades',
+    'operacoesCidade',
     'tipos',
     'perfis',
     'modelos',
@@ -565,6 +568,32 @@ export function removerTipoOperacional(id: string) {
 
 export function removerCidadeOperacao(id: string) {
   void deleteDoc(doc(firestore, 'cidades', id))
+}
+
+/** Id estável a partir do nome: sem acento, maiúsculo, hífen no lugar do resto. */
+function idDeNome(nome: string): string {
+  return nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+/**
+ * OPERAÇÃO/CIDADE — só o dono grava (as regras do Firestore recusam os
+ * demais). O nome vem do campo do IBGE, então já chega na grafia oficial.
+ */
+export function salvarOperacaoCidade(nome: string) {
+  const limpo = nome.trim()
+  if (!limpo) return
+  const id = idDeNome(limpo)
+  const item: OperacaoCidade = { id, nome: limpo, criadaEm: new Date().toISOString() }
+  return setDoc(doc(firestore, 'operacoesCidade', id), item)
+}
+
+export function removerOperacaoCidade(id: string) {
+  return deleteDoc(doc(firestore, 'operacoesCidade', id))
 }
 
 

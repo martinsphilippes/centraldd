@@ -172,6 +172,26 @@ export async function carregarCidadesOperacaoPublicas(): Promise<string[]> {
   }
 }
 
+/**
+ * Lê as OPERAÇÕES/CIDADES antes do login — é a lista que o cadastro oferece
+ * no lugar de "onde você mora". Leitura pública nas regras; falha devolve
+ * lista vazia, e a tela explica que ainda não há operação cadastrada.
+ */
+export async function carregarOperacoesCidadePublicas(): Promise<string[]> {
+  try {
+    const { getDocs, collection } = await import('firebase/firestore')
+    const snap = await getDocs(collection(firestore, 'operacoesCidade'))
+    const nomes: string[] = []
+    snap.forEach((d) => {
+      const nome = (d.data() as { nome?: string }).nome
+      if (nome) nomes.push(nome)
+    })
+    return nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  } catch {
+    return []
+  }
+}
+
 export async function cadastrarPreCadastro(dados: DadosPreCadastro): Promise<void> {
   const secundario = initializeApp(firebaseConfig, `pre-cadastro-${Date.now()}`)
   try {
