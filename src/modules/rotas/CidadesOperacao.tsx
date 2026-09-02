@@ -166,14 +166,8 @@ export function CidadesOperacao() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void acrescentarPar()
               }}
-              list="operacoes-conhecidas"
+              autoComplete="off"
             />
-            {/* Operações já usadas em outras cidades, para repetir a grafia. */}
-            <datalist id="operacoes-conhecidas">
-              {[...new Set(pares.map((p) => p.operacao))].sort().map((o) => (
-                <option key={o} value={o} />
-              ))}
-            </datalist>
             <Button
               variante="marca"
               onClick={() => void acrescentarPar()}
