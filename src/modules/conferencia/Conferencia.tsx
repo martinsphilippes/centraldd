@@ -123,7 +123,11 @@ export function Conferencia() {
     })
 
   const abrir = () => {
-    setMotoristaId(motoristas[0]?.id ?? '')
+    // Começa SEM motorista: quem escolhe é o documento, pelo código da rota.
+    // Um nome pré-selecionado aqui fazia a caixa aparecer verde com o
+    // primeiro da lista quando o vínculo falhava — e a carga ia para a
+    // pessoa errada sem aviso.
+    setMotoristaId('')
     setData(hojeISO())
     setTitulo('')
     setRotaId('')
@@ -162,6 +166,10 @@ export function Conferencia() {
    */
   const aplicarRotaMeli = (rota: RotaMeliLida | undefined) => {
     setRotaMeli(rota ?? null)
+    // Cada leitura recomeça do zero: o vínculo do arquivo anterior não pode
+    // sobrar para um arquivo novo que não trouxe código.
+    setMotoristaId('')
+    setRotaId('')
     if (!rota) return
     if (rota.rota) setTitulo((t) => t.trim() || `Rota ${rota.rota}`)
     const achada = acharRotaPeloCodigo(rota.rota)
