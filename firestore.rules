@@ -170,9 +170,10 @@ service cloud.firestore {
 
     // Regra geral (vale para limites e QUALQUER coleção nova):
     // todo usuário logado lê; apenas o dispatcher escreve.
-    // ATENÇÃO: 'perfis' fica de fora da ESCRITA — é ela que define quem é
-    // dispatcher, e liberar aqui anularia a regra específica (só o dono
-    // promove). 'sugestoes' fica de fora da LEITURA: as regras se somam, então
+    // ATENÇÃO: 'perfis' e 'operacoesCidade' ficam de fora da ESCRITA — uma
+    // define quem é dispatcher, a outra é a lista que só o dono mantém, e
+    // liberar aqui anularia a regra específica de cada uma (só o dono).
+    // 'sugestoes' fica de fora da LEITURA: as regras se somam, então
     // sem esta exceção o `read: if logado()` daqui anularia o sigilo da regra
     // específica e todo motorista leria a sugestão de todo mundo.
     // Coleções com escrita do motorista (respostas, disponibilidade, rotas,
@@ -180,7 +181,7 @@ service cloud.firestore {
     // têm as permissões extras específicas definidas acima.
     match /{colecao}/{id} {
       allow read: if logado() && colecao != 'sugestoes';
-      allow write: if ehDispatcher() && colecao != 'perfis';
+      allow write: if ehDispatcher() && colecao != 'perfis' && colecao != 'operacoesCidade';
     }
   }
 }
