@@ -25,6 +25,7 @@ type CampoOrdem =
   | 'doca'
 import { exportarCSV, exportarExcel, exportarPDF, type Tabela } from '../../core/export'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select } from '../../components/ui'
+import { NovidadesPlanilha } from '../../components/NovidadesPlanilha'
 
 
 export function Rotas() {
@@ -432,6 +433,9 @@ export function Rotas() {
           ))}
         </Select>
       </div>
+
+      {/* O que as rotas do dia trouxeram e o cadastro da operação não tem. */}
+      <NovidadesPlanilha linhas={rotasDoDia} />
 
       {/* A roteirização é POR DIA: importada num dia, vale só nele. */}
       <div className="flex flex-wrap items-center gap-2">

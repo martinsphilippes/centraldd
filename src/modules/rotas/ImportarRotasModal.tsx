@@ -15,6 +15,7 @@ import {
 import { xlsxAbaEscolhida } from '../../core/xlsx'
 import { formatarData } from '../../core/dates'
 import { Button, Modal } from '../../components/ui'
+import { NovidadesPlanilha } from '../../components/NovidadesPlanilha'
 
 /**
  * A aba das rotas na planilha do Meli. O arquivo vem com sete abas, e a maior
@@ -364,6 +365,13 @@ export function ImportarRotasModal({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {rotasFinais.length > 0 && (
+        <div className="mt-2">
+          {/* Cidade e veículo novos são resolvidos AQUI, antes de importar —
+              depois, na tela de Rotas, o mesmo aviso cobre o que passou. */}
+          <NovidadesPlanilha linhas={rotasFinais} />
         </div>
       )}
       {previa && previa.avisos.length > 0 && (
