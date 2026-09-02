@@ -1,4 +1,5 @@
 import { useSessao } from '../../context/SessaoContext'
+import { pedeDispatcher } from '../../core/papel'
 import { Button, Card } from '../../components/ui'
 
 /**
@@ -18,7 +19,7 @@ export function AguardandoAprovacao({
   semCadastro?: boolean
 }) {
   const { sair, usuarioEmail } = useSessao()
-  const ehDispatcher = funcao === 'dispatcher'
+  const ehDispatcher = pedeDispatcher(funcao)
   const primeiroNome = nome.trim() ? nome.trim().split(' ')[0] : ''
 
   if (semCadastro) {
@@ -66,12 +67,22 @@ export function AguardandoAprovacao({
         <h1 className="mt-3 text-xl font-bold text-slate-900">
           Cadastro enviado{primeiroNome && `, ${primeiroNome}`}!
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Seu cadastro {ehDispatcher && <strong>de dispatcher </strong>}está{' '}
-          <strong>aguardando a aprovação do Dispatcher</strong>. Assim que for aprovado, esta tela
-          libera automaticamente o seu acesso{ehDispatcher && <> ao <strong>painel completo do dispatcher</strong></>} —
-          não precisa criar conta de novo.
-        </p>
+        {ehDispatcher ? (
+          // Quem aprova dispatcher é o DONO, não um dispatcher qualquer — a
+          // tela diz isso para a pessoa cobrar a pessoa certa.
+          <p className="mt-2 text-sm text-slate-600">
+            Seu cadastro de <strong>Dispatcher</strong> está{' '}
+            <strong>aguardando a aprovação do Dono da Operação</strong>. Assim que for aprovado,
+            esta tela libera automaticamente o seu acesso ao{' '}
+            <strong>painel completo do Dispatcher</strong>. Não precisa criar conta de novo.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">
+            Seu cadastro está <strong>aguardando a aprovação do Dispatcher</strong>. Assim que for
+            aprovado, esta tela libera automaticamente o seu acesso. Não precisa criar conta de
+            novo.
+          </p>
+        )}
         <p className="mt-3 rounded-lg border border-orange-300 bg-marca-suave p-3 text-xs text-slate-600">
           💡 Dica: avise o Dispatcher pelo WhatsApp que você concluiu o cadastro,
           para acelerar a liberação.
