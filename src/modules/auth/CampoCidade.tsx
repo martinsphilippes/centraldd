@@ -4,29 +4,42 @@
 // relatório. "Guarulhos", "guarulhos " e "Guarulos" viravam três cidades
 // diferentes no banco, e ninguém percebia até o relatório sair errado.
 //
-// O que fica GRAVADO é só o nome ("Guarulhos"), sem a UF — é assim que o resto
-// do app compara cidade de motorista com cidade de rota. A UF aparece só na
-// lista, para separar as cidades homônimas (existem 5 "Bom Jesus" no Brasil).
+// O que fica GRAVADO é só o nome oficial ("Guarulhos"), sem a UF — é assim que
+// o resto do app compara cidade de motorista com cidade de rota. A UF aparece
+// só na lista, para separar as cidades homônimas (existem 5 "Bom Jesus" no
+// Brasil). E é o nome OFICIAL mesmo quando a pessoa digita "guarulhos" por
+// inteiro em vez de clicar na lista — o campo troca pela grafia da lista.
+//
+// A ordem das sugestões está em core/sugestao-cidade.ts: cidades da operação
+// primeiro, depois quem começa com o texto, nome mais curto na frente.
 
 import { useEffect, useRef, useState } from 'react'
-import { normalizarTexto } from '../../core/texto'
 import type { CidadeBR } from '../../core/cidades-brasil'
+import {
+  ehCidadeDaOperacao,
+  nomeOficialCidade,
+  sugerirCidades,
+} from '../../core/sugestao-cidade'
+import { carregarCidadesOperacaoPublicas } from '../../core/firebase'
 import { Input } from '../../components/ui'
-
-/** Quantas sugestões mostrar — o suficiente para achar sem virar rolagem. */
-const MAXIMO = 8
 
 export function CampoCidade({
   valor,
   onChange,
 }: {
   valor: string
-  /** Devolve o texto e se ele é um município de verdade — quem chama decide o que fazer. */
+  /**
+   * Devolve o texto (já na grafia oficial quando é um município) e se ele é
+   * um município de verdade — quem chama decide o que fazer.
+   */
   onChange: (cidade: string, valida: boolean) => void
 }) {
   // A lista dos 5.570 municípios só é carregada quando o cadastro abre — não
   // pesa no app de quem só vai fazer login.
   const [cidades, setCidades] = useState<CidadeBR[]>([])
+  // Cidades que a operação atende: vão para o topo da lista. Sem rede (ou
+  // sem a regra pública publicada), fica vazio e a ordem é a geral.
+  const [cidadesOperacao, setCidadesOperacao] = useState<string[]>([])
   const [aberto, setAberto] = useState(false)
   const caixa = useRef<HTMLDivElement>(null)
 
@@ -38,7 +51,13 @@ export function CampoCidade({
       setCidades(lista)
       // A lista chegou depois de alguém já ter digitado: reavalia agora, senão
       // o cadastro seguiria com uma cidade nunca conferida.
-      if (valor.trim() !== '') onChange(valor, cidadeExiste(valor, lista))
+      if (valor.trim() !== '') {
+        const oficial = nomeOficialCidade(valor, lista)
+        onChange(oficial ?? valor, oficial !== null)
+      }
+    })
+    void carregarCidadesOperacaoPublicas().then((nomes) => {
+      if (vivo) setCidadesOperacao(nomes)
     })
     return () => {
       vivo = false
@@ -54,30 +73,33 @@ export function CampoCidade({
     return () => document.removeEventListener('mousedown', aoClicar)
   }, [])
 
-  const busca = normalizarTexto(valor)
-  // Quem começa com o que foi digitado vem primeiro; depois quem só contém.
-  // Digitar "campinas" tem que mostrar Campinas antes de "Campinas do Sul".
-  const sugestoes = busca
-    ? [
-        ...cidades.filter((c) => normalizarTexto(c.nome).startsWith(busca)),
-        ...cidades.filter(
-          (c) =>
-            !normalizarTexto(c.nome).startsWith(busca) && normalizarTexto(c.nome).includes(busca),
-        ),
-      ].slice(0, MAXIMO)
-    : []
-
+  const sugestoes = sugerirCidades(valor, cidades, cidadesOperacao)
   const exata = cidadeExiste(valor, cidades)
+
+  const aoDigitar = (texto: string) => {
+    const oficial = nomeOficialCidade(texto, cidades)
+    // Troca pela grafia oficial só quando não há espaço no fim: "Campinas "
+    // é alguém a caminho de "Campinas do Sul", e trocar agora engoliria o
+    // espaço. Quem parar aí é acertado ao sair do campo (aoSair).
+    const trocar = oficial !== null && texto === texto.trimEnd()
+    // Lista ainda não carregou: aceita o que foi digitado (ver cidadeExiste).
+    onChange(trocar ? oficial : texto, oficial !== null || cidadeExiste(texto, cidades))
+    setAberto(true)
+  }
+
+  /** Ao sair do campo, o que bate com um município fica na grafia oficial. */
+  const aoSair = () => {
+    const oficial = nomeOficialCidade(valor, cidades)
+    if (oficial !== null && oficial !== valor) onChange(oficial, true)
+  }
 
   return (
     <div ref={caixa} className="relative">
       <Input
         value={valor}
-        onChange={(e) => {
-          onChange(e.target.value, cidadeExiste(e.target.value, cidades))
-          setAberto(true)
-        }}
+        onChange={(e) => aoDigitar(e.target.value)}
         onFocus={() => setAberto(true)}
+        onBlur={aoSair}
         autoComplete="off"
         placeholder="Ex.: Guarulhos"
         aria-label="Cidade"
@@ -96,6 +118,11 @@ export function CampoCidade({
               >
                 <span className="font-medium text-slate-800">{c.nome}</span>
                 <span className="text-xs text-slate-500">{c.uf}</span>
+                {ehCidadeDaOperacao(c.nome, cidadesOperacao) && (
+                  <span className="ml-auto rounded-full bg-marca-suave px-1.5 text-[10px] font-semibold text-marca-texto">
+                    operação
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -118,8 +145,7 @@ export function CampoCidade({
  * cadastro de quem está com a internet ruim.
  */
 export function cidadeExiste(valor: string, cidades: CidadeBR[]): boolean {
-  const alvo = normalizarTexto(valor)
-  if (!alvo) return false
+  if (!valor.trim()) return false
   if (cidades.length === 0) return true
-  return cidades.some((c) => normalizarTexto(c.nome) === alvo)
+  return nomeOficialCidade(valor, cidades) !== null
 }

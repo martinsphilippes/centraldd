@@ -136,6 +136,14 @@ service cloud.firestore {
       allow write: if ehDispatcher();
     }
 
+    // Cidades da operação: leitura PÚBLICA pelo mesmo motivo de 'tipos' — o
+    // campo de cidade do cadastro (antes do login) põe as cidades da
+    // operação no topo da sugestão. Só o dispatcher escreve.
+    match /cidades/{id} {
+      allow read: if true;
+      allow write: if ehDispatcher();
+    }
+
     // Sugestões de melhoria: o MOTORISTA escreve, o Dispatcher lê.
     // A leitura NÃO é liberada para motorista — nem a própria: a tela dele só
     // envia. Gente não escreve o que pensa sabendo que o colega pode ler.
@@ -152,7 +160,7 @@ service cloud.firestore {
       allow delete: if ehDispatcher();
     }
 
-    // Regra geral (vale para limites, cidades e QUALQUER coleção nova):
+    // Regra geral (vale para limites e QUALQUER coleção nova):
     // todo usuário logado lê; apenas o dispatcher escreve.
     // ATENÇÃO: 'perfis' fica de fora da ESCRITA — é ela que define quem é
     // dispatcher, e liberar aqui anularia a regra específica (só o dono

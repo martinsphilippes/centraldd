@@ -43,7 +43,7 @@ const POR_UF: Record<string, string> = {
 export interface CidadeBR {
   nome: string
   uf: string
-  /** 'Guarulhos - SP' — o que aparece na lista e fica gravado no cadastro. */
+  /** 'Guarulhos - SP' — para exibição. No cadastro fica gravado só o `nome`. */
   rotulo: string
 }
 

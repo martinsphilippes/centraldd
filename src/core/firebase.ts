@@ -151,6 +151,27 @@ export async function carregarTiposPublicos(): Promise<{ veiculos: string[]; ope
   }
 }
 
+/**
+ * Lê as cidades da operação ANTES do login — o campo de cidade do cadastro
+ * põe as da operação no topo da sugestão. A coleção 'cidades' é de leitura
+ * pública nas regras (como 'tipos'); qualquer falha devolve lista vazia e a
+ * ordem cai para a geral. Não trava o cadastro em hipótese nenhuma.
+ */
+export async function carregarCidadesOperacaoPublicas(): Promise<string[]> {
+  try {
+    const { getDocs, collection } = await import('firebase/firestore')
+    const snap = await getDocs(collection(firestore, 'cidades'))
+    const nomes: string[] = []
+    snap.forEach((d) => {
+      const nome = (d.data() as { nome?: string }).nome
+      if (nome) nomes.push(nome)
+    })
+    return nomes
+  } catch {
+    return []
+  }
+}
+
 export async function cadastrarPreCadastro(dados: DadosPreCadastro): Promise<void> {
   const secundario = initializeApp(firebaseConfig, `pre-cadastro-${Date.now()}`)
   try {
