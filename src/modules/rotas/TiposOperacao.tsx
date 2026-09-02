@@ -1,10 +1,11 @@
 // Tela do DISPATCHER: as opções que aparecem nos cadastros.
-// O que estiver aqui é o que a pessoa vê ao se cadastrar (veículo e operação)
-// e o que o dispatcher escolhe ao cadastrar um motorista.
+// O que estiver aqui é o que a pessoa vê ao se cadastrar (veículo) e o que o
+// dispatcher escolhe ao cadastrar um motorista. A operação NÃO fica aqui: ela
+// vem do par Cidade/Operação que o dono mantém na tela Cidades.
 
 import { useState } from 'react'
 import { removerTipoOperacional, salvarTipoOperacional, useDB } from '../../core/db'
-import { OPERACOES, VEICULOS } from '../../core/constants'
+import { VEICULOS } from '../../core/constants'
 import { normalizarTexto } from '../../core/texto'
 import { Badge, Button, Card, Input } from '../../components/ui'
 
@@ -23,13 +24,6 @@ const SECOES: Secao[] = [
     descricao: 'Aparecem na pergunta “qual o seu veículo?” do cadastro.',
     exemplo: 'Ex.: Fiorino, Van, HR, Moto…',
     padroes: VEICULOS,
-  },
-  {
-    categoria: 'operacao',
-    titulo: '📦 Operações',
-    descricao: 'Aparecem na pergunta “qual operação?” do cadastro e nas chamadas.',
-    exemplo: 'Ex.: 📦 Mercado Livre, 📬 Coletas…',
-    padroes: OPERACOES,
   },
 ]
 
@@ -59,8 +53,9 @@ export function TiposOperacao() {
       <div>
         <h1 className="text-xl font-bold text-slate-900">🏷️ Opções de cadastro</h1>
         <p className="text-sm text-slate-500">
-          Defina os <strong>veículos</strong> e as <strong>operações</strong> que existem aqui. É
-          exatamente isso que a pessoa vê nas listas ao se cadastrar no app.
+          Defina os <strong>veículos</strong> que existem aqui. É exatamente isso que a pessoa vê
+          na lista ao se cadastrar no app. A operação é escolhida pela Cidade/Operação, na tela
+          Cidades.
         </p>
       </div>
 
