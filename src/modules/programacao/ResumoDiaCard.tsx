@@ -24,7 +24,7 @@ function novoResumo(data: string, base: string): ResumoDia {
     base: base || 'BASE - CIDADE',
     veiculosDiv: '',
     amAutomatico: true,
-    transportadoras: [{ nome: 'RODACOOP', utilitarios: '', vuc: '' }],
+    transportadoras: [{ nome: '', utilitarios: '', vuc: '' }],
     atualizadoEm: '',
   }
 }

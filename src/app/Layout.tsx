@@ -86,9 +86,6 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="truncate text-[9px] font-medium uppercase leading-tight tracking-[0.15em] text-slate-300">
               Dispatcher &amp; Driver
             </div>
-            <div className="truncate text-[10px] leading-tight text-slate-400">
-              a serviço da <span className="font-bold text-marca">Rodacoop</span> 📦
-            </div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -153,7 +150,6 @@ export function Layout({ children }: { children: ReactNode }) {
               <div className="truncate text-sm font-extrabold tracking-tight text-navy">
                 Central <span className="text-marca-texto">DD</span>
               </div>
-              <div className="truncate text-[10px] text-slate-500">a serviço da Rodacoop 📦</div>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">

@@ -25,7 +25,7 @@ export function SimboloMarca({ className = '' }: { className?: string }) {
   return <img src="/icons/simbolo-escuro-v4.png" alt="" className={`object-contain ${className}`} />
 }
 
-/** O letreiro: Central DD / Dispatcher & Driver / a serviço da Rodacoop. */
+/** O letreiro: Central DD / Dispatcher & Driver. */
 export function LetreiroMarca({ tamanho = 'grande' }: { tamanho?: 'grande' | 'medio' }) {
   const grande = tamanho === 'grande'
   return (
@@ -47,13 +47,6 @@ export function LetreiroMarca({ tamanho = 'grande' }: { tamanho?: 'grande' | 'me
         }`}
       >
         Dispatcher &amp; Driver
-      </p>
-      <p
-        className={`mt-2 uppercase text-slate-400 ${
-          grande ? 'text-[10px] tracking-[0.2em]' : 'text-[9px] tracking-[0.15em]'
-        }`}
-      >
-        a serviço da <span className="font-bold text-marca">Rodacoop</span> 📦
       </p>
     </div>
   )

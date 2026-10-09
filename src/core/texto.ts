@@ -56,7 +56,7 @@ function distancia(a: string, b: string): number {
 }
 
 /**
- * Mesmo nome apesar do ruído do OCR ("ORODAÇEEP" ≈ "RODACOOP")? Compara sem
+ * Mesmo nome apesar do ruído do OCR ("ITUIUTA8A" ≈ "ITUIUTABA")? Compara sem
  * acento/pontuação e tolera até ~30% de letras trocadas.
  */
 export function parecidoCom(a: string, b: string): boolean {

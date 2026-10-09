@@ -442,7 +442,7 @@ const ROTULO_COLUNA: Record<(typeof COLUNAS)[number], string> = {
  * Devolve a tabela no formato normal, ou null quando o texto não é vertical.
  */
 function verticalParaTabela(texto: string, ctx: ContextoLeitura): string | null {
-  // Copiar de tela deixa lixo de pontuação grudado ("D4_AM1 (", "(RodaCoop").
+  // Copiar de tela deixa lixo de pontuação grudado ("D4_AM1 (", "(Envios Extra").
   // Limpar as bordas é o que faz esses códigos voltarem a ser reconhecíveis.
   // Parêntese solto no FIM também é lixo ("D4_AM1 (") — o lado não importa.
   const LIXO = /^[()[\]|«»"'\s]+|[()[\]|«»"'\s]+$/g
